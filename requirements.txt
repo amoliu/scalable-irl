@@ -1,0 +1,7 @@
+numpy
+Cython
+networkx
+matplotlib
+nose
+six
+coverage
