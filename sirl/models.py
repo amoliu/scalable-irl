@@ -45,9 +45,9 @@ class GraphMDP(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, discount, reward, controller):
-        self.discount = discount
-        self.reward = reward
-        self.controller = controller
+        self._gamma = discount
+        self._reward = reward
+        self._controller = controller
 
         # setup the graph structure
         self._g = StateGraph()

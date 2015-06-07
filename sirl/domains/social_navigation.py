@@ -1,5 +1,6 @@
 
 from __future__ import division
+from collections import namedtuple
 
 import numpy as np
 
@@ -12,7 +13,19 @@ from ..models import GraphMDP
 
 
 class SocialNavLocalController(LocalController):
-    """ Social navigation local controller in 2D space """
+    """ Social Navigation linear local controller
+
+    Social navigation task linear local controller, which connects states
+    using straight lines as actions (options, here considered deterministic).
+    The action is thus fully represented by a single float for the angle of
+    the line.
+
+    Parameters
+    -----------
+    kind : string
+        LocalController controller type for book-keeping
+
+    """
     def __init__(self, kind='linear'):
         super(SocialNavLocalController, self).__init__(kind)
 
@@ -25,8 +38,8 @@ class SocialNavLocalController(LocalController):
 
         Parameters
         -----------
-        state : array like, shape = [1 x 2]
-            2D pose of the start state
+        state : array of shape (2)
+            Positional data of the state (assuming 0:2 are coordinates)
         action : float
             Angle representing the action taken
         duration : float
@@ -34,7 +47,7 @@ class SocialNavLocalController(LocalController):
 
         Returns
         --------
-        new_state : 2D array
+        new_state : array of shape (2)
             New state reached by the controller
         """
         nx = state[0] + np.cos(action) * duration
@@ -58,8 +71,42 @@ class SocialNavReward(MDPReward):
 ########################################################################
 
 
+WorldConfig = namedtuple('WorldConfig', ['x', 'y', 'w', 'h'])
+
+
 class SocialNavMDP(GraphMDP):
-    """docstring for SocialNavMDP"""
-    def __init__(self, arg):
-        super(SocialNavMDP, self).__init__()
-        self.arg = arg
+    """ Social Navigation Adaptive State-Graph (SocialNavMDP)
+
+    Social navigation task MDP represented by an adaptive state graph
+
+    Parameters
+    ------------
+    discount : float
+        MDP discount factor
+    reward : ``SocialNavReward`` object
+        Reward function for social navigation task
+    controller : ``SocialNavLocalController`` object
+        Local controller for the task
+    world_config : ``WorldConfig`` object
+        Configuration of the navigation task world
+
+    Attributes
+    -----------
+    _wconfig : ``WorldConfig``
+        Configuration of the navigation task world
+
+    """
+    def __init__(self, discount, reward, controller, world_config):
+        super(SocialNavMDP, self).__init__(discount, reward, controller)
+        self._wconfig = world_config
+
+        # setup
+        init_samples = ((0, 0), (5, 5))
+        self.initialize_state_graph(init_samples)
+
+    def initialize_state_graph(self, init_samples):
+        """ Initialize graph using set of initial samples """
+        pass
+
+    def visualize(self):
+        pass

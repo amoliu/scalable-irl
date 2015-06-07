@@ -148,7 +148,7 @@ def normalize_vector(vector):
 
 
 def angle_between(v1, v2):
-    r""" Returns the angle in radians between vectors 'v1' and 'v2'
+    """ Returns the angle in radians between vectors 'v1' and 'v2'
 
     Example
     ------------
@@ -173,4 +173,3 @@ def angle_between(v1, v2):
         else:
             return np.pi
     return np.arccos(dp)
-
