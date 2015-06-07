@@ -40,6 +40,6 @@ def test_edist():
     assert_equal(10, edist((2, 2), (12, 2)))
 
 
-if __name__ == '__main__':
-    import nose
-    nose.runmodule()
+# if __name__ == '__main__':
+#     import nose
+#     nose.runmodule()

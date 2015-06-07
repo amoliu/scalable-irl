@@ -2,7 +2,6 @@
 from __future__ import division
 from abc import abstractmethod, ABCMeta
 
-import numpy as np
 
 from .state_graph import StateGraph
 
