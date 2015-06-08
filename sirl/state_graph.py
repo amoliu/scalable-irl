@@ -13,7 +13,7 @@ class StateGraph(object):
     _edge_attrs = ('source', 'target', 'duration', 'reward')
 
     def __init__(self):
-        self._g = nx.Graph()
+        self._g = nx.DiGraph()
         self._node_ids = set()  # keep track of node ids
 
     def add_node(self, nid, data, cost, priority, Q, V, pi, ntype):

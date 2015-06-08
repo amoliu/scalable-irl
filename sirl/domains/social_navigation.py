@@ -25,9 +25,15 @@ class SocialNavLocalController(LocalController):
     kind : string
         LocalController controller type for book-keeping
 
+     Attributes
+    -----------
+    _wconfig : ``WorldConfig``
+        Configuration of the navigation task world
+
     """
-    def __init__(self, kind='linear'):
+    def __init__(self, world_config, kind='linear'):
         super(SocialNavLocalController, self).__init__(kind)
+        self._wconfig = world_config
 
     def __call__(self, state, action, duration):
         """ Run a local controller from a state
@@ -49,10 +55,20 @@ class SocialNavLocalController(LocalController):
         --------
         new_state : array of shape (2)
             New state reached by the controller
+
+        Note
+        ----
+        If the local controller ends up beyond the limits of the world config,
+        then the current state is returned to avoid sampling `outside'.
         """
         nx = state[0] + np.cos(action) * duration
         ny = state[1] + np.sin(action) * duration
-        return (nx, ny)
+
+        if self._wconfig.x < nx < self._wconfig.w and\
+                self._wconfig.y < ny < self._wconfig.h:
+            return (nx, ny)
+        return state
+
 
 ########################################################################
 
@@ -65,7 +81,7 @@ class SocialNavReward(MDPReward):
         self._relations = relations
         self._resolution = resolution
 
-    def __call__(self, state, action):
+    def __call__(self, state_a, state_b):
         return 0.0
 
 ########################################################################
@@ -87,8 +103,11 @@ class SocialNavMDP(GraphMDP):
         Reward function for social navigation task
     controller : ``SocialNavLocalController`` object
         Local controller for the task
+    params : ``AlgoParams`` object
+        Algorithm parameters for the various steps
     world_config : ``WorldConfig`` object
         Configuration of the navigation task world
+
 
     Attributes
     -----------
@@ -96,8 +115,9 @@ class SocialNavMDP(GraphMDP):
         Configuration of the navigation task world
 
     """
-    def __init__(self, discount, reward, controller, world_config):
-        super(SocialNavMDP, self).__init__(discount, reward, controller)
+    def __init__(self, discount, reward, controller, params, world_config):
+        super(SocialNavMDP, self).__init__(discount, reward,
+                                           controller, params)
         self._wconfig = world_config
 
         # setup
