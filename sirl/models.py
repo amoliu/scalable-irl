@@ -226,9 +226,23 @@ class GraphMDP(object):
                 start = next_node
             self._best_trajs.append(bt)
 
-    def _improve_state(self, node_id):
+    def _improve_state(self, state):
         """ Improve a state's utility by adding connections """
-        pass
+        range_neighbors =\
+            self._g.find_neighbors_range(state, distance=self._params.beta)
+
+        for n in range_neighbors:
+            if n != state:
+                if not self._g.edge_exists(state, n):
+                    xs = self._g.gna(state, 'data')
+                    xn = self._g.gna(n, 'data')
+                    d = edist(xs, xn)
+                    reward = self._reward(xs, xn)
+                    self._g.add_edge(state, n, d, reward=reward)
+
+                    if not self._g.edge_exists(n, state):
+                        reward_back = self._reward(xn, xs)
+                        self._g.add_edge(state, n, d, reward=reward_back)
 
     def _prune_graph(self):
         pass
