@@ -9,7 +9,7 @@ from math import sqrt
 class StateGraph(object):
     """ State Graph """
 
-    _node_attrs = ('id', 'data', 'cost', 'priority', 'Q', 'V', 'pi', 'type')
+    _node_attrs = ('data', 'cost', 'priority', 'Q', 'V', 'pi', 'type')
     _edge_attrs = ('source', 'target', 'duration', 'reward')
 
     def __init__(self):
@@ -37,8 +37,9 @@ class StateGraph(object):
         elif not self.G.has_edge(source, target):
             self.G.add_edge(source, target, duration=duration, reward=reward)
         else:
-            warnings.warn('Edge ({}--{}) already exists in the graph'
-                          .format(source, target))
+            pass
+            # warnings.warn('Edge ({}--{}) already exists in the graph'
+            #               .format(source, target))
 
     def remove_edge(self, source, target):
         """ Remove an edge from the graph """

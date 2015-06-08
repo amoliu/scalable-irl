@@ -1,7 +1,6 @@
 
 from __future__ import division
 from abc import abstractmethod, ABCMeta
-from collections import namedtuple
 
 import numpy as np
 
@@ -96,7 +95,7 @@ class GraphMDP(object):
         self._node_id = 0
 
     @abstractmethod
-    def initialize_state_graph(self, init_samples):
+    def initialize_state_graph(self, samples):
         """ Initialize graph using set of initial samples """
         raise NotImplementedError('Abstract method')
 
@@ -157,23 +156,22 @@ class GraphMDP(object):
         iteration = len(self._g.nodes)
         duration = _sample_control_time(iteration, self._params.max_samples)
         action = np.random.uniform(0.0, 1.0)
-        new_state = self.transition(gna(state, 'data'), action, duration*0.1)
+        new_state = self._controller(gna(state, 'data'), action, duration*0.1)
 
         reward = self._reward(gna(state, 'data'), new_state)
         reward_back = self._reward(new_state, gna(state, 'data'))
 
         # add new state to graph
-        nid = self.node_id + 1
+        nid = self._node_id
         self._g.add_node(nid=nid, data=new_state,
                          cost=gna(state, 'cost')+reward,
-                         pol=0, priority=1, Q=[0], V=10, ntype='simple')
+                         pi=0, priority=1, Q=[0], V=10, ntype='simple')
 
         # add connecting edges/actions (towards and back)
-        self._g.add_edge(source=gna(state, 'id'), target=nid,
-                         reward=reward, duration=duration)
-        self._g.add_edge(source=nid, target=gna(state, 'id'),
-                         reward=reward_back, duration=duration)
+        self._g.add_edge(state, nid, reward, duration)
+        self._g.add_edge(self._node_id, state, reward_back, duration)
 
+        self._node_id += 1
         return nid
 
     def _update_state_costs(self):
@@ -227,8 +225,8 @@ class AlgoParams(object):
         self.p_best = 0.4
         self.max_samples = 100
         self.max_edges = 9
-        self.start_states = ((0.5, 0.5))
-        self.goal_state = (5, 5)
+        self.start_states = [(1, 1)]
+        self.goal_state = (5, 8)
         self.init_type = 'random'
 
     def load_from_json(self, json_file):

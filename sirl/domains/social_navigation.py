@@ -88,6 +88,7 @@ class SocialNavReward(MDPReward):
 
 
 WorldConfig = namedtuple('WorldConfig', ['x', 'y', 'w', 'h'])
+COST_LIMIT = 1000
 
 
 class SocialNavMDP(GraphMDP):
@@ -118,15 +119,37 @@ class SocialNavMDP(GraphMDP):
     def __init__(self, discount, reward, controller, params, world_config):
         super(SocialNavMDP, self).__init__(discount, reward,
                                            controller, params)
+        assert isinstance(world_config, WorldConfig),\
+            'Expects a ``WorldConfig`` object'
         self._wconfig = world_config
 
-        # setup
-        init_samples = ((0, 0), (5, 5))
-        self.initialize_state_graph(init_samples)
-
-    def initialize_state_graph(self, init_samples):
+    def initialize_state_graph(self, samples):
         """ Initialize graph using set of initial samples """
-        pass
+        # - add start and goal samples to initialization set
+        for start in self._params.start_states:
+            self._g.add_node(nid=self._node_id, data=start, cost=-COST_LIMIT,
+                             priority=1, V=0, pi=0, Q=[0], ntype='start')
+            self._node_id += 1
+
+        self._g.add_node(nid=self._node_id, data=self._params.goal_state,
+                         cost=-COST_LIMIT, priority=1, V=50, pi=0,
+                         Q=[0], ntype='goal')
+        self._node_id += 1
+
+        # - add the init samples
+        init_samples = list(samples)
+        for sample in init_samples:
+            self._g.add_node(nid=self._node_id, data=sample, cost=COST_LIMIT,
+                             priority=1, V=0, pi=0, Q=[0], ntype='simple')
+            self._node_id += 1
+
+        # - add edges between each pair
+        for n in self._g.nodes:
+            for m in self._g.nodes:
+                if n == m:
+                    continue
+                self._g.add_edge(source=n, target=m, reward=10, duration=10)
+                self._g.add_edge(source=m, target=n, reward=1, duration=20)
 
     def visualize(self):
         pass
