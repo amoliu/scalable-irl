@@ -113,8 +113,7 @@ class GraphMDP(object):
             # - select state expansion set between S_best and S_other
             S_best, S_other = self._generate_state_sets()
             e_set = wchoice([S_best, S_other],
-                            [self._params.p_best, 1-self._params.p_best])[0]
-            print(e_set)
+                            [self._params.p_best, 1-self._params.p_best])
 
             exp_queue = []
             for _ in range(min(len(self._g.nodes), self._params.n_expand)):
@@ -232,6 +231,9 @@ class GraphMDP(object):
         pass
 
     def _prune_graph(self):
+        pass
+
+    def _exploration_score(self, state):
         pass
 
     def _generate_state_sets(self):
