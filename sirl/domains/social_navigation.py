@@ -85,7 +85,7 @@ class SocialNavReward(MDPReward):
         self._resolution = resolution
 
     def __call__(self, state_a, state_b):
-        return 0.0
+        return 500.0
 
 ########################################################################
 

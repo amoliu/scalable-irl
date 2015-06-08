@@ -116,6 +116,7 @@ class GraphMDP(object):
                             [self._params.p_best, 1-self._params.p_best])
 
             exp_queue = []
+            exp_probs = []
             for _ in range(min(len(self._g.nodes), self._params.n_expand)):
                 # - select state to expand
                 anchor_node = wchoice(e_set.keys(), e_set.values())
@@ -126,13 +127,13 @@ class GraphMDP(object):
                     # - compute exploration score of the new state
                     es = self._exploration_score(new_state)
                     if es > self._params.exp_thresh:
-                        exp_queue.append((new_state, es))
+                        exp_queue.append(new_state)
+                        exp_probs.append(es)
 
             # - expand around exploration states (if any)
-            sum_es = sum(s for (n, s) in exp_queue)
-            p_explore = [s / sum_es for (n, s) in exp_queue]
+            exp_probs = np.array(exp_probs) / sum(exp_probs)
             for _ in range(min(len(exp_queue), self._params.n_add)):
-                exploration_node = wchoice(exp_queue, p_explore)[0]
+                exploration_node = wchoice(exp_queue, exp_probs)
                 self._improve_state(exploration_node)
 
             # - update state attributes, policies
@@ -142,7 +143,7 @@ class GraphMDP(object):
             self._find_best_policies()
 
             # - prune graph
-            self._prune_graph()
+            # self._prune_graph()
 
         return self
 
@@ -170,8 +171,9 @@ class GraphMDP(object):
         gna = self._g.gna
         iteration = len(self._g.nodes)
         duration = _sample_control_time(iteration, self._params.max_samples)
+        print(duration)
         action = np.random.uniform(0.0, 1.0)
-        new_state = self._controller(gna(state, 'data'), action, duration*0.1)
+        new_state = self._controller(gna(state, 'data'), action, duration)
 
         reward = self._reward(gna(state, 'data'), new_state)
         reward_back = self._reward(new_state, gna(state, 'data'))
@@ -206,8 +208,24 @@ class GraphMDP(object):
             if not cost_changed:
                 converged = True
 
-    def _update_state_priorities(self):
-        pass
+    def _update_state_priorities(self, states=None):
+        """ Update priority values for all states
+
+        Updates priority score of each node in the state graph
+        """
+        G = self._g
+        if states is None:
+            states = G.nodes
+
+        concentration = [self._node_concentration(state) for state in states]
+        concentration = [c / max(concentration) for c in concentration]
+
+        ess = [G.gna(n, 'cost') + G.gna(n, 'V') for n in states]
+        if max(ess) - min(ess) > 1e-09:
+            ess = [(es - min(ess)) / (max(ess) - min(ess)) for es in ess]
+
+        for i, state in enumerate(states):
+            G.sna(state, 'priority', ess[i] + concentration[i])
 
     def _find_best_policies(self):
         """ Find the best trajectories from starts to goal state """
@@ -245,10 +263,65 @@ class GraphMDP(object):
                         self._g.add_edge(state, n, d, reward=reward_back)
 
     def _prune_graph(self):
-        pass
+        """ Prune the graph
+
+        Remove edges that are long, in which the probability of a controller
+        succeeding is small (taking into account uncertainity)
+        """
+        G = self._g
+        beta = self._params.beta
+
+        for node in self._g.nodes:
+            nedges = len(G.out_edges(node))
+            if nedges > 2:
+                sweep = 0
+                for e in G.out_edges(node):
+                    if G.gea(e[0], e[1], 'duration') > beta and\
+                            len(G.out_edges(node)) > 2 and sweep < nedges:
+                        G.remove_edge(e[0], e[1])
+                        pol = np.argmax([G.gea(d[0], d[1], 'reward')
+                                        for d in G.out_edges(node)])
+                        G.sna(node, 'pi', pol)
+                sweep += 1
 
     def _exploration_score(self, state):
-        pass
+        """ Exploration score :math:`p(s)`
+
+        Compute the exporation score of a node
+
+        Parameters
+        ------------
+        state : int
+            State for which we should give exploration score
+
+        Returns
+        ---------
+        p : float
+            Exploration score of a node
+        """
+        c = self._node_concentration(state)
+        v_estimate = 1
+        return c + v_estimate
+
+    def _node_concentration(self, state):
+        """ Node concentration within a radius
+
+        Get the list of nodes within a certain radius `_beta` from the
+        selected node
+
+        Parameters
+        ------------
+        state : int
+            State id to compute concentration on
+
+        Returns
+        --------
+        concentration : float
+            Concentation of the node
+        """
+        neighbors = self._g.find_neighbors_range(state, self._params.beta)
+        concentration = 1.0 / float(1 + len(neighbors))
+        return concentration
 
     def _generate_state_sets(self):
         """ Generate state sets, S_best and S_other
@@ -280,14 +353,14 @@ class AlgoParams(object):
     """ Algorithm parameters """
     def __init__(self):
         self.n_expand = 1   # No of nodes to be expanded
-        self.n_new = 5   # no of new nodes
+        self.n_new = 7   # no of new nodes
         self.n_add = 1   # no of nodes to be added
         self.beta = 1.8
-        self.exp_thresh = 0.05
+        self.exp_thresh = 1.2
         self.max_traj_len = 400
         self.goal_reward = 20
         self.p_best = 0.4
-        self.max_samples = 20
+        self.max_samples = 50
         self.max_edges = 9
         self.start_states = [(1, 1), (9, 5)]
         self.goal_state = (5, 8)
@@ -311,11 +384,11 @@ def _sample_control_time(iteration, max_iter):
     """
     max_time = _tmax(iteration, max_iter)
     min_time = _tmin(iteration, max_iter)
-    return np.random.uniform(0, 1) * (max_time - min_time + 1) + min_time
+    return (np.random.uniform(0, 1) * (max_time - min_time + 1) + min_time)*0.1
 
 
 def _tmin(it, max_iter):
-    return int(25 * (1 - it / float(max_iter)) + 5 * it / float(max_iter))
+    return int(50 * (1 - it / float(max_iter)) + 15 * it / float(max_iter))
 
 
 def _tmax(it, max_iter):
@@ -326,4 +399,4 @@ def _controller_duration(source, target):
     """
     Returns the time it takes the controller to go from source to target
     """
-    return edist(source, target) / 0.2
+    return edist(source, target)
