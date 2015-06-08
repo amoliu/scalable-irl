@@ -9,19 +9,19 @@ from math import sqrt
 class StateGraph(object):
     """ State Graph """
 
-    _node_attrs = ('id', 'loc', 'cost', 'priority', 'Q', 'V', 'pi', 'type')
+    _node_attrs = ('id', 'data', 'cost', 'priority', 'Q', 'V', 'pi', 'type')
     _edge_attrs = ('source', 'target', 'duration', 'reward')
 
     def __init__(self):
         self._g = nx.Graph()
         self._node_ids = set()  # keep track of node ids
 
-    def add_node(self, nid, loc, cost, priority, Q, V, pi, ntype):
+    def add_node(self, nid, data, cost, priority, Q, V, pi, ntype):
         """
         Add a new node to the graph
         """
         if nid not in self.G:
-            self.G.add_node(nid, loc=loc, cost=cost, priority=priority,
+            self.G.add_node(nid, data=data, cost=cost, priority=priority,
                             Q=Q, V=V, pi=pi, type=ntype)
             self._node_ids.add(nid)
         else:
@@ -94,15 +94,15 @@ class StateGraph(object):
 
     def find_neighbors_range(self, nid, distance):
         """ Find node neigbors within distance range"""
-        cn = self.gna(nid, 'loc')
-        neigbors = filter(lambda n: eud(self.gna(n, 'loc'), cn) <= distance,
+        cn = self.gna(nid, 'data')
+        neigbors = filter(lambda n: eud(self.gna(n, 'data'), cn) <= distance,
                           self.G.nodes())
         return neigbors
 
     def find_neighbors_k(self, nid, k):
         """ Find k nearest neighbors based on Euclidean distance """
-        cn = self.gna(nid, 'loc')
-        distances = {n: eud(self.gna(n, 'loc'), cn) for n in self.G.nodes()}
+        cn = self.gna(nid, 'data')
+        distances = {n: eud(self.gna(n, 'data'), cn) for n in self.G.nodes()}
         sorted_neighbors = sorted(distances.items(), key=lambda x: x[1])
         k_neighbors = sorted_neighbors[:k]
         return list(n[0] for n in k_neighbors)
@@ -154,7 +154,7 @@ class StateGraph(object):
             edge_color_array.append(ecolors['start'])
 
         nx.draw_networkx(self.G,
-                         pos=nx.get_node_attributes(self.G, 'loc'),
+                         pos=nx.get_node_attributes(self.G, 'data'),
                          width=0.7,
                          edge_list=edge_list,
                          edge_color=edge_color_array,
@@ -191,5 +191,5 @@ class StateGraph(object):
         return self.G.nodes(data=True)
 
 
-def eud(loc1, loc2):
-    return sqrt((loc1[0]-loc2[0])**2 + (loc1[1]-loc2[1])**2)
+def eud(data1, data2):
+    return sqrt((data1[0]-data2[0])**2 + (data1[1]-data2[1])**2)
