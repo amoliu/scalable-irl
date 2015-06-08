@@ -116,6 +116,10 @@ class StateGraph(object):
         """ Return the edges of a node """
         return self.G.edges(nid)
 
+    def out_edges(self, nid):
+        """ Return the outgoing edges of a node """
+        return self.G.out_edges(nid)
+
     def filter_nodes_by_type(self, ntype):
         """ Filter nodes by node type """
         sns = filter(lambda n: self.gna(n, 'type') == ntype, self.nodes)

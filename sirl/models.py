@@ -5,6 +5,8 @@ from abc import abstractmethod, ABCMeta
 import numpy as np
 
 from .state_graph import StateGraph
+from algorithms.mdp_solvers import graph_policy_iteration
+
 from utils.common import wchoice
 from utils.geometry import edist
 
@@ -99,6 +101,11 @@ class GraphMDP(object):
         """ Initialize graph using set of initial samples """
         raise NotImplementedError('Abstract method')
 
+    @abstractmethod
+    def terminal(self, state):
+        """ Check if a state is terminal (goal state) """
+        raise NotImplementedError('Abstract method')
+
     def run(self):
         """ Run the adaptive state-graph procedure to solve the mdp """
 
@@ -106,23 +113,32 @@ class GraphMDP(object):
             # - select state expansion set between S_best and S_other
             S_best, S_other = self._generate_state_sets()
             e_set = wchoice([S_best, S_other],
-                            [self._params.p_best, 1-self._params.p_best])
+                            [self._params.p_best, 1-self._params.p_best])[0]
+            print(e_set)
 
-            for _ in range(min(len(self._g.nodes), self._params.n_exp)):
+            exp_queue = []
+            for _ in range(min(len(self._g.nodes), self._params.n_expand)):
                 # - select state to expand
-                expansion_node = wchoice(e_set.keys(), e_set.values())
+                anchor_node = wchoice(e_set.keys(), e_set.values())
 
-                # - expand graph from chosen state(s)
+                # - expand graph from chosen state(s)m
                 for _ in range(self._params.n_new):
-                    new_state = self._sample_new_state_from(expansion_node)
-                    # - compute exploration scores
-                    print(new_state)
+                    new_state = self._sample_new_state_from(anchor_node)
+                    # - compute exploration score of the new state
+                    es = self._exploration_score(new_state)
+                    if es > self._params.exp_thresh:
+                        exp_queue.append((new_state, es))
 
             # - expand around exploration states (if any)
+            sum_es = sum(s for (n, s) in exp_queue)
+            p_explore = [s / sum_es for (n, s) in exp_queue]
+            for _ in range(min(len(exp_queue), self._params.n_add)):
+                exploration_node = wchoice(exp_queue, p_explore)[0]
+                self._improve_state(exploration_node)
 
             # - update state attributes, policies
             self._update_state_costs()
-            # replan with Policy iteration
+            graph_policy_iteration(self._g, gamma=self._gamma)
             self._update_state_priorities()
             self._find_best_policies()
 
@@ -175,12 +191,44 @@ class GraphMDP(object):
         return nid
 
     def _update_state_costs(self):
-        pass
+        """ Update the costs of all states in the graph """
+        cmax = self._params.max_cost
+        G = self._g
+        converged = False
+        while not converged:
+            cost_changed = False
+            for node in G.nodes:
+                for e in G.edges(node):
+                    nn = e[1]
+                    cost = G.gna(node, 'cost') + G.gea(e[0], e[1], 'reward')
+                    if G.gna(nn, 'cost') < cost and abs(cost) < cmax:
+                        G.sna(nn, 'cost', cost)
+                        cost_changed = True
+            if not cost_changed:
+                converged = True
 
     def _update_state_priorities(self):
         pass
 
     def _find_best_policies(self):
+        """ Find the best trajectories from starts to goal state """
+        self._best_trajs = []
+        G = self._g
+        for start in G.filter_nodes_by_type(ntype='start'):
+            # bt = [(start, G.gna(start, 'data'))]
+            bt = [start]
+            t = 0
+            while t < self._params.max_traj_len and not self.terminal(start):
+                action = G.out_edges(start)[G.gna(start, 'pi')]
+                next_node = action[1]
+                t += max(G.gea(action[0], action[1], 'duration'), 1)
+                # bt.append((next_node, G.gna(next_node, 'data')))
+                bt.append(next_node)
+                start = next_node
+            self._best_trajs.append(bt)
+
+    def _improve_state(self, node_id):
+        """ Improve a state's utility by adding connections """
         pass
 
     def _prune_graph(self):
@@ -215,19 +263,20 @@ class GraphMDP(object):
 class AlgoParams(object):
     """ Algorithm parameters """
     def __init__(self):
-        self.n_exp = 1   # No of nodes to be expanded
+        self.n_expand = 1   # No of nodes to be expanded
         self.n_new = 5   # no of new nodes
         self.n_add = 1   # no of nodes to be added
         self.beta = 1.8
-        self.sigma_min = 0.05
-        self.max_traj_len = 40000
+        self.exp_thresh = 0.05
+        self.max_traj_len = 400
         self.goal_reward = 20
         self.p_best = 0.4
-        self.max_samples = 100
+        self.max_samples = 20
         self.max_edges = 9
-        self.start_states = [(1, 1)]
+        self.start_states = [(1, 1), (9, 5)]
         self.goal_state = (5, 8)
         self.init_type = 'random'
+        self.max_cost = 1000
 
     def load_from_json(self, json_file):
         pass

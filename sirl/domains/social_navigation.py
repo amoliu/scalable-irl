@@ -8,6 +8,9 @@ from ..models import LocalController
 from ..models import MDPReward
 from ..models import GraphMDP
 
+from ..algorithms.mdp_solvers import graph_policy_iteration
+from ..utils.geometry import edist
+
 
 ########################################################################
 
@@ -88,7 +91,6 @@ class SocialNavReward(MDPReward):
 
 
 WorldConfig = namedtuple('WorldConfig', ['x', 'y', 'w', 'h'])
-COST_LIMIT = 1000
 
 
 class SocialNavMDP(GraphMDP):
@@ -126,6 +128,7 @@ class SocialNavMDP(GraphMDP):
     def initialize_state_graph(self, samples):
         """ Initialize graph using set of initial samples """
         # - add start and goal samples to initialization set
+        COST_LIMIT = self._params.max_cost
         for start in self._params.start_states:
             self._g.add_node(nid=self._node_id, data=start, cost=-COST_LIMIT,
                              priority=1, V=0, pi=0, Q=[0], ntype='start')
@@ -150,6 +153,18 @@ class SocialNavMDP(GraphMDP):
                     continue
                 self._g.add_edge(source=n, target=m, reward=10, duration=10)
                 self._g.add_edge(source=m, target=n, reward=1, duration=20)
+
+        # - update graph attributes
+        self._update_state_priorities()
+        graph_policy_iteration(self._g, gamma=self._gamma)
+        self._find_best_policies()
+
+    def terminal(self, state):
+        """ Check if a state is terminal (goal state) """
+        position = self._g.gna(state, 'data')
+        if edist(position, self._params.goal_state) < 0.5:
+            return True
+        return False
 
     def visualize(self):
         pass
