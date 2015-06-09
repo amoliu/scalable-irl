@@ -69,8 +69,8 @@ class SocialNavLocalController(LocalController):
         If the local controller ends up beyond the limits of the world config,
         then the current state is returned to avoid sampling `outside'.
         """
-        nx = state[0] + np.cos(action) * duration
-        ny = state[1] + np.sin(action) * duration
+        nx = state[0] + np.cos(action * 2 * np.pi) * duration
+        ny = state[1] + np.sin(action * 2 * np.pi) * duration
 
         if self._wconfig.x < nx < self._wconfig.w and\
                 self._wconfig.y < ny < self._wconfig.h:
@@ -105,6 +105,7 @@ class SocialNavReward(MDPReward):
                self.social_disturbance(action_traj),
                self.goal_deviation_count(action_traj)]
         reward = np.dot(phi, self._weights)
+        print(phi)
         return reward
 
     def goal_deviation_angle(self, action):
@@ -196,7 +197,7 @@ class SocialNavMDP(GraphMDP):
         COST_LIMIT = self._params.max_cost
         for start in self._params.start_states:
             self._g.add_node(nid=self._node_id, data=start, cost=-COST_LIMIT,
-                             priority=1, V=0, pi=0, Q=[0], ntype='start')
+                             priority=1, V=10, pi=0, Q=[0], ntype='start')
             self._node_id += 1
 
         self._g.add_node(nid=self._node_id, data=self._params.goal_state,
@@ -208,7 +209,7 @@ class SocialNavMDP(GraphMDP):
         init_samples = list(samples)
         for sample in init_samples:
             self._g.add_node(nid=self._node_id, data=sample, cost=COST_LIMIT,
-                             priority=1, V=0, pi=0, Q=[0], ntype='simple')
+                             priority=1, V=10, pi=0, Q=[0], ntype='simple')
             self._node_id += 1
 
         # - add edges between each pair
@@ -216,8 +217,13 @@ class SocialNavMDP(GraphMDP):
             for m in self._g.nodes:
                 if n == m:
                     continue
-                self._g.add_edge(source=n, target=m, reward=10, duration=10)
-                self._g.add_edge(source=m, target=n, reward=1, duration=20)
+
+                ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
+                r = self._reward(ndata, mdata)
+                rb = self._reward(mdata, ndata)
+                d = _controller_duration(ndata, mdata)
+                self._g.add_edge(source=n, target=m, reward=r, duration=d)
+                self._g.add_edge(source=m, target=n, reward=rb, duration=d)
 
         # - update graph attributes
         self._update_state_priorities()

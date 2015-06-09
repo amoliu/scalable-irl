@@ -110,6 +110,7 @@ class GraphMDP(object):
         """ Run the adaptive state-graph procedure to solve the mdp """
 
         while len(self._g.nodes) < self._params.max_samples:
+            print('Run: no.nodes = {}'.format(len(self._g.nodes)))
             # - select state expansion set between S_best and S_other
             S_best, S_other = self._generate_state_sets()
             e_set = wchoice([S_best, S_other],
@@ -124,14 +125,14 @@ class GraphMDP(object):
                 # - expand graph from chosen state(s)m
                 for _ in range(self._params.n_new):
                     new_state = self._sample_new_state_from(anchor_node)
+
                     # - compute exploration score of the new state
-                    es = self._exploration_score(new_state)
-                    if es > self._params.exp_thresh:
+                    es, var_es = self._exploration_score(new_state)
+                    if var_es > self._params.exp_thresh:
                         exp_queue.append(new_state)
                         exp_probs.append(es)
 
             # - expand around exploration states (if any)
-            exp_probs = np.array(exp_probs) / sum(exp_probs)
             for _ in range(min(len(exp_queue), self._params.n_add)):
                 exploration_node = wchoice(exp_queue, exp_probs)
                 self._improve_state(exploration_node)
@@ -299,8 +300,11 @@ class GraphMDP(object):
             Exploration score of a node
         """
         c = self._node_concentration(state)
-        v_estimate = 1
-        return c + v_estimate
+        neigbors = self._g.find_neighbors_k(state, k=5)
+        values = [self._g.gna(n, 'V')*0.01 for n in neigbors]
+        v_estimate, v_std = np.mean(values), np.std(values)
+        # print(c, v_estimate, v_std)
+        return c + v_estimate, v_std
 
     def _node_concentration(self, state):
         """ Node concentration within a radius
