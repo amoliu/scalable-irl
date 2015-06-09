@@ -362,7 +362,7 @@ class AlgoParams(object):
         self.max_samples = 50
         self.max_edges = 9
         self.start_states = [(1, 1), (9, 5)]
-        self.goal_state = (5, 8)
+        self.goal_state = (5.5, 9)
         self.init_type = 'random'
         self.max_cost = 1000
 

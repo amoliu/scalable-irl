@@ -4,6 +4,9 @@ from collections import namedtuple
 
 import numpy as np
 
+from matplotlib.patches import Circle, Ellipse
+import matplotlib.pyplot as plt
+
 from ..models import LocalController
 from ..models import MDPReward
 from ..models import GraphMDP
@@ -228,5 +231,94 @@ class SocialNavMDP(GraphMDP):
             return True
         return False
 
-    def visualize(self):
-        pass
+    def visualize(self, persons, relations):
+        """ Visualize the social navigation world
+
+        Allows recording of demonstrations and also display of final
+        graph representing the MDP
+        """
+        self._setup_visuals()
+
+        for p in persons:
+            phead = np.degrees(np.arctan2(p[3], p[2]))
+            self.ax.add_artist(Ellipse((p[0], p[1]), width=0.3, height=0.6,
+                               angle=phead, color='r', fill=False, lw=1.5,
+                               aa=True))
+            self.ax.add_artist(Circle((p[0], p[1]), radius=0.12, color='w',
+                               ec='r', lw=2.5, aa=True))
+            self.ax.arrow(p[0], p[1], p[2]/5., p[3]/5., fc='r', ec='r', lw=1.5,
+                          head_width=0.14, head_length=0.1)
+
+        for [i, j] in relations:
+            x1, x2 = persons[i-1][0], persons[i-1][1]
+            y1, y2 = persons[j-1][0], persons[j-1][1]
+            self.ax.plot((x1, y1), (x2, y2), ls='-', lw=2.0, c='r', alpha=0.7)
+
+        self._plot_graph_in_world()
+
+        return self.ax
+
+    def _setup_visuals(self):
+        """ Prepare figure axes for plotting """
+        self.figure = plt.figure(figsize=(12, 9))
+        self.ax = plt.axes([0, 0, 0.8, 1])
+        self.figure.add_axes(self.ax)
+
+        self.ax.set_xlim([self._wconfig.x, self._wconfig.w])
+        self.ax.set_ylim([self._wconfig.y, self._wconfig.h])
+
+        self.record_status = self.figure.text(0.825, 0.3, 'Recording [OFF]',
+                                              fontsize=14, color='blue')
+        self.figure.text(0.825, 0.2, '#Demos: ', fontsize=10)
+        self.demo_count = self.figure.text(0.925, 0.2, '0', fontsize=10)
+
+        # self.figure.canvas.mpl_connect('key_press_event', self._key_press)
+        # self.figure.canvas.mpl_connect('button_press_event', self._btn_click)
+
+    def _plot_graph_in_world(self):
+        """ Shows the lattest version of the world with MDP
+        """
+        G = self._g
+        gna = G.gna
+
+        n_nodes = len(G.nodes)
+        best_nodes = set()
+        for traj in self._best_trajs:
+            for state in traj:
+                best_nodes.add(state)
+
+        for i, n in enumerate(G.nodes):
+            [posx, posy] = gna(n, 'data')
+            if [posx, posy] in self._params.start_states:
+                color = ['black', 'black']
+                nr = 1.0
+            elif self.terminal(n):
+                color = ['green', 'black']
+                nr = 1.5
+            elif n in best_nodes:
+                color = ['green', 'green']
+                nr = 0.5
+            else:
+                rgcol = _rgb_to_hex(((0, 0, 255 * i / float(n_nodes))))
+                color = [rgcol, rgcol]
+                nr = 0.5
+
+            self.ax.add_artist(Circle((posx, posy), nr/10., fc=color[0],
+                               ec=color[1], lw=1.5))
+
+            p = gna(n, 'pi')
+            for i, e in enumerate(G.out_edges(n)):
+                t = e[1]
+                if n in best_nodes and i == p:
+                    x1, x2 = gna(n, 'data')[0], gna(n, 'data')[1]
+                    y1, y2 = gna(t, 'data')[0], gna(t, 'data')[1]
+                    self.ax.plot((x1, y1), (x2, y2), ls='-', lw=4.0, c='g')
+                else:
+                    x1, y1 = gna(n, 'data')[0], gna(n, 'data')[1]
+                    x2, y2 = gna(t, 'data')[0], gna(t, 'data')[1]
+                    self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
+                                 c='k', alpha=0.5)
+
+
+def _rgb_to_hex(rgb):
+    return ('#%02X%02X%02X' % (rgb[0], rgb[1], rgb[2]))
