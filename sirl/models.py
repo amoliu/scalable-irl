@@ -171,7 +171,6 @@ class GraphMDP(object):
         gna = self._g.gna
         iteration = len(self._g.nodes)
         duration = _sample_control_time(iteration, self._params.max_samples)
-        print(duration)
         action = np.random.uniform(0.0, 1.0)
         new_state = self._controller(gna(state, 'data'), action, duration)
 
