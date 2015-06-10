@@ -93,6 +93,11 @@ class StateGraph(object):
         self._check_edge_attributes(source, target, attribute)
         self.G.edge[source][target][attribute] = value
 
+    def find_neighbors_data(self, loc, distance):
+        neigbors = filter(lambda n: eud(self.gna(n, 'data'), loc) <= distance,
+                          self.G.nodes())
+        return neigbors
+
     def find_neighbors_range(self, nid, distance):
         """ Find node neigbors within distance range"""
         cn = self.gna(nid, 'data')

@@ -14,6 +14,7 @@ from ..models import _controller_duration
 
 from ..algorithms.mdp_solvers import graph_policy_iteration
 from ..utils.geometry import edist, angle_between, distance_to_segment
+from ..utils.geometry import line_crossing
 from ..utils.common import eval_gaussian
 
 
@@ -95,7 +96,8 @@ class SocialNavReward(MDPReward):
 
     def __call__(self, state_a, state_b):
         source, target = np.array(state_a), np.array(state_b)
-        duration = _controller_duration(source, target)*10
+        # increase resolution of action trajectory (option)
+        duration = _controller_duration(source, target) * 10.0
         action_traj = [target * t / duration + source * (1 - t / duration)
                        for t in range(int(duration))]
         action_traj.append(target)
@@ -105,7 +107,6 @@ class SocialNavReward(MDPReward):
                self.social_disturbance(action_traj),
                self.goal_deviation_count(action_traj)]
         reward = np.dot(phi, self._weights)
-        print(phi)
         return reward
 
     def goal_deviation_angle(self, action):
@@ -128,6 +129,12 @@ class SocialNavReward(MDPReward):
         return sum(dist)
 
     def social_disturbance(self, action):
+        pd = [min([edist(wp, person) for person in self._persons])
+              for wp in action]
+        phi = sum(1 * self._gamma**i for i, d in enumerate(pd) if d < 0.45)
+        return phi
+
+    def social_disturbance2(self, action):
         assert isinstance(action, np.ndarray),\
             'numpy ``ndarray`` expected for action trajectory'
         phi = np.zeros(action.shape[0])
@@ -139,6 +146,21 @@ class SocialNavReward(MDPReward):
         return np.sum(phi)
 
     def relation_disturbance(self, action):
+        # TODO - fix relations to start from 0 instead of 1
+        atime = action.shape[0]
+        c = [sum(line_crossing(action[t][0],
+                 action[t][1],
+                 action[t+1][0],
+                 action[t+1][1],
+                 self._persons[i-1][0],
+                 self._persons[i-1][1],
+                 self._persons[j-1][0],
+                 self._persons[j-1][1])
+             for [i, j] in self._relations) for t in range(int(atime - 1))]
+        ec = sum(self._gamma**i * x for i, x in enumerate(c))
+        return ec
+
+    def relation_disturbance2(self, action):
         assert isinstance(action, np.ndarray),\
             'numpy ``ndarray`` expected for action trajectory'
         phi = np.zeros(action.shape[0])
@@ -194,14 +216,15 @@ class SocialNavMDP(GraphMDP):
     def initialize_state_graph(self, samples):
         """ Initialize graph using set of initial samples """
         # - add start and goal samples to initialization set
+        GR = self._params.goal_reward
         COST_LIMIT = self._params.max_cost
         for start in self._params.start_states:
             self._g.add_node(nid=self._node_id, data=start, cost=-COST_LIMIT,
-                             priority=1, V=10, pi=0, Q=[0], ntype='start')
+                             priority=1, V=GR, pi=0, Q=[0], ntype='start')
             self._node_id += 1
 
         self._g.add_node(nid=self._node_id, data=self._params.goal_state,
-                         cost=-COST_LIMIT, priority=1, V=50, pi=0,
+                         cost=-COST_LIMIT, priority=1, V=GR, pi=0,
                          Q=[0], ntype='goal')
         self._node_id += 1
 
@@ -209,7 +232,7 @@ class SocialNavMDP(GraphMDP):
         init_samples = list(samples)
         for sample in init_samples:
             self._g.add_node(nid=self._node_id, data=sample, cost=COST_LIMIT,
-                             priority=1, V=10, pi=0, Q=[0], ntype='simple')
+                             priority=1, V=GR, pi=0, Q=[0], ntype='simple')
             self._node_id += 1
 
         # - add edges between each pair

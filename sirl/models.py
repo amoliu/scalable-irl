@@ -134,8 +134,26 @@ class GraphMDP(object):
 
             # - expand around exploration states (if any)
             for _ in range(min(len(exp_queue), self._params.n_add)):
-                exploration_node = wchoice(exp_queue, exp_probs)
-                self._improve_state(exploration_node)
+                index = wchoice(np.arange(len(exp_queue)), exp_probs)
+                sen = exp_queue[index]
+
+                # add the selected node to the graph
+                nid = self._node_id
+                self._g.add_node(nid=nid, data=sen['data'],
+                                 cost=sen['cost'],
+                                 pi=0, Q=[0], V=10, ntype='simple',
+                                 priority=exp_probs[index])
+                self._g.add_edge(sen['b_state'], nid, sen['f_reward'],
+                                 sen['b_duration'])
+                rb = self._reward(sen['data'], sen['b_data'])
+                self._g.add_edge(nid, sen['b_state'], rb, sen['b_duration'])
+
+                # remove from queue??
+                exp_queue.remove(sen)
+                exp_probs.remove(exp_probs[index])
+
+                self._node_id += 1
+                self._improve_state(nid)
 
             # - update state attributes, policies
             self._update_state_costs()
@@ -166,30 +184,24 @@ class GraphMDP(object):
 
         Returns
         ------------
-        new_state : int
-            state id of the new sampled state
+        state_dict : dict
+            dict with the attributes of the new sampled state
         """
         gna = self._g.gna
         iteration = len(self._g.nodes)
         duration = _sample_control_time(iteration, self._params.max_samples)
         action = np.random.uniform(0.0, 1.0)
-        new_state = self._controller(gna(state, 'data'), action, duration)
-
+        new_state = self._controller(gna(state, 'data'), action, duration*0.1)
         reward = self._reward(gna(state, 'data'), new_state)
-        reward_back = self._reward(new_state, gna(state, 'data'))
 
-        # add new state to graph
-        nid = self._node_id
-        self._g.add_node(nid=nid, data=new_state,
-                         cost=gna(state, 'cost')+reward,
-                         pi=0, priority=1, Q=[0], V=10, ntype='simple')
-
-        # add connecting edges/actions (towards and back)
-        self._g.add_edge(state, nid, reward, duration)
-        self._g.add_edge(self._node_id, state, reward_back, duration)
-
-        self._node_id += 1
-        return nid
+        state_dict = dict()
+        state_dict['data'] = new_state
+        state_dict['cost'] = gna(state, 'cost')+reward
+        state_dict['f_reward'] = reward
+        state_dict['b_state'] = state
+        state_dict['b_duration'] = duration
+        state_dict['b_data'] = gna(state, 'data')
+        return state_dict
 
     def _update_state_costs(self):
         """ Update the costs of all states in the graph """
@@ -223,6 +235,8 @@ class GraphMDP(object):
         ess = [G.gna(n, 'cost') + G.gna(n, 'V') for n in states]
         if max(ess) - min(ess) > 1e-09:
             ess = [(es - min(ess)) / (max(ess) - min(ess)) for es in ess]
+
+        # print(ess, concentration)
 
         for i, state in enumerate(states):
             G.sna(state, 'priority', ess[i] + concentration[i])
@@ -258,9 +272,12 @@ class GraphMDP(object):
                     reward = self._reward(xs, xn)
                     self._g.add_edge(state, n, d, reward=reward)
 
-                    if not self._g.edge_exists(n, state):
-                        reward_back = self._reward(xn, xs)
-                        self._g.add_edge(state, n, d, reward=reward_back)
+                if not self._g.edge_exists(n, state):
+                    xs = self._g.gna(state, 'data')
+                    xn = self._g.gna(n, 'data')
+                    d = edist(xs, xn)
+                    reward_back = self._reward(xn, xs)
+                    self._g.add_edge(state, n, d, reward=reward_back)
 
     def _prune_graph(self):
         """ Prune the graph
@@ -284,39 +301,42 @@ class GraphMDP(object):
                         G.sna(node, 'pi', pol)
                 sweep += 1
 
-    def _exploration_score(self, state):
+    def _exploration_score(self, state_dict):
         """ Exploration score :math:`p(s)`
 
         Compute the exporation score of a node
 
         Parameters
         ------------
-        state : int
-            State for which we should give exploration score
+        state_dict : int
+            Dict with parameters of the state for which we should compute
+            the exploration score
 
         Returns
         ---------
         p : float
             Exploration score of a node
         """
-        c = self._node_concentration(state)
-        neigbors = self._g.find_neighbors_k(state, k=5)
-        values = [self._g.gna(n, 'V')*0.01 for n in neigbors]
+        neighbors = self._g.find_neighbors_data(state_dict['data'],
+                                                distance=self._params.beta)
+        if not neighbors:  # definitely explore
+            return 1.0, 1.0
+
+        concentration = 1.0 / float(1 + len(neighbors))
+
+        values = [self._g.gna(n, 'V') for n in neighbors]
         v_estimate, v_std = np.mean(values), np.std(values)
-        # print(c, v_estimate, v_std)
-        return c + v_estimate, v_std
+        # print(concentration, v_estimate, v_std)
+        return concentration + v_estimate, v_std
 
     def _node_concentration(self, state):
         """ Node concentration within a radius
-
         Get the list of nodes within a certain radius `_beta` from the
         selected node
-
         Parameters
         ------------
         state : int
             State id to compute concentration on
-
         Returns
         --------
         concentration : float
@@ -356,12 +376,12 @@ class AlgoParams(object):
     """ Algorithm parameters """
     def __init__(self):
         self.n_expand = 1   # No of nodes to be expanded
-        self.n_new = 7   # no of new nodes
+        self.n_new = 20   # no of new nodes
         self.n_add = 1   # no of nodes to be added
         self.beta = 1.8
         self.exp_thresh = 1.2
-        self.max_traj_len = 400
-        self.goal_reward = 20
+        self.max_traj_len = 200
+        self.goal_reward = 30
         self.p_best = 0.4
         self.max_samples = 50
         self.max_edges = 9
@@ -387,11 +407,11 @@ def _sample_control_time(iteration, max_iter):
     """
     max_time = _tmax(iteration, max_iter)
     min_time = _tmin(iteration, max_iter)
-    return (np.random.uniform(0, 1) * (max_time - min_time + 1) + min_time)*0.1
+    return np.random.uniform(0, 1) * (max_time - min_time + 1) + min_time
 
 
 def _tmin(it, max_iter):
-    return int(50 * (1 - it / float(max_iter)) + 15 * it / float(max_iter))
+    return int(50 * (1 - it / float(max_iter)) + 5 * it / float(max_iter))
 
 
 def _tmax(it, max_iter):
