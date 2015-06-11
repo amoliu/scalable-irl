@@ -438,13 +438,15 @@ class GraphMDPParams(object):
 
     @property
     def _to_json(self):
-        return json.dumps(self, default=lambda o: o.__dict__,
-                          sort_keys=True, indent=4)
+        return self.__dict__
 
-    def load_from_json(self, json_file):
-        raise NotImplementedError('Custome object hook pending')
+    def load(self, json_file):
+        with open(json_file, 'r') as f:
+            jdata = json.load(f)
+            for k, v in jdata.items():
+                self.__dict__[k] = v
 
-    def save_to_json(self, filename):
+    def save(self, filename):
         """ Save the parameters to file """
         with open(filename, 'w') as f:
             json.dump(self._to_json, f)
