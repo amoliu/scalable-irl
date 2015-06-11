@@ -14,7 +14,6 @@ class StateGraph(object):
 
     def __init__(self):
         self._g = nx.DiGraph()
-        self._node_ids = set()  # keep track of node ids
 
     def add_node(self, nid, data, cost, priority, Q, V, pi, ntype):
         """
@@ -23,7 +22,6 @@ class StateGraph(object):
         if nid not in self.G:
             self.G.add_node(nid, data=data, cost=cost, priority=priority,
                             Q=Q, V=V, pi=pi, type=ntype)
-            self._node_ids.add(nid)
         else:
             warnings.warn('Node already exits in the graph, not added')
 
@@ -38,7 +36,6 @@ class StateGraph(object):
         elif not self.G.has_edge(source, target):
             self.G.add_edge(source, target, duration=duration, reward=reward)
         else:
-            # pass
             warnings.warn('Edge ({}--{}) already exists in the graph'
                           .format(source, target))
 
@@ -158,17 +155,12 @@ class StateGraph(object):
                 node_color_array.append(ncolors['path'])
             else:
                 node_color_array.append(ncolors[n[1]['type']])
-                # node_color_array.append(ncolors['simple'])
 
         edges = self.G.edges(data=True)
         edge_list = list()
         edge_color_array = list()
         for e in edges:
             edge_list.append((e[0], e[1]))
-            # edge_color_array.append(ecolors[e[2]['type']])
-            # if e[0] in path or e[1] in path:
-            # edge_color_array.append(ecolors['path'])
-            # else:
             edge_color_array.append(ecolors['start'])
 
         nx.draw_networkx(self.G,
@@ -186,7 +178,7 @@ class StateGraph(object):
         assert attribute in self._node_attrs,\
             'Attribute [{}] is invalid | Expected:{}'\
             .format(attribute, self._node_attrs)
-        assert node_id in self._node_ids, \
+        assert node_id in self.nodes, \
             'Node ({}) not in the graph'.format(node_id)
 
     def _check_edge_attributes(self, source, target, attribute):
