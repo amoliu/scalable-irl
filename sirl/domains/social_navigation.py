@@ -310,14 +310,17 @@ class SocialNavMDP(GraphMDP):
         """
         G = self._g
         gna = G.gna
+        gea = G.gea
 
         if show_rewards:
-            gea = G.gea
             rewards = [gea(e[0], e[1], 'reward') for e in G.all_edges]
             n = mpl.colors.Normalize(vmin=min(rewards), vmax=max(rewards))
             m = cm.ScalarMappable(norm=n, cmap=cm.jet)
 
-        n_nodes = len(G.nodes)
+        values = [gna(n, 'V') for n in G.nodes]
+        nv = mpl.colors.Normalize(vmin=min(values), vmax=max(values))
+        mv = cm.ScalarMappable(norm=nv, cmap=cm.jet)
+
         best_nodes = set()
         for traj in self._best_trajs:
             for state in traj:
@@ -335,7 +338,8 @@ class SocialNavMDP(GraphMDP):
                 color = ['green', 'green']
                 nr = 0.5
             else:
-                rgcol = _rgb_to_hex(((0, 0, 255 * i / float(n_nodes))))
+                # rgcol = _rgb_to_hex(((0, 0, 255 * i / float(n_nodes))))
+                rgcol = mv.to_rgba(gna(n, 'V'))
                 color = [rgcol, rgcol]
                 nr = 0.5
             self.ax.add_artist(Circle((posx, posy), nr/10., fc=color[0],
@@ -349,6 +353,7 @@ class SocialNavMDP(GraphMDP):
                 x1, y1 = ndata[0], ndata[1]
                 x2, y2 = tdata[0], tdata[1]
                 if n in best_nodes and i == p:
+                    print(gna(n, 'cost'), gea(e[0], e[1], 'reward'))
                     self.ax.plot((x1, x2), (y1, y2), ls='-',
                                  lw=4.0, c='g', zorder=3)
                 else:
@@ -365,3 +370,10 @@ class SocialNavMDP(GraphMDP):
 
 def _rgb_to_hex(rgb):
     return ('#%02X%02X%02X' % (rgb[0], rgb[1], rgb[2]))
+
+
+def map_range(value, mina, maxa, mint, maxt):
+    denom = maxa - mina
+    if abs(denom) < 1e-09:
+        denom = 1e-09
+    return mint + ((value - mina) * (maxt - mint) / denom)

@@ -124,6 +124,7 @@ class GraphMDP(object):
     def run(self):
         """ Run the adaptive state-graph procedure to solve the mdp """
         p_b = self._params.p_best
+        cscale = self._params.conc_scale
         while self._node_id < self._params.max_samples:
             if self._node_id % 10 == 0:
                 print('Run: no.nodes = {}'.format(self._node_id))
@@ -161,7 +162,7 @@ class GraphMDP(object):
                     es = (es - self._min_es)/1.0*(self._max_es - self._min_es)
                     if var_es > self._params.exp_thresh:
                         exp_queue.append(new_state)
-                        exp_probs.append(es + 1*conc)
+                        exp_probs.append(es + cscale*conc)
 
             # - expand around exploration states (if any)
             for _ in range(min(len(exp_queue), self._params.n_add)):
@@ -171,7 +172,7 @@ class GraphMDP(object):
                 # add the selected node to the graph
                 nid = self._node_id
                 self._g.add_node(nid=nid, data=sen['data'],
-                                 cost=sen['cost'], pi=0, Q=[0], V=10,
+                                 cost=sen['cost'], pi=0, Q=[0], V=sen['V'],
                                  ntype='simple', priority=exp_probs[index])
                 self._g.add_edge(source=sen['b_state'], target=nid,
                                  reward=sen['f_reward'],
@@ -244,7 +245,15 @@ class GraphMDP(object):
         return state_dict
 
     def _update_state_costs(self):
-        """ Update the costs of all states in the graph """
+        """ Update the costs of all states in the graph
+
+        Given:  (n1) ---r1---- (n2) ----r2---- (n3)
+
+        cost(n1) = cost(n1)
+        cost(n2) = cost(n1) + r1
+        ...
+
+        """
         cmax = self._params.max_cost
         G = self._g
         converged = False
@@ -269,9 +278,9 @@ class GraphMDP(object):
         if states is None:
             states = G.nodes
 
-        concentration = [self._node_concentration(state) for state in states]
-        self._max_conc = max(concentration)
-        concentration = [c / float(self._max_conc) for c in concentration]
+        cc = [self._node_concentration(state) for state in states]
+        self._max_conc = max(cc)
+        cc = [c / float(self._max_conc) for c in cc]
 
         ess = [G.gna(n, 'cost') + G.gna(n, 'V') for n in states]
         self._max_es = max(ess)
@@ -279,8 +288,9 @@ class GraphMDP(object):
         ess = [(s - self._min_es) / float((self._max_es - self._min_es))
                for s in ess]
 
+        cscale = self._params.conc_scale
         for i, state in enumerate(states):
-            G.sna(state, 'priority', ess[i] + 1*concentration[i])
+            G.sna(state, 'priority', ess[i] + cscale*cc[i])
 
     def _find_best_policies(self):
         """ Find the best trajectories from starts to goal state """
@@ -435,6 +445,7 @@ class GraphMDPParams(object):
         self.goal_state = (5.5, 9)
         self.init_type = 'random'
         self.max_cost = 1000
+        self.conc_scale = 5
 
     @property
     def _to_json(self):
