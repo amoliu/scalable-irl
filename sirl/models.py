@@ -155,12 +155,11 @@ class GraphMDP(object):
                         self._max_es = es
                     if es < self._min_es:
                         self._min_es = es
-
                     conc = conc / float(self._max_conc)
                     es = (es - self._min_es)/1.0*(self._max_es - self._min_es)
                     if var_es > self._params.exp_thresh:
                         exp_queue.append(new_state)
-                        exp_probs.append(es + 3*conc)
+                        exp_probs.append(es + 1*conc)
 
             # - expand around exploration states (if any)
             for _ in range(min(len(exp_queue), self._params.n_add)):
@@ -194,6 +193,10 @@ class GraphMDP(object):
 
             # - prune graph
             # self._prune_graph()
+            # self._update_state_costs()
+            # graph_policy_iteration(self._g, gamma=self._gamma)
+            # self._update_state_priorities()
+            # self._find_best_policies()
 
         return self
 
@@ -275,7 +278,7 @@ class GraphMDP(object):
                for s in ess]
 
         for i, state in enumerate(states):
-            G.sna(state, 'priority', ess[i] + 3*concentration[i])
+            G.sna(state, 'priority', ess[i] + 1*concentration[i])
 
     def _find_best_policies(self):
         """ Find the best trajectories from starts to goal state """

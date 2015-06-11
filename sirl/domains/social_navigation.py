@@ -135,7 +135,7 @@ class SocialNavReward(MDPReward):
     def social_disturbance(self, action):
         pd = [min([edist(wp, person) for person in self._persons])
               for wp in action]
-        phi = sum(1 * self._gamma**i for i, d in enumerate(pd) if d < 0.25)
+        phi = sum(1 * self._gamma**i for i, d in enumerate(pd) if d < 0.45)
         return phi
 
     def social_disturbance2(self, action):
@@ -306,15 +306,17 @@ class SocialNavMDP(GraphMDP):
         # self.figure.canvas.mpl_connect('key_press_event', self._key_press)
         # self.figure.canvas.mpl_connect('button_press_event', self._btn_click)
 
-    def _plot_graph_in_world(self):
+    def _plot_graph_in_world(self, show_rewards=False):
         """ Shows the lattest version of the world with MDP
         """
         G = self._g
         gna = G.gna
-        # gea = G.gea
-        # rewards = [gea(e[0], e[1], 'reward') for e in G.all_edges]
-        # n = mpl.colors.Normalize(vmin=np.min(rewards), vmax=np.max(rewards))
-        # m = cm.ScalarMappable(norm=n, cmap=cm.jet)
+
+        if show_rewards:
+            gea = G.gea
+            rewards = [gea(e[0], e[1], 'reward') for e in G.all_edges]
+            n = mpl.colors.Normalize(vmin=min(rewards), vmax=max(rewards))
+            m = cm.ScalarMappable(norm=n, cmap=cm.jet)
 
         n_nodes = len(G.nodes)
         best_nodes = set()
@@ -337,9 +339,8 @@ class SocialNavMDP(GraphMDP):
                 rgcol = _rgb_to_hex(((0, 0, 255 * i / float(n_nodes))))
                 color = [rgcol, rgcol]
                 nr = 0.5
-
             self.ax.add_artist(Circle((posx, posy), nr/10., fc=color[0],
-                               ec=color[1], lw=1.5))
+                               ec=color[1], lw=1.5, zorder=3))
 
             p = gna(n, 'pi')
             ndata = gna(n, 'data')
@@ -349,16 +350,18 @@ class SocialNavMDP(GraphMDP):
                 x1, y1 = ndata[0], ndata[1]
                 x2, y2 = tdata[0], tdata[1]
                 if n in best_nodes and i == p:
-                    self.ax.plot((x1, x2), (y1, y2), ls='-', lw=4.0, c='g')
+                    self.ax.plot((x1, x2), (y1, y2), ls='-',
+                                 lw=4.0, c='g', zorder=3)
                 else:
-                    self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
-                                 c='k', alpha=0.5)
-
-                    # cost = gea(e[0], e[1], 'reward')
-                    # self.ax.arrow(x1, y1, 0.97*(x2-x1), 0.97*(y2-y1),
-                    #               width=0.01, head_width=0.15,
-                    #               head_length=0.15,
-                    #               fc=m.to_rgba(cost), ec=m.to_rgba(cost))
+                    if not show_rewards:
+                        self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
+                                     c='0.7', alpha=0.5)
+                    else:
+                        cost = gea(e[0], e[1], 'reward')
+                        self.ax.arrow(x1, y1, 0.97*(x2-x1), 0.97*(y2-y1),
+                                      width=0.01, head_width=0.15,
+                                      head_length=0.15,
+                                      fc=m.to_rgba(cost), ec=m.to_rgba(cost))
 
 
 def _rgb_to_hex(rgb):
