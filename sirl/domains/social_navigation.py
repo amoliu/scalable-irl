@@ -198,7 +198,7 @@ class SocialNavMDP(GraphMDP):
         Reward function for social navigation task
     controller : ``SocialNavLocalController`` object
         Local controller for the task
-    params : ``AlgoParams`` object
+    params : ``GraphMDPParams`` object
         Algorithm parameters for the various steps
     world_config : ``WorldConfig`` object
         Configuration of the navigation task world
@@ -274,16 +274,15 @@ class SocialNavMDP(GraphMDP):
             phead = np.degrees(np.arctan2(p[3], p[2]))
             self.ax.add_artist(Ellipse((p[0], p[1]), width=0.3, height=0.6,
                                angle=phead, color='r', fill=False, lw=1.5,
-                               aa=True))
+                               aa=True, zorder=3))
             self.ax.add_artist(Circle((p[0], p[1]), radius=0.12, color='w',
-                               ec='r', lw=2.5, aa=True))
+                               ec='r', lw=2.5, aa=True, zorder=3))
             self.ax.arrow(p[0], p[1], p[2]/5., p[3]/5., fc='r', ec='r', lw=1.5,
-                          head_width=0.14, head_length=0.1)
-
+                          head_width=0.14, head_length=0.1, zorder=3)
         for [i, j] in relations:
-            x1, x2 = persons[i-1][0], persons[i-1][1]
-            y1, y2 = persons[j-1][0], persons[j-1][1]
-            self.ax.plot((x1, y1), (x2, y2), ls='-', lw=2.0, c='r', alpha=0.7)
+            x1, y1 = persons[i-1][0], persons[i-1][1]
+            x2, y2 = persons[j-1][0], persons[j-1][1]
+            self.ax.plot((x1, x2), (y1, y2), ls='-', c='r', lw=2.0, zorder=2)
 
         self._plot_graph_in_world()
 

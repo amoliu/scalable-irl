@@ -2,6 +2,7 @@
 from __future__ import division
 from abc import abstractmethod, ABCMeta
 
+import json
 import numpy as np
 from numpy.random import uniform
 
@@ -63,7 +64,7 @@ class GraphMDP(object):
         Reward function for social navigation task
     controller : ``SocialNavLocalController`` object
         Local controller for the task
-    params : ``AlgoParams`` object
+    params : ``GraphMDPParams`` object
         Algorithm parameters for the various steps
 
 
@@ -80,7 +81,7 @@ class GraphMDP(object):
     _best_trajs : list of tuples, [(x, y)]
         The best trajectories representing the policies from each start pose to
         a goal pose
-    _params : ``AlgoParams`` object
+    _params : ``GraphMDPParams`` object
         Algorithm parameters for the various steps
     _node_id : int
         State id (for keeping track when adding new states)
@@ -96,6 +97,7 @@ class GraphMDP(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, discount, reward, controller, params):
+        assert 0 <= discount < 1, '``discount`` must be in [0, 1)'
         self._gamma = discount
         self._reward = reward
         self._controller = controller
@@ -416,8 +418,8 @@ class GraphMDP(object):
 
 #############################################################################
 
-class AlgoParams(object):
-    """ Algorithm parameters """
+class GraphMDPParams(object):
+    """ GraphMDP Algorithm parameters """
     def __init__(self):
         self.n_expand = 1   # No of nodes to be expanded
         self.n_new = 20   # no of new nodes
@@ -434,12 +436,18 @@ class AlgoParams(object):
         self.init_type = 'random'
         self.max_cost = 1000
 
+    @property
+    def _to_json(self):
+        return json.dumps(self, default=lambda o: o.__dict__,
+                          sort_keys=True, indent=4)
+
     def load_from_json(self, json_file):
-        pass
+        raise NotImplementedError('Custome object hook pending')
 
     def save_to_json(self, filename):
-        pass
-
+        """ Save the parameters to file """
+        with open(filename, 'w') as f:
+            json.dump(self._to_json, f)
 
 #############################################################################
 
