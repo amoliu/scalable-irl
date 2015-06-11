@@ -94,16 +94,23 @@ class StateGraph(object):
         self.G.edge[source][target][attribute] = value
 
     def find_neighbors_data(self, loc, distance):
+        """ Find node neigbors within distance range
+        Note
+        -----
+        Includes self in the result
+        """
         neigbors = filter(lambda n: eud(self.gna(n, 'data'), loc) <= distance,
                           self.G.nodes())
         return neigbors
 
     def find_neighbors_range(self, nid, distance):
-        """ Find node neigbors within distance range"""
+        """ Find node neigbors within distance range
+        Note
+        -----
+        Includes self in the result
+        """
         cn = self.gna(nid, 'data')
-        neigbors = filter(lambda n: eud(self.gna(n, 'data'), cn) <= distance,
-                          self.G.nodes())
-        return neigbors
+        return self.find_neighbors_data(cn, distance)
 
     def find_neighbors_k(self, nid, k):
         """ Find k nearest neighbors based on Euclidean distance """
@@ -120,9 +127,6 @@ class StateGraph(object):
     def edges(self, nid):
         """ Return the edges of a node """
         return self.G.edges(nid)
-
-    def all_edges(self):
-        return self.G.edges()
 
     def out_edges(self, nid):
         """ Return the outgoing edges of a node """
@@ -202,6 +206,10 @@ class StateGraph(object):
     @property
     def nodes_data(self):
         return self.G.nodes(data=True)
+
+    @property
+    def all_edges(self):
+        return self.G.edges()
 
 
 def eud(data1, data2):
