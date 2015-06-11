@@ -121,6 +121,9 @@ class StateGraph(object):
         """ Return the edges of a node """
         return self.G.edges(nid)
 
+    def all_edges(self):
+        return self.G.edges()
+
     def out_edges(self, nid):
         """ Return the outgoing edges of a node """
         return self.G.out_edges(nid)

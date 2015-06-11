@@ -6,6 +6,9 @@ import numpy as np
 
 from matplotlib.patches import Circle, Ellipse
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import matplotlib as mpl
+
 
 from ..models import LocalController
 from ..models import MDPReward
@@ -70,8 +73,8 @@ class SocialNavLocalController(LocalController):
         If the local controller ends up beyond the limits of the world config,
         then the current state is returned to avoid sampling `outside'.
         """
-        nx = state[0] + np.cos(action * 2 * np.pi) * duration
-        ny = state[1] + np.sin(action * 2 * np.pi) * duration
+        nx = state[0] + np.cos(action * 2 * np.pi) * duration * 0.1
+        ny = state[1] + np.sin(action * 2 * np.pi) * duration * 0.1
 
         if self._wconfig.x < nx < self._wconfig.w and\
                 self._wconfig.y < ny < self._wconfig.h:
@@ -97,7 +100,7 @@ class SocialNavReward(MDPReward):
     def __call__(self, state_a, state_b):
         source, target = np.array(state_a), np.array(state_b)
         # increase resolution of action trajectory (option)
-        duration = _controller_duration(source, target) * 10.0
+        duration = _controller_duration(source, target)
         action_traj = [target * t / duration + source * (1 - t / duration)
                        for t in range(int(duration))]
         action_traj.append(target)
@@ -105,6 +108,7 @@ class SocialNavReward(MDPReward):
 
         phi = [self.relation_disturbance(action_traj),
                self.social_disturbance(action_traj),
+               # self.goal_deviation_angle((source, target))]
                self.goal_deviation_count(action_traj)]
         reward = np.dot(phi, self._weights)
         return reward
@@ -131,7 +135,7 @@ class SocialNavReward(MDPReward):
     def social_disturbance(self, action):
         pd = [min([edist(wp, person) for person in self._persons])
               for wp in action]
-        phi = sum(1 * self._gamma**i for i, d in enumerate(pd) if d < 0.45)
+        phi = sum(1 * self._gamma**i for i, d in enumerate(pd) if d < 0.25)
         return phi
 
     def social_disturbance2(self, action):
@@ -219,39 +223,42 @@ class SocialNavMDP(GraphMDP):
         GR = self._params.goal_reward
         COST_LIMIT = self._params.max_cost
         for start in self._params.start_states:
-            self._g.add_node(nid=self._node_id, data=start, cost=-COST_LIMIT,
-                             priority=1, V=GR, pi=0, Q=[0], ntype='start')
+            self._g.add_node(nid=self._node_id, data=start, cost=0,
+                             priority=1, V=GR, pi=0, Q=[], ntype='start')
             self._node_id += 1
 
         self._g.add_node(nid=self._node_id, data=self._params.goal_state,
                          cost=-COST_LIMIT, priority=1, V=GR, pi=0,
-                         Q=[0], ntype='goal')
+                         Q=[], ntype='goal')
         self._node_id += 1
 
         # - add the init samples
         init_samples = list(samples)
         for sample in init_samples:
-            self._g.add_node(nid=self._node_id, data=sample, cost=COST_LIMIT,
-                             priority=1, V=GR, pi=0, Q=[0], ntype='simple')
+            self._g.add_node(nid=self._node_id, data=sample, cost=-COST_LIMIT,
+                             priority=1, V=GR, pi=0, Q=[], ntype='simple')
             self._node_id += 1
 
+        print(self._g.nodes_data)
         # - add edges between each pair
         for n in self._g.nodes:
             for m in self._g.nodes:
                 if n == m:
                     continue
-
                 ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
                 r = self._reward(ndata, mdata)
-                rb = self._reward(mdata, ndata)
                 d = _controller_duration(ndata, mdata)
                 self._g.add_edge(source=n, target=m, reward=r, duration=d)
-                self._g.add_edge(source=m, target=n, reward=rb, duration=d)
+                # rb = self._reward(mdata, ndata)
+                # self._g.add_edge(source=m, target=n, reward=rb, duration=d)
 
         # - update graph attributes
-        self._update_state_priorities()
+        self._update_state_costs()
         graph_policy_iteration(self._g, gamma=self._gamma)
+        self._update_state_priorities()
         self._find_best_policies()
+        print(self._g.edges(0))
+        print(self._g.out_edges(0))
 
     def terminal(self, state):
         """ Check if a state is terminal (goal state) """
@@ -309,6 +316,11 @@ class SocialNavMDP(GraphMDP):
         """
         G = self._g
         gna = G.gna
+        gea = G.gea
+
+        rewards = [gea(e[0], e[1], 'reward') for e in G.all_edges()]
+        norm = mpl.colors.Normalize(vmin=np.min(rewards), vmax=np.max(rewards))
+        m = cm.ScalarMappable(norm=norm, cmap=cm.jet)
 
         n_nodes = len(G.nodes)
         best_nodes = set()
@@ -345,8 +357,14 @@ class SocialNavMDP(GraphMDP):
                 else:
                     x1, y1 = gna(n, 'data')[0], gna(n, 'data')[1]
                     x2, y2 = gna(t, 'data')[0], gna(t, 'data')[1]
-                    self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
-                                 c='k', alpha=0.5)
+                    # self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
+                    #              c='k', alpha=0.5)
+
+                    cost = gea(e[0], e[1], 'reward')
+                    self.ax.arrow(x1, y1, 0.97*(x2-x1), 0.97*(y2-y1),
+                                  width=0.01, head_width=0.15,
+                                  head_length=0.15,
+                                  fc=m.to_rgba(cost), ec=m.to_rgba(cost))
 
 
 def _rgb_to_hex(rgb):

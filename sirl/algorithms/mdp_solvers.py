@@ -1,10 +1,10 @@
 
 
-def graph_policy_iteration(G, gamma=0.9, epsilon=0.00001):
+def graph_policy_iteration(G, gamma=0.9, epsilon=0.0001):
     """ Graph policy iteration for use with adaptive state graphs
     """
     it = 0
-    maxit = 50
+    maxit = 20
     policy_stable = False
 
     gna = G.gna
