@@ -1,13 +1,6 @@
 
 
 from nose.tools import assert_equal
-from nose.tools import assert_not_equal
-from nose.tools import assert_true
-from nose.tools import assert_false
-from nose.tools import assert_raises
-from nose.tools import raises
-
-from numpy.testing import assert_almost_equal
 from numpy.testing import assert_array_equal
 
 from sirl.state_graph import StateGraph
