@@ -239,26 +239,21 @@ class SocialNavMDP(GraphMDP):
                              priority=1, V=GR, pi=0, Q=[], ntype='simple')
             self._node_id += 1
 
-        print(self._g.nodes_data)
         # - add edges between each pair
         for n in self._g.nodes:
             for m in self._g.nodes:
-                if n == m:
+                if n == m or self.terminal(n):
                     continue
                 ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
                 r = self._reward(ndata, mdata)
                 d = _controller_duration(ndata, mdata)
                 self._g.add_edge(source=n, target=m, reward=r, duration=d)
-                # rb = self._reward(mdata, ndata)
-                # self._g.add_edge(source=m, target=n, reward=rb, duration=d)
 
         # - update graph attributes
         self._update_state_costs()
         graph_policy_iteration(self._g, gamma=self._gamma)
         self._update_state_priorities()
         self._find_best_policies()
-        print(self._g.edges(0))
-        print(self._g.out_edges(0))
 
     def terminal(self, state):
         """ Check if a state is terminal (goal state) """
@@ -316,11 +311,10 @@ class SocialNavMDP(GraphMDP):
         """
         G = self._g
         gna = G.gna
-        gea = G.gea
-
-        rewards = [gea(e[0], e[1], 'reward') for e in G.all_edges()]
-        norm = mpl.colors.Normalize(vmin=np.min(rewards), vmax=np.max(rewards))
-        m = cm.ScalarMappable(norm=norm, cmap=cm.jet)
+        # gea = G.gea
+        # rewards = [gea(e[0], e[1], 'reward') for e in G.all_edges]
+        # n = mpl.colors.Normalize(vmin=np.min(rewards), vmax=np.max(rewards))
+        # m = cm.ScalarMappable(norm=n, cmap=cm.jet)
 
         n_nodes = len(G.nodes)
         best_nodes = set()
@@ -355,16 +349,16 @@ class SocialNavMDP(GraphMDP):
                 x1, y1 = ndata[0], ndata[1]
                 x2, y2 = tdata[0], tdata[1]
                 if n in best_nodes and i == p:
-                    self.ax.plot((x1, y1), (x2, y2), ls='-', lw=4.0, c='g')
+                    self.ax.plot((x1, x2), (y1, y2), ls='-', lw=4.0, c='g')
                 else:
-                    # self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
-                    #              c='k', alpha=0.5)
+                    self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
+                                 c='k', alpha=0.5)
 
-                    cost = gea(e[0], e[1], 'reward')
-                    self.ax.arrow(x1, y1, 0.97*(x2-x1), 0.97*(y2-y1),
-                                  width=0.01, head_width=0.15,
-                                  head_length=0.15,
-                                  fc=m.to_rgba(cost), ec=m.to_rgba(cost))
+                    # cost = gea(e[0], e[1], 'reward')
+                    # self.ax.arrow(x1, y1, 0.97*(x2-x1), 0.97*(y2-y1),
+                    #               width=0.01, head_width=0.15,
+                    #               head_length=0.15,
+                    #               fc=m.to_rgba(cost), ec=m.to_rgba(cost))
 
 
 def _rgb_to_hex(rgb):

@@ -125,10 +125,9 @@ class GraphMDP(object):
         while self._node_id < self._params.max_samples:
             if self._node_id % 10 == 0:
                 print('Run: no.nodes = {}'.format(self._node_id))
+
             # - select state expansion set between S_best and S_other
             S_best, S_other = self._generate_state_sets()
-            # e_set = wchoice([S_best, S_other], [p_b, 1-p_b])
-
             e_set = S_other
             if uniform(0, 1) > p_b or len(S_other) == 0:
                 e_set = S_best
@@ -173,10 +172,12 @@ class GraphMDP(object):
                 self._g.add_node(nid=nid, data=sen['data'],
                                  cost=sen['cost'], pi=0, Q=[0], V=10,
                                  ntype='simple', priority=exp_probs[index])
-                self._g.add_edge(sen['b_state'], nid, sen['f_reward'],
-                                 sen['b_duration'])
+                self._g.add_edge(source=sen['b_state'], target=nid,
+                                 reward=sen['f_reward'],
+                                 duration=sen['b_duration'])
                 rb = self._reward(sen['data'], sen['b_data'])
-                self._g.add_edge(nid, sen['b_state'], rb, sen['b_duration'])
+                self._g.add_edge(source=nid, target=sen['b_state'], reward=rb,
+                                 duration=sen['b_duration'])
 
                 # remove from queue??
                 exp_queue.remove(sen)
@@ -265,14 +266,13 @@ class GraphMDP(object):
 
         concentration = [self._node_concentration(state) for state in states]
         self._max_conc = max(concentration)
-        concentration = [c / self._max_conc for c in concentration]
+        concentration = [c / float(self._max_conc) for c in concentration]
 
         ess = [G.gna(n, 'cost') + G.gna(n, 'V') for n in states]
         self._max_es = max(ess)
         self._min_es = min(ess)
-        if (self._max_es - self._min_es) > 1e-09:
-            ess = [(s - self._min_es) / (self._max_es - self._min_es)
-                   for s in ess]
+        ess = [(s - self._min_es) / float((self._max_es - self._min_es))
+               for s in ess]
 
         for i, state in enumerate(states):
             G.sna(state, 'priority', ess[i] + 3*concentration[i])
@@ -310,11 +310,13 @@ class GraphMDP(object):
                 if len(self._g.out_edges(s)) < self._params.max_edges:
                     if not self._g.edge_exists(s, n) and not self.terminal(s):
                         reward = self._reward(xs, xn)
-                        self._g.add_edge(s, n, d, reward=reward)
+                        self._g.add_edge(source=s, target=n,
+                                         duration=d, reward=reward)
                 if len(self._g.out_edges(n)) < self._params.max_edges:
                     if not self._g.edge_exists(n, s) and not self.terminal(n):
                         reward_back = self._reward(xn, xs)
-                        self._g.add_edge(s, n, d, reward=reward_back)
+                        self._g.add_edge(source=n, target=s,
+                                         duration=d, reward=reward_back)
 
     def _prune_graph(self):
         """ Prune the graph

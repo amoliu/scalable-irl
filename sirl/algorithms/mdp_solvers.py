@@ -1,6 +1,6 @@
 
 
-def graph_policy_iteration(G, gamma=0.9, epsilon=0.0001):
+def graph_policy_iteration(G, gamma=0.9, epsilon=1e-05):
     """ Graph policy iteration for use with adaptive state graphs
     """
     it = 0

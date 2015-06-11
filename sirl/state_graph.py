@@ -31,15 +31,16 @@ class StateGraph(object):
         """
         Add a new edge into the graph
         """
+        assert duration >= 0.0, 'Duration must be positive'
         if source == target:
             warnings.warn('WARN: source and target nodes are the same')
 
         elif not self.G.has_edge(source, target):
             self.G.add_edge(source, target, duration=duration, reward=reward)
         else:
-            pass
-            # warnings.warn('Edge ({}--{}) already exists in the graph'
-            #               .format(source, target))
+            # pass
+            warnings.warn('Edge ({}--{}) already exists in the graph'
+                          .format(source, target))
 
     def remove_edge(self, source, target):
         """ Remove an edge from the graph """
