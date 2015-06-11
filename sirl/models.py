@@ -135,7 +135,7 @@ class GraphMDP(object):
 
             exp_queue = []
             exp_probs = []
-            for _ in range(min(len(self._g.nodes), self._params.n_expand)):
+            for _ in range(min(self._node_id, self._params.n_expand)):
                 # - select state to expand
                 picked = False
                 while not picked:
@@ -171,7 +171,7 @@ class GraphMDP(object):
                 # add the selected node to the graph
                 nid = self._node_id
                 self._g.add_node(nid=nid, data=sen['data'],
-                                 cost=sen['cost'], pi=0, Q=[0], V=sen['V'],
+                                 cost=sen['cost'], pi=0, Q=[0], V=10,
                                  ntype='simple', priority=exp_probs[index])
                 self._g.add_edge(sen['b_state'], nid, sen['f_reward'],
                                  sen['b_duration'])

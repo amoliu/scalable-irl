@@ -263,7 +263,7 @@ class SocialNavMDP(GraphMDP):
     def terminal(self, state):
         """ Check if a state is terminal (goal state) """
         position = self._g.gna(state, 'data')
-        if edist(position, self._params.goal_state) < 0.5:
+        if edist(position, self._params.goal_state) < 0.05:
             return True
         return False
 
@@ -348,15 +348,15 @@ class SocialNavMDP(GraphMDP):
                                ec=color[1], lw=1.5))
 
             p = gna(n, 'pi')
+            ndata = gna(n, 'data')
             for i, e in enumerate(G.out_edges(n)):
                 t = e[1]
+                tdata = gna(t, 'data')
+                x1, y1 = ndata[0], ndata[1]
+                x2, y2 = tdata[0], tdata[1]
                 if n in best_nodes and i == p:
-                    x1, x2 = gna(n, 'data')[0], gna(n, 'data')[1]
-                    y1, y2 = gna(t, 'data')[0], gna(t, 'data')[1]
                     self.ax.plot((x1, y1), (x2, y2), ls='-', lw=4.0, c='g')
                 else:
-                    x1, y1 = gna(n, 'data')[0], gna(n, 'data')[1]
-                    x2, y2 = gna(t, 'data')[0], gna(t, 'data')[1]
                     # self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
                     #              c='k', alpha=0.5)
 
