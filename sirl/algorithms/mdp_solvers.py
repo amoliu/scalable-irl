@@ -1,10 +1,43 @@
+r"""
+Markov Decision Process (MDP) Solvers
+=======================================
+
+A set of MDP solvers, including
+    * Policy iteration
+    * Prioritized Sweeping (pending)
+"""
 
 
-def graph_policy_iteration(G, gamma=0.9, epsilon=1e-05):
+def graph_policy_iteration(G, gamma=0.9, epsilon=1e-05, maxit=20):
     """ Graph policy iteration for use with adaptive state graphs
+
+    Perform policy iteration on the MDP graph. The value function and
+    action-value function (Q-function) are stored in the nodes/states
+    because the number of actions vary per state depending on the no
+    of outgoing edges present.
+
+    .. math::
+        V(s) = r(s, \pi(s)) + \gamma^d V(\pi(s))
+
+    The reward depends both on state and action (edges)
+
+    Parameters
+    ----------
+    G : ``StateGraph`` object
+        The state graph representing the MDP
+    gamma : float, optional (default: 0.9)
+        Discount factor for the MDP
+    epsilon : float, optional (default: 1e-05)
+        Value change threshold for Bellman backup
+    maxit : int
+        Maximum number of iterations of the policy iteration sweeps
+
+
+    Note
+    -----
+    The resulting values and Q functions are modified in-place on the graph
     """
     it = 0
-    maxit = 20
     policy_stable = False
 
     gna = G.gna

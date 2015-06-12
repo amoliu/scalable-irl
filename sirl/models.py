@@ -12,11 +12,12 @@ from algorithms.function_approximation import gp_predict, gp_covariance
 
 from utils.common import wchoice
 from utils.geometry import edist
+from .base import ModelMixin
 
 
 ########################################################################
 
-class LocalController(object):
+class LocalController(ModelMixin):
     """ GraphMDP local controller """
 
     __metaclass__ = ABCMeta
@@ -31,7 +32,7 @@ class LocalController(object):
 
 ########################################################################
 
-class MDPReward(object):
+class MDPReward(ModelMixin):
     """ Reward  function base class """
 
     __metaclass__ = ABCMeta
@@ -46,7 +47,7 @@ class MDPReward(object):
 
 ########################################################################
 
-class GraphMDP(object):
+class GraphMDP(ModelMixin):
     """ Adaptive State-Graph MDP
 
     MDP is represented using a weighted adaptive state graph,
@@ -477,10 +478,12 @@ def _sample_control_time(iteration, max_iter):
 
 def _tmin(it, max_iter):
     return int(50 * (1 - it / float(max_iter)) + 5 * it / float(max_iter))
+    # return int(100 * (1 - it / float(max_iter)) + 10 * it / float(max_iter))
 
 
 def _tmax(it, max_iter):
     return _tmin(it, max_iter) + 2
+    # return _tmin(it, max_iter) + 5
 
 
 def _controller_duration(source, target):
