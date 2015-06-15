@@ -111,7 +111,7 @@ class SocialNavReward(MDPReward):
                # self.goal_deviation_angle((source, target))]
                self.goal_deviation_count(action_traj)]
         reward = np.dot(phi, self._weights)
-        return reward
+        return reward, phi
 
     def goal_deviation_angle(self, action):
         source, target = action[0], action[1]
@@ -245,13 +245,14 @@ class SocialNavMDP(GraphMDP):
                 if n == m or self.terminal(n):
                     continue
                 ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
-                r = self._reward(ndata, mdata)
+                r, phi = self._reward(ndata, mdata)
                 d = _controller_duration(ndata, mdata)
-                self._g.add_edge(source=n, target=m, reward=r, duration=d)
+                self._g.add_edge(source=n, target=m, reward=r,
+                                 duration=d, phi=phi)
 
         # - update graph attributes
         self._update_state_costs()
-        graph_policy_iteration(self._g, gamma=self._gamma)
+        graph_policy_iteration(self)
         self._update_state_priorities()
         self._find_best_policies()
 

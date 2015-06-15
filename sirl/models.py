@@ -180,11 +180,11 @@ class GraphMDP(ModelMixin):
                                  cost=sen['cost'], pi=0, Q=[0], V=sen['V'],
                                  ntype='simple', priority=exp_probs[index])
                 self._g.add_edge(source=sen['b_state'], target=nid,
-                                 reward=sen['f_reward'],
+                                 reward=sen['f_reward'], phi=sen['f_phi'],
                                  duration=sen['b_duration'])
-                rb = self._reward(sen['data'], sen['b_data'])
+                rb, phi = self._reward(sen['data'], sen['b_data'])
                 self._g.add_edge(source=nid, target=sen['b_state'], reward=rb,
-                                 duration=sen['b_duration'])
+                                 duration=sen['b_duration'], phi=phi)
 
                 # remove from queue??
                 exp_queue.remove(sen)
@@ -195,14 +195,14 @@ class GraphMDP(ModelMixin):
 
             # - update state attributes, policies
             self._update_state_costs()
-            graph_policy_iteration(self._g)
+            graph_policy_iteration(self)
             self._update_state_priorities()
             self._find_best_policies()
 
             # - prune graph
             # self._prune_graph()
             # self._update_state_costs()
-            # graph_policy_iteration(self._g)
+            # graph_policy_iteration(self)
             # self._update_state_priorities()
             # self._find_best_policies()
 
@@ -245,12 +245,13 @@ class GraphMDP(ModelMixin):
         duration = _sample_control_time(iteration, self._params.max_samples)
         action = np.random.uniform(0.0, 1.0)
         new_state = self._controller(gna(state, 'data'), action, duration)
-        reward = self._reward(gna(state, 'data'), new_state)
+        reward, phi = self._reward(gna(state, 'data'), new_state)
 
         state_dict = dict()
         state_dict['data'] = new_state
         state_dict['cost'] = gna(state, 'cost')+reward
         state_dict['f_reward'] = reward
+        state_dict['f_phi'] = phi
         state_dict['b_state'] = state
         state_dict['b_duration'] = _controller_duration(gna(state, 'data'),
                                                         new_state)
@@ -337,13 +338,13 @@ class GraphMDP(ModelMixin):
                 d = _controller_duration(xs, xn)
                 if len(self._g.out_edges(s)) < self._params.max_edges:
                     if not self._g.edge_exists(s, n) and not self.terminal(s):
-                        reward = self._reward(xs, xn)
-                        self._g.add_edge(source=s, target=n,
+                        reward, phi = self._reward(xs, xn)
+                        self._g.add_edge(source=s, target=n, phi=phi,
                                          duration=d, reward=reward)
                 if len(self._g.out_edges(n)) < self._params.max_edges:
                     if not self._g.edge_exists(n, s) and not self.terminal(n):
-                        reward_back = self._reward(xn, xs)
-                        self._g.add_edge(source=n, target=s,
+                        reward_back, phi = self._reward(xn, xs)
+                        self._g.add_edge(source=n, target=s, phi=phi,
                                          duration=d, reward=reward_back)
 
     def _prune_graph(self):

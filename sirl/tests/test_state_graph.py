@@ -22,8 +22,9 @@ def test_add_edge():
                priority=1, Q=[], V=1, pi=0, ntype='simple')
     g.add_node(nid=1, data=(3, 3), cost=3,
                priority=1, Q=[], V=10, pi=0, ntype='simple')
-    g.add_edge(0, 1, 3, 20)
-    g.add_edge(1, 0, 3, 40)
+    phi = [1, 2, 3]
+    g.add_edge(0, 1, 3, 20, phi)
+    g.add_edge(1, 0, 3, 40, phi)
     assert_equal(len(g.all_edges), 2)
     assert_equal(g.edge_exists(0, 1), True)
     assert_equal(g.edge_exists(1, 0), True)
@@ -49,8 +50,9 @@ def test_edge_attributes():
                priority=1, Q=[], V=1, pi=0, ntype='simple')
     g.add_node(nid=1, data=(3, 3), cost=3,
                priority=1, Q=[], V=10, pi=0, ntype='simple')
-    g.add_edge(0, 1, 3, 20)
-    g.add_edge(1, 0, 3, 40)
+    phi = [1, 2, 3]
+    g.add_edge(0, 1, 3, 20, phi)
+    g.add_edge(1, 0, 3, 40, phi)
     g.sea(0, 1, 'reward', 100)
     g.sea(0, 1, 'duration', 1000)
     assert_equal(g.G.edge[0][1]['reward'], 100)
@@ -67,9 +69,10 @@ def test_out_edges():
                priority=1, Q=[], V=10, pi=0, ntype='simple')
     g.add_node(nid=2, data=(2, 6), cost=3,
                priority=1, Q=[], V=10, pi=0, ntype='simple')
-    g.add_edge(0, 1, 3, 20)
-    g.add_edge(1, 0, 3, 40)
-    g.add_edge(0, 2, 4, 50)
+    phi = [1, 2, 3]
+    g.add_edge(0, 1, 3, 20, phi)
+    g.add_edge(1, 0, 3, 40, phi)
+    g.add_edge(0, 2, 4, 50, phi)
     assert_equal(len(g.out_edges(0)), 2)
     assert_equal(len(g.out_edges(1)), 1)
     assert_equal(len(g.out_edges(2)), 0)
