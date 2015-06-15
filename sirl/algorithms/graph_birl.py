@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 
 import numpy as np
 
+from .mdp_solvers import graph_policy_iteration
 from ..base import ModelMixin
 
 
@@ -38,8 +39,6 @@ class GBIRL(ModelMixin):
         self._alpha = alpha
         self._max_iter = max_iter
 
-        self._generated_trajs = []
-
     def solve(self):
         """ Find the true reward function """
 
@@ -69,13 +68,71 @@ class GBIRL(ModelMixin):
         """ Initialize reward function based on sovler """
         raise NotImplementedError('Abstract')
 
+    # -------------------------------------------------------------
+    # internals
+    # -------------------------------------------------------------
+
     def _generate_trajestories(self, policy, size=10):
         """ Generate trajectories using a given policy """
-        pass
+        # TODO - remove the need for arguiments as all info is in graph
+        self._mdp._find_best_policies()
+        return self._mdp._best_trajs
 
     def _compute_policy(self, reward):
         """ Compute the policy induced by a given reward function """
-        pass
+        # TODO - check that reward is a weight vector
+        gea = self._mdp.graph.gea
+        sea = self._mdp.graph.sea
+
+        for e in self._mdp.graph.all_edges:
+            phi = gea(e[0], e[1], 'phi')
+            r = np.dot(phi, reward)
+            sea(e[0], e[1], 'reward', r)
+
+        graph_policy_iteration(self._mdp)
+        # TODO - remove the need to return pi as its stored in graph
+        policy = self._mdp.graph.policy
+        return policy
+
+    def compute_expert_trajectory_quality(self, reward, gr):
+        """ Compute the Q-function of expert trajectories """
+        QEs = []
+        for traj in self._demos:
+            time = 0
+            QE = 0
+            for n in traj:
+                if n.edges:  # use python implicit reasoning
+                    p = n.pol
+                    r = np.dot(reward, n.edges[p].features)
+                    QE += (self.mdp.gamma ** time) * r
+                    time += n.edges[p].time
+                else:  # TODO - fix this (change to check for teminal)
+                    QE += (self.mdp.gamma ** time) * gr
+            QEs.append(QE)
+        return QEs
+
+    def compute_generated_trajectory_quality(self, g_trajs, reward, gr):
+        """ Compute the Q-function of generated trajectories """
+        QPiv = []
+        for g_traj in g_trajs:
+            QPis = []
+            for traj in g_traj:
+                QPi = 0
+                time = 0
+                for n in traj:
+                    if n.edges:  # use python implicit reasoning
+                        p = n.pol
+                        r = np.dot(reward, n.edges[p].features)
+                        QPi += (self.mdp.gamma ** time) * r
+                        time += n.edges[p].time
+                    else:
+                        QPi += (self.mdp.gamma ** time) * gr
+                QPis.append(QPi)
+            QPiv.append(QPis)
+        return QPiv
+
+
+########################################################################
 
 
 class GBIRLPolicyWalk(GBIRL):
@@ -90,4 +147,10 @@ class GBIRLPolicyWalk(GBIRL):
         self._rmax = reward_max
         self._mcmc_iter = mcmc_iter
 
-        self._generated_trajs = []
+    def find_next_reward(self, e_trajs, g_trajs):
+        """ Compute a new reward based on current iteration using PW """
+        pass
+
+    def initialize_reward(self):
+        """ Initialize reward function based on sovler """
+        pass

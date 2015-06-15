@@ -75,7 +75,7 @@ class GraphMDP(ModelMixin):
 
     Attributes
     -----------
-    _gamma : float
+    gamma : float
         MDP discount factor
     _reward : ``SocialNavReward`` object
         Reward function for social navigation task
@@ -103,7 +103,7 @@ class GraphMDP(ModelMixin):
 
     def __init__(self, discount, reward, controller, params):
         assert 0 <= discount < 1, '``discount`` must be in [0, 1)'
-        self._gamma = discount
+        self.gamma = discount
         self._reward = reward
         self._controller = controller
         self._params = params
@@ -195,18 +195,26 @@ class GraphMDP(ModelMixin):
 
             # - update state attributes, policies
             self._update_state_costs()
-            graph_policy_iteration(self._g, gamma=self._gamma)
+            graph_policy_iteration(self._g)
             self._update_state_priorities()
             self._find_best_policies()
 
             # - prune graph
             # self._prune_graph()
             # self._update_state_costs()
-            # graph_policy_iteration(self._g, gamma=self._gamma)
+            # graph_policy_iteration(self._g)
             # self._update_state_priorities()
             # self._find_best_policies()
 
         return self
+
+    # -------------------------------------------------------------
+    # properties
+    # -------------------------------------------------------------
+
+    @property
+    def graph(self):
+        return self._g
 
     # -------------------------------------------------------------
     # internals

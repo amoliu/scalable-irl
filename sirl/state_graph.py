@@ -135,10 +135,6 @@ class StateGraph(object):
         sns = filter(lambda n: self.gna(n, 'type') == ntype, self.nodes)
         return sns
 
-    def policy(self):
-        """ Return the policy function for the whole graph  """
-        return [self.gna(n, 'pi') for n in self.nodes]
-
     def plot_graph(self, ax=None, path=[]):
         """
         Save the graph to file
@@ -203,6 +199,11 @@ class StateGraph(object):
     @property
     def all_edges(self):
         return self.G.edges()
+
+    @property
+    def policy(self):
+        """ Return the policy function for the whole graph  """
+        return [self.gna(n, 'pi') for n in self.nodes]
 
 
 def eud(data1, data2):

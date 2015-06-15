@@ -8,7 +8,7 @@ A set of MDP solvers, including
 """
 
 
-def graph_policy_iteration(G, gamma=0.9, epsilon=1e-05, maxit=20):
+def graph_policy_iteration(G, epsilon=1e-05, maxit=20):
     """ Graph policy iteration for use with adaptive state graphs
 
     Perform policy iteration on the MDP graph. The value function and
@@ -25,8 +25,6 @@ def graph_policy_iteration(G, gamma=0.9, epsilon=1e-05, maxit=20):
     ----------
     G : ``StateGraph`` object
         The state graph representing the MDP
-    gamma : float, optional (default: 0.9)
-        Discount factor for the MDP
     epsilon : float, optional (default: 1e-05)
         Value change threshold for Bellman backup
     maxit : int
@@ -43,6 +41,7 @@ def graph_policy_iteration(G, gamma=0.9, epsilon=1e-05, maxit=20):
     gna = G.gna
     gea = G.gea
     sna = G.sna
+    gamma = G.gamma
 
     while not policy_stable:
         finished = False
