@@ -15,6 +15,10 @@ from utils.geometry import edist
 from .base import ModelMixin
 
 
+# Seed random number generator
+np.random.seed(42)
+
+
 ########################################################################
 
 class LocalController(ModelMixin):
