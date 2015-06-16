@@ -1,6 +1,8 @@
 
 from __future__ import division
-from abc import abstractmethod, ABCMeta
+from abc import abstractmethod
+from abc import ABCMeta
+from abc import abstractproperty
 
 import json
 import numpy as np
@@ -47,6 +49,10 @@ class MDPReward(ModelMixin):
     @abstractmethod
     def __call__(self, state_a, state_b):
         raise NotImplementedError('Abstract method')
+
+    @abstractproperty
+    def dim(self):
+        raise NotImplementedError('Abstract property')
 
 
 ########################################################################

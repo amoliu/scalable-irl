@@ -113,7 +113,15 @@ class SocialNavReward(MDPReward):
         reward = np.dot(phi, self._weights)
         return reward, phi
 
-    def goal_deviation_angle(self, action):
+    @property
+    def dim(self):
+        return 3
+
+    # -------------------------------------------------------------
+    # internals
+    # -------------------------------------------------------------
+
+    def _goal_deviation_angle(self, action):
         source, target = action[0], action[1]
         v1 = np.array([target[0]-source[0], target[1]-source[1]])
         v2 = np.array([self._goal[0]-source[0], self._goal[1]-source[1]])
@@ -121,7 +129,7 @@ class SocialNavReward(MDPReward):
         goal_dev = angle_between(v1, v2) * self._gamma ** duration
         return goal_dev
 
-    def goal_deviation_count(self, action):
+    def _goal_deviation_count(self, action):
         """ Goal deviation measured by counts for every time
         a waypoint in the action trajectory recedes away from the goal
         """
@@ -132,13 +140,13 @@ class SocialNavReward(MDPReward):
             dist.append(max((dnext - dnow) * self._gamma ** i, 0))
         return sum(dist)
 
-    def social_disturbance(self, action):
+    def _social_disturbance(self, action):
         pd = [min([edist(wp, person) for person in self._persons])
               for wp in action]
         phi = sum(1 * self._gamma**i for i, d in enumerate(pd) if d < 0.45)
         return phi
 
-    def social_disturbance2(self, action):
+    def _social_disturbance2(self, action):
         assert isinstance(action, np.ndarray),\
             'numpy ``ndarray`` expected for action trajectory'
         phi = np.zeros(action.shape[0])
@@ -149,7 +157,7 @@ class SocialNavReward(MDPReward):
                     phi[i] = eval_gaussian(ed, sigma=1.2) * self._gamma**i
         return np.sum(phi)
 
-    def relation_disturbance(self, action):
+    def _relation_disturbance(self, action):
         # TODO - fix relations to start from 0 instead of 1
         atime = action.shape[0]
         c = [sum(line_crossing(action[t][0],
@@ -164,7 +172,7 @@ class SocialNavReward(MDPReward):
         ec = sum(self._gamma**i * x for i, x in enumerate(c))
         return ec
 
-    def relation_disturbance2(self, action):
+    def _relation_disturbance2(self, action):
         assert isinstance(action, np.ndarray),\
             'numpy ``ndarray`` expected for action trajectory'
         phi = np.zeros(action.shape[0])
@@ -289,6 +297,10 @@ class SocialNavMDP(GraphMDP):
 
         return self.ax
 
+    # -------------------------------------------------------------
+    # internals
+    # -------------------------------------------------------------
+
     def _setup_visuals(self):
         """ Prepare figure axes for plotting """
         self.figure = plt.figure(figsize=(12, 9))
@@ -367,6 +379,11 @@ class SocialNavMDP(GraphMDP):
                                       width=0.01, head_width=0.15,
                                       head_length=0.15,
                                       fc=m.to_rgba(cost), ec=m.to_rgba(cost))
+
+
+# -------------------------------------------------------------
+# simple utils
+# -------------------------------------------------------------
 
 
 def _rgb_to_hex(rgb):

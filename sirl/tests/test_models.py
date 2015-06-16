@@ -41,6 +41,10 @@ def test_mdp_reward():
         def __call__(self, state_a, state_b):
             return 42
 
+        @property
+        def dim(self):
+            return 21
+
     subclass = ConcreteReward(kind='some-name')
     assert_equal(subclass.kind, 'some-name')
     assert_equal(subclass(1, 2), 42)

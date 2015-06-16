@@ -2,6 +2,7 @@
 from __future__ import division
 from abc import ABCMeta, abstractmethod
 
+from numpy.random import choice, randint
 import numpy as np
 
 from .mdp_solvers import graph_policy_iteration
@@ -14,11 +15,51 @@ class RewardLoss(object):
         self.arg = arg
 
 
-class RewardPrior(object):
-    """docstring for RewardPrior"""
-    def __init__(self, arg):
-        self.arg = arg
+########################################################################
+# Reward Priors
 
+class RewardPrior(ModelMixin):
+    """ Reward prior: default uniform/flat prior"""
+    def __init__(self, name):
+        self.name = name
+
+    def __call__(self, r):
+        return r
+
+    def log_p(self, r):
+        return np.log(r)
+
+
+class GaussianRewardPrior(RewardPrior):
+    """Gaussian reward prior"""
+    def __init__(self, name, sigma):
+        super(GaussianRewardPrior, self).__init__(name)
+        self.sigma = sigma
+
+    def __call__(self, r):
+        return np.exp(-np.square(r)/(2.0*self.sigma**2)) /\
+            np.sqrt(2.0*np.pi)*self.sigma
+
+    def log_p(self, r):
+        # TODO - make analytical
+        return np.log(self.__call__(r))
+
+
+class LaplacianRewardPrior(RewardPrior):
+    """Laplacian reward prior"""
+    def __init__(self, name, sigma):
+        super(LaplacianRewardPrior, self).__init__(name)
+        self.sigma = sigma
+
+    def __call__(self, r):
+        return np.exp(-np.fabs(r)/(2.0*self.sigma)) / (2.0*self.sigma)
+
+    def log_p(self, r):
+        return np.log(self.__call__(r))
+
+
+########################################################################
+# Algorithms
 
 class GBIRL(ModelMixin):
     """GraphBIRL algorithm
@@ -96,23 +137,28 @@ class GBIRL(ModelMixin):
 
     def compute_expert_trajectory_quality(self, reward, gr):
         """ Compute the Q-function of expert trajectories """
+        G = self._mdp.graph
+
         QEs = []
         for traj in self._demos:
             time = 0
             QE = 0
             for n in traj:
-                if n.edges:  # use python implicit reasoning
-                    p = n.pol
-                    r = np.dot(reward, n.edges[p].features)
+                actions = G.out_edges(n)
+                if actions:
+                    e = actions[G.gna(n, 'pi')]
+                    r = np.dot(reward, G.gea(e[0], [1], 'phi'))
                     QE += (self.mdp.gamma ** time) * r
-                    time += n.edges[p].time
-                else:  # TODO - fix this (change to check for teminal)
+                    time += G.gea(e[0], [1], 'duration')
+                else:
                     QE += (self.mdp.gamma ** time) * gr
             QEs.append(QE)
         return QEs
 
     def compute_generated_trajectory_quality(self, g_trajs, reward, gr):
         """ Compute the Q-function of generated trajectories """
+        G = self._mdp.graph
+
         QPiv = []
         for g_traj in g_trajs:
             QPis = []
@@ -120,11 +166,12 @@ class GBIRL(ModelMixin):
                 QPi = 0
                 time = 0
                 for n in traj:
-                    if n.edges:  # use python implicit reasoning
-                        p = n.pol
-                        r = np.dot(reward, n.edges[p].features)
+                    actions = G.out_edges(n)
+                    if actions:
+                        e = actions[G.gna(n, 'pi')]
+                        r = np.dot(reward, G.gea(e[0], [1], 'phi'))
                         QPi += (self.mdp.gamma ** time) * r
-                        time += n.edges[p].time
+                        time += G.gea(e[0], [1], 'duration')
                     else:
                         QPi += (self.mdp.gamma ** time) * gr
                 QPis.append(QPi)
@@ -133,6 +180,43 @@ class GBIRL(ModelMixin):
 
 
 ########################################################################
+
+# MCMC proposals
+
+class Proposal(ModelMixin):
+    """ Proposal for MCMC sampling """
+    def __init__(self, dim):
+        self.dim = dim
+
+    @abstractmethod
+    def __call__(self, loc):
+        raise NotImplementedError('Abstract class')
+
+
+class PolicyWalkProposal(Proposal):
+    """ PolicyWalk MCMC proposal """
+    def __init__(self, dim, delta, bounded=True):
+        super(PolicyWalkProposal, self).__init__(dim)
+        self.delta = delta
+        self.bounded = bounded
+
+    def __call__(self, loc):
+        new_loc = np.array(loc)
+        changed = False
+        while not changed:
+            d = choice([-self.delta, 0, self.delta])
+            i = randint(self.dim)
+            if self.bounded:
+                if -1 <= new_loc[i]+d <= 1:
+                    new_loc[i] += d
+                    changed = True
+            else:
+                new_loc[i] += d
+                changed = True
+        return new_loc
+
+
+# PolicyWalk based GraphBIRL
 
 
 class GBIRLPolicyWalk(GBIRL):
@@ -152,5 +236,12 @@ class GBIRLPolicyWalk(GBIRL):
         pass
 
     def initialize_reward(self):
-        """ Initialize reward function based on sovler """
-        pass
+        """
+        Generate initial reward for the algorithm in $R^{|S| / \delta}$
+        """
+        rdim = self._mdp._reward.dim
+        v = np.arange(-self._rmax, self._rmax+self._delta, self._delta)
+        reward = np.zeros(rdim)
+        for i in range(rdim):
+            reward[i] = np.random.choice(v)
+        return reward
