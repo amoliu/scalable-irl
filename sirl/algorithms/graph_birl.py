@@ -19,9 +19,25 @@ class RewardLoss(object):
 # Reward Priors
 
 class RewardPrior(ModelMixin):
-    """ Reward prior: default uniform/flat prior"""
+    """ Reward prior interface """
+    __meta__ = ABCMeta
+
     def __init__(self, name):
         self.name = name
+
+    @abstractmethod
+    def __call__(self, r):
+        raise NotImplementedError('Abstract method')
+
+    @abstractmethod
+    def log_p(self, r):
+        raise NotImplementedError('Abstract method')
+
+
+class UniformRewardPrior(RewardPrior):
+    """ Uniform/flat prior"""
+    def __init__(self, name='uniform'):
+        super(UniformRewardPrior, self).__init__(name)
 
     def __call__(self, r):
         return r
@@ -32,13 +48,13 @@ class RewardPrior(ModelMixin):
 
 class GaussianRewardPrior(RewardPrior):
     """Gaussian reward prior"""
-    def __init__(self, name, sigma):
+    def __init__(self, name='gaussian', sigma=0.5):
         super(GaussianRewardPrior, self).__init__(name)
-        self.sigma = sigma
+        self._sigma = sigma
 
     def __call__(self, r):
-        return np.exp(-np.square(r)/(2.0*self.sigma**2)) /\
-            np.sqrt(2.0*np.pi)*self.sigma
+        return np.exp(-np.square(r)/(2.0*self._sigma**2)) /\
+            np.sqrt(2.0*np.pi)*self._sigma
 
     def log_p(self, r):
         # TODO - make analytical
@@ -47,14 +63,15 @@ class GaussianRewardPrior(RewardPrior):
 
 class LaplacianRewardPrior(RewardPrior):
     """Laplacian reward prior"""
-    def __init__(self, name, sigma):
+    def __init__(self, name='laplace', sigma=0.5):
         super(LaplacianRewardPrior, self).__init__(name)
-        self.sigma = sigma
+        self._sigma = sigma
 
     def __call__(self, r):
-        return np.exp(-np.fabs(r)/(2.0*self.sigma)) / (2.0*self.sigma)
+        return np.exp(-np.fabs(r)/(2.0*self._sigma)) / (2.0*self._sigma)
 
     def log_p(self, r):
+        # TODO - make analytical
         return np.log(self.__call__(r))
 
 
