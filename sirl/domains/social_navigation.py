@@ -106,10 +106,10 @@ class SocialNavReward(MDPReward):
         action_traj.append(target)
         action_traj = np.array(action_traj)
 
-        phi = [self.relation_disturbance(action_traj),
-               self.social_disturbance(action_traj),
-               # self.goal_deviation_angle((source, target))]
-               self.goal_deviation_count(action_traj)]
+        phi = [self._relation_disturbance(action_traj),
+               self._social_disturbance(action_traj),
+               # self._goal_deviation_angle((source, target))]
+               self._goal_deviation_count(action_traj)]
         reward = np.dot(phi, self._weights)
         return reward, phi
 
