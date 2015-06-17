@@ -2,11 +2,19 @@
 from __future__ import division
 from abc import ABCMeta, abstractmethod
 
-from numpy.random import choice, randint
+from numpy.random import choice, randint, uniform
 import numpy as np
 
 from .mdp_solvers import graph_policy_iteration
 from ..base import ModelMixin
+
+
+__all__ = [
+    'GBIRLPolicyWalk',
+    'GaussianRewardPrior',
+    'LaplacianRewardPrior',
+    'UniformRewardPrior',
+]
 
 
 class RewardLoss(object):
@@ -101,23 +109,25 @@ class GBIRL(ModelMixin):
         """ Find the true reward function """
 
         # - initialize
-        e_trajs = self._demos
         reward = self._initial_reward()
         pi0 = self._compute_policy(reward=reward)
         g_trajs = self._generate_trajestories(pi0, size=10)
 
         for iteration in range(self._max_iter):
             # - Compute reward likelihood, find the new reward
-            reward = self.find_next_reward(e_trajs, g_trajs)
+            reward = self.find_next_reward(g_trajs)
 
             # - generate trajectories using current reward and store
             new_policy = self._compute_policy(reward)
             g_trajs = self._generate_trajestories(new_policy)
 
+            # - compute quality loss over the trajectories
+            # TODO
+
         return reward
 
     @abstractmethod
-    def find_next_reward(self, e_trajs, g_trajs):
+    def find_next_reward(self, g_trajs):
         """ Compute a new reward based on current iteration """
         raise NotImplementedError('Abstract')
 
@@ -152,7 +162,7 @@ class GBIRL(ModelMixin):
         policy = self._mdp.graph.policy
         return policy
 
-    def compute_expert_trajectory_quality(self, reward, gr):
+    def _expert_trajectory_quality(self, reward, gr=50):
         """ Compute the Q-function of expert trajectories """
         G = self._mdp.graph
 
@@ -172,7 +182,7 @@ class GBIRL(ModelMixin):
             QEs.append(QE)
         return QEs
 
-    def compute_generated_trajectory_quality(self, g_trajs, reward, gr):
+    def _generated_trajectory_quality(self, g_trajs, reward, gr=50):
         """ Compute the Q-function of generated trajectories """
         G = self._mdp.graph
 
@@ -240,17 +250,14 @@ class GBIRLPolicyWalk(GBIRL):
     """GraphBIRL algorithm using PolicyWalk MCMC
 
     """
-    def __init__(self, demos, mdp, prior, loss, step_size=1/5.0,
+    def __init__(self, demos, mdp, prior, loss, step_size=1/5.0, burn=0.2,
                  max_iter=10, alpha=0.9, reward_max=1., mcmc_iter=50):
         super(GBIRLPolicyWalk, self).__init__(demos, mdp, prior, loss,
                                               alpha, max_iter)
         self._delta = step_size
         self._rmax = reward_max
         self._mcmc_iter = mcmc_iter
-
-    def find_next_reward(self, e_trajs, g_trajs):
-        """ Compute a new reward based on current iteration using PW """
-        pass
+        self._burn = burn
 
     def initialize_reward(self):
         """
@@ -262,3 +269,114 @@ class GBIRLPolicyWalk(GBIRL):
         for i in range(rdim):
             reward[i] = np.random.choice(v)
         return reward
+
+    def find_next_reward(self, g_trajs):
+        """ Compute a new reward based on current generated trajectories """
+        result = dict()
+        result['trace'] = []
+        result['walk'] = []
+        result['reward'] = None
+        return self._policy_walk(g_trajs, result)
+
+    # -------------------------------------------------------------
+    # internals
+    # -------------------------------------------------------------
+
+    def _policy_walk(self, g_trajs, result):
+        """ Policy Walk MCMC reward posterior computation """
+        r = self.initialize_reward()
+        r_mean = np.array(r)
+        proposal_dist = PolicyWalkProposal(dim=r.shape[0],
+                                           delta=self._delta,
+                                           bounded=False)
+        QE = self._expert_trajectory_quality(r, gr=50)
+        QPi = self._generated_trajectory_quality(r, g_trajs, gr=50)
+
+        step = 1
+        while step <= self._max_iter:
+            # generate new reward sample
+            r_new = proposal_dist(loc=r_mean)
+
+            # Compute new trajectory quality scores
+            QE_new = self._expert_trajectory_quality(r_new)
+            QPi_new = self._generated_trajectory_quality(r_new, g_trajs)
+
+            # compute acceptance probability for the new reward
+            mean_ratio = self._mh_ratio(r_mean, r_new,
+                                        QE, QE_new,
+                                        QPi, QPi_new)
+
+            # MH accept step
+            if uniform(0.0, 1.0) < min([1, mean_ratio]):
+                r_mean = self._iterative_reward_mean(r_mean, r_new, step)
+
+            # handling sample burning
+            if step > self._burn:
+                result['walk'].append(r_new)
+                result['trace'].append(r_mean)
+                result['reward'] = r_mean
+
+            # log progress
+            if step % 100 == 0:
+                self.info('It: %s, R: %s, R_mean: %s' % (step, r_new, r_mean))
+
+        return result
+
+    def _mh_ratio(self, r, r_new, QE, QE_new, QPi, QPi_new):
+        """ Compute the Metropolis-Hastings acceptance ratio
+
+        Given a new reward (weights), MH ratio is used to determine whether or
+        not to accept the reward sample.
+
+        Parameters
+        -----------
+        r : array-like, shape (reward-dim)
+            Current reward
+        r_new : array-like, shape (reward-dim)
+            New reward sample from the MCMC walk
+        QE : array-like
+            Quality of the expert trajectories based on reward ``r``
+        QE_new : array-like
+            Quality of the expert trajectories based on reward ``r_new``
+        QPi : array-like
+            Quality of the generated trajectories based on reward ``r``
+        QPi_new : array-like
+            Quality of the generated trajectories based on reward ``r_new``
+
+        Returns
+        --------
+        mh_ratio : float
+            The ratio corresponding to,
+
+            .. math::
+                ratio = P(R_new|O) / P(R|O) x P(R_new)/P(R)
+        """
+        # reward priors
+        prior_new = sum(self.prior(r_new))
+        prior = sum(self.prior(r))
+
+        # likelihoods (un-normalized, since we only need the ratio)
+        lk = 1
+        for i, Qe in enumerate(QE):
+            lk_num = np.exp(self.alpha * (Qe))
+            lk *= lk_num / (np.exp(self.alpha * (Qe)) +
+                            sum(np.exp(self.alpha * (Q[i])) for Q in QPi))
+
+        lk_new = 1
+        for i, Qe_new in enumerate(QE_new):
+            lk_new *= np.exp(self.alpha * (Qe_new)) / \
+                      (np.exp(self.alpha * (Qe_new)) +
+                       sum(np.exp(self.alpha * (Qn[i])) for Qn in QPi_new))
+
+        mh_ratio = (lk_new / lk) * (prior_new / prior)
+        return mh_ratio
+
+    def _iterative_reward_mean(self, r_mean, r_new, step):
+        """ Iterative mean reward
+
+        Compute the iterative mean of the reward using the running mean
+        and a new reward sample
+        """
+        r_mean = [((step - 1) / float(step)) * m_r + 1.0 / step * r
+                  for m_r, r in zip(r_mean, r_new)]
+        return np.array(r_mean)
