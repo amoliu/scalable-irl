@@ -13,7 +13,10 @@ class StateGraph(object):
     _edge_attrs = ('source', 'target', 'duration', 'reward', 'phi')
 
     def __init__(self):
-        self._g = nx.DiGraph()
+        self._graph = nx.DiGraph()
+
+    def clear(self):
+        self.G.clear()
 
     def add_node(self, nid, data, cost, priority, Q, V, pi, ntype):
         """
@@ -187,7 +190,7 @@ class StateGraph(object):
 
     @property
     def G(self):
-        return self._g
+        return self._graph
 
     @property
     def nodes(self):

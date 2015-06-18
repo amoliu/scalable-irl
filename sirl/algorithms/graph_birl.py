@@ -1,5 +1,6 @@
 
 from __future__ import division
+
 from abc import ABCMeta, abstractmethod
 
 from numpy.random import choice, randint, uniform
@@ -7,6 +8,7 @@ import numpy as np
 
 from .mdp_solvers import graph_policy_iteration
 from ..base import ModelMixin
+from ..utils.common import Logger
 
 
 __all__ = [
@@ -86,7 +88,7 @@ class LaplacianRewardPrior(RewardPrior):
 ########################################################################
 # Algorithms
 
-class GBIRL(ModelMixin):
+class GBIRL(ModelMixin, Logger):
     """GraphBIRL algorithm
 
     This is an iterative algorithm that improves the reward based on the
@@ -97,7 +99,7 @@ class GBIRL(ModelMixin):
 
     __meta__ = ABCMeta
 
-    def __init__(self, demos, mdp, prior, loss, alpha=0.9, max_iter=10):
+    def __init__(self, demos, mdp, prior, loss, alpha=0.7, max_iter=10):
         self._demos = demos
         self._prior = prior
         self._mdp = mdp
@@ -109,13 +111,14 @@ class GBIRL(ModelMixin):
         """ Find the true reward function """
 
         # - initialize
-        reward = self._initial_reward()
+        reward = self.initialize_reward()
         pi0 = self._compute_policy(reward=reward)
         g_trajs = self._generate_trajestories(pi0, size=10)
 
         for iteration in range(self._max_iter):
             # - Compute reward likelihood, find the new reward
-            reward = self.find_next_reward(g_trajs)
+            result = self.find_next_reward(g_trajs)
+            reward = result['reward']
 
             # - generate trajectories using current reward and store
             new_policy = self._compute_policy(reward)
@@ -123,6 +126,8 @@ class GBIRL(ModelMixin):
 
             # - compute quality loss over the trajectories
             # TODO
+
+            print('Iteration: {}'.format(iteration))
 
         return reward
 
@@ -174,36 +179,38 @@ class GBIRL(ModelMixin):
                 actions = G.out_edges(n)
                 if actions:
                     e = actions[G.gna(n, 'pi')]
-                    r = np.dot(reward, G.gea(e[0], [1], 'phi'))
-                    QE += (self.mdp.gamma ** time) * r
-                    time += G.gea(e[0], [1], 'duration')
+                    r = np.dot(reward, G.gea(e[0], e[1], 'phi'))
+                    QE += (self._mdp.gamma ** time) * r
+                    time += G.gea(e[0], e[1], 'duration')
                 else:
-                    QE += (self.mdp.gamma ** time) * gr
+                    QE += (self._mdp.gamma ** time) * gr
             QEs.append(QE)
         return QEs
 
-    def _generated_trajectory_quality(self, g_trajs, reward, gr=50):
+    def _generated_trajectory_quality(self, reward, g_trajs, gr=50):
         """ Compute the Q-function of generated trajectories """
         G = self._mdp.graph
 
-        QPiv = []
-        for g_traj in g_trajs:
-            QPis = []
-            for traj in g_traj:
-                QPi = 0
-                time = 0
-                for n in traj:
-                    actions = G.out_edges(n)
-                    if actions:
-                        e = actions[G.gna(n, 'pi')]
-                        r = np.dot(reward, G.gea(e[0], [1], 'phi'))
-                        QPi += (self.mdp.gamma ** time) * r
-                        time += G.gea(e[0], [1], 'duration')
-                    else:
-                        QPi += (self.mdp.gamma ** time) * gr
-                QPis.append(QPi)
-            QPiv.append(QPis)
-        return QPiv
+        # QPiv = []
+        # for g_traj in g_trajs:
+
+        QPis = []
+        for traj in g_trajs:
+            QPi = 0
+            time = 0
+            for n in traj:
+                actions = G.out_edges(n)
+                if actions:
+                    e = actions[G.gna(n, 'pi')]
+                    r = np.dot(reward, G.gea(e[0], e[1], 'phi'))
+                    QPi += (self._mdp.gamma ** time) * r
+                    time += G.gea(e[0], e[1], 'duration')
+                else:
+                    QPi += (self._mdp.gamma ** time) * gr
+            QPis.append(QPi)
+
+            # QPiv.append(QPis)
+        return QPis
 
 
 ########################################################################
@@ -251,7 +258,7 @@ class GBIRLPolicyWalk(GBIRL):
 
     """
     def __init__(self, demos, mdp, prior, loss, step_size=1/5.0, burn=0.2,
-                 max_iter=10, alpha=0.9, reward_max=1., mcmc_iter=50):
+                 max_iter=10, alpha=0.9, reward_max=1., mcmc_iter=200):
         super(GBIRLPolicyWalk, self).__init__(demos, mdp, prior, loss,
                                               alpha, max_iter)
         self._delta = step_size
@@ -291,9 +298,9 @@ class GBIRLPolicyWalk(GBIRL):
                                            bounded=False)
         QE = self._expert_trajectory_quality(r, gr=50)
         QPi = self._generated_trajectory_quality(r, g_trajs, gr=50)
+        burn_point = int(self._mcmc_iter * self._burn / 100)
 
-        step = 1
-        while step <= self._max_iter:
+        for step in range(1, self._mcmc_iter+1):
             # generate new reward sample
             r_new = proposal_dist(loc=r_mean)
 
@@ -311,14 +318,15 @@ class GBIRLPolicyWalk(GBIRL):
                 r_mean = self._iterative_reward_mean(r_mean, r_new, step)
 
             # handling sample burning
-            if step > self._burn:
+            if step > burn_point:
                 result['walk'].append(r_new)
                 result['trace'].append(r_mean)
                 result['reward'] = r_mean
 
             # log progress
-            if step % 100 == 0:
-                self.info('It: %s, R: %s, R_mean: %s' % (step, r_new, r_mean))
+            if step % 10 == 0:
+                print('It: %s, R: %s, R_mean: %s' % (step, r_new, r_mean))
+            # self.debug('It: %s, R: %s, R_mean: %s' % (step, r_new, r_mean))
 
         return result
 
@@ -352,21 +360,27 @@ class GBIRLPolicyWalk(GBIRL):
                 ratio = P(R_new|O) / P(R|O) x P(R_new)/P(R)
         """
         # reward priors
-        prior_new = sum(self.prior(r_new))
-        prior = sum(self.prior(r))
+        prior_new = sum(self._prior(r_new))
+        prior = sum(self._prior(r))
+
+        # print('New ---')
+        # print(QPi, QE)
 
         # likelihoods (un-normalized, since we only need the ratio)
         lk = 1
         for i, Qe in enumerate(QE):
-            lk_num = np.exp(self.alpha * (Qe))
-            lk *= lk_num / (np.exp(self.alpha * (Qe)) +
-                            sum(np.exp(self.alpha * (Q[i])) for Q in QPi))
+            ln = np.exp(self._alpha * Qe)
+            lk *= ln / (ln + sum(np.exp(self._alpha * Q) for Q in QPi))
 
         lk_new = 1
         for i, Qe_new in enumerate(QE_new):
-            lk_new *= np.exp(self.alpha * (Qe_new)) / \
-                      (np.exp(self.alpha * (Qe_new)) +
-                       sum(np.exp(self.alpha * (Qn[i])) for Qn in QPi_new))
+            ln = np.exp(self._alpha * Qe_new)
+            lk *= ln / (ln + sum(np.exp(self._alpha * Q) for Q in QPi_new))
+
+        # for i, Qe_new in enumerate(QE_new):
+        #     lk_new *= np.exp(self._alpha * (Qe_new)) / \
+        #               (np.exp(self._alpha * (Qe_new)) +
+        #                sum(np.exp(self._alpha * (Qn[i])) for Qn in QPi_new))
 
         mh_ratio = (lk_new / lk) * (prior_new / prior)
         return mh_ratio

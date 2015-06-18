@@ -228,6 +228,7 @@ class SocialNavMDP(GraphMDP):
     def initialize_state_graph(self, samples):
         """ Initialize graph using set of initial samples """
         # - add start and goal samples to initialization set
+        self._g.clear()
         GR = self._params.goal_reward
         COST_LIMIT = self._params.max_cost
         for start in self._params.start_states:
