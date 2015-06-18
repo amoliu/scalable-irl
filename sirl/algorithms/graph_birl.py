@@ -112,17 +112,17 @@ class GBIRL(ModelMixin, Logger):
 
         # - initialize
         reward = self.initialize_reward()
-        pi0 = self._compute_policy(reward=reward)
-        g_trajs = self._generate_trajestories(pi0, size=10)
+        self._compute_policy(reward=reward)
+        g_trajs = self._generate_trajestories()
 
         for iteration in range(self._max_iter):
             # - Compute reward likelihood, find the new reward
-            result = self.find_next_reward(g_trajs)
+            result = self.find_next_reward(reward, g_trajs)
             reward = result['reward']
 
             # - generate trajectories using current reward and store
-            new_policy = self._compute_policy(reward)
-            g_trajs = self._generate_trajestories(new_policy)
+            self._compute_policy(reward)
+            g_trajs = self._generate_trajestories()
 
             # - compute quality loss over the trajectories
             # TODO
@@ -145,9 +145,8 @@ class GBIRL(ModelMixin, Logger):
     # internals
     # -------------------------------------------------------------
 
-    def _generate_trajestories(self, policy, size=10):
+    def _generate_trajestories(self):
         """ Generate trajectories using a given policy """
-        # TODO - remove the need for arguiments as all info is in graph
         self._mdp._find_best_policies()
         return self._mdp._best_trajs
 
@@ -163,11 +162,8 @@ class GBIRL(ModelMixin, Logger):
             sea(e[0], e[1], 'reward', r)
 
         graph_policy_iteration(self._mdp)
-        # TODO - remove the need to return pi as its stored in graph
-        policy = self._mdp.graph.policy
-        return policy
 
-    def _expert_trajectory_quality(self, reward, gr=50):
+    def _expert_trajectory_quality(self, reward, gr=30):
         """ Compute the Q-function of expert trajectories """
         G = self._mdp.graph
 
@@ -187,7 +183,7 @@ class GBIRL(ModelMixin, Logger):
             QEs.append(QE)
         return QEs
 
-    def _generated_trajectory_quality(self, reward, g_trajs, gr=50):
+    def _generated_trajectory_quality(self, reward, g_trajs, gr=30):
         """ Compute the Q-function of generated trajectories """
         G = self._mdp.graph
 
@@ -274,50 +270,45 @@ class GBIRLPolicyWalk(GBIRL):
         v = np.arange(-self._rmax, self._rmax+self._delta, self._delta)
         reward = np.zeros(rdim)
         for i in range(rdim):
-            reward[i] = np.random.choice(v)
+            reward[i] = choice(v)
         return reward
 
-    def find_next_reward(self, g_trajs):
+    def find_next_reward(self, reward, g_trajs):
         """ Compute a new reward based on current generated trajectories """
         result = dict()
         result['trace'] = []
         result['walk'] = []
         result['reward'] = None
-        return self._policy_walk(g_trajs, result)
+        return self._policy_walk(reward, g_trajs, result)
 
     # -------------------------------------------------------------
     # internals
     # -------------------------------------------------------------
 
-    def _policy_walk(self, g_trajs, result):
+    def _policy_walk(self, init_reward, g_trajs, result):
         """ Policy Walk MCMC reward posterior computation """
-        r = self.initialize_reward()
+        r = init_reward
         r_mean = np.array(r)
-        proposal_dist = PolicyWalkProposal(dim=r.shape[0],
-                                           delta=self._delta,
-                                           bounded=False)
-        QE = self._expert_trajectory_quality(r, gr=50)
-        QPi = self._generated_trajectory_quality(r, g_trajs, gr=50)
+        p_dist = PolicyWalkProposal(r.shape[0], self._delta, bounded=False)
+
+        QE = self._expert_trajectory_quality(r)
+        QPi = self._generated_trajectory_quality(r, g_trajs)
+
         burn_point = int(self._mcmc_iter * self._burn / 100)
-
         for step in range(1, self._mcmc_iter+1):
-            # generate new reward sample
-            r_new = proposal_dist(loc=r_mean)
+            # - generate new reward sample
+            r_new = p_dist(loc=r_mean)
 
-            # Compute new trajectory quality scores
+            # - Compute new trajectory quality scores
             QE_new = self._expert_trajectory_quality(r_new)
             QPi_new = self._generated_trajectory_quality(r_new, g_trajs)
 
-            # compute acceptance probability for the new reward
-            mean_ratio = self._mh_ratio(r_mean, r_new,
-                                        QE, QE_new,
-                                        QPi, QPi_new)
-
-            # MH accept step
-            if uniform(0.0, 1.0) < min([1, mean_ratio]):
+            # - compute acceptance probability for the new reward
+            mh_ratio = self._mh_ratio(r_mean, r_new, QE, QE_new, QPi, QPi_new)
+            if uniform(0.0, 1.0) < min([1, mh_ratio]):
                 r_mean = self._iterative_reward_mean(r_mean, r_new, step)
 
-            # handling sample burning
+            # - handling sample burning
             if step > burn_point:
                 result['walk'].append(r_new)
                 result['trace'].append(r_mean)
