@@ -147,10 +147,18 @@ class GBIRL(ModelMixin, Logger):
         init_g_trajs = self._generate_trajestories()
         g_trajs = [init_g_trajs]
 
+        self.data = dict()
+        self.data['qloss'] = []
+        self.data['trace'] = []
+        self.data['walk'] = []
+
         for iteration in range(self._max_iter):
             # - Compute reward likelihood, find the new reward
             result = self.find_next_reward(reward, g_trajs)
             reward = result['reward']
+
+            self.data['trace'].append(result['trace'])
+            self.data['walk'].append(result['walk'])
 
             # - generate trajectories using current reward and store
             self._compute_policy(reward)
@@ -242,7 +250,6 @@ class GBIRL(ModelMixin, Logger):
 
 
 ########################################################################
-
 # MCMC proposals
 
 class Proposal(ModelMixin):
@@ -278,6 +285,7 @@ class PolicyWalkProposal(Proposal):
         return new_loc
 
 
+########################################################################
 # PolicyWalk based GraphBIRL
 
 
@@ -337,6 +345,9 @@ class GBIRLPolicyWalk(GBIRL):
         self._rmax = reward_max
         self._mcmc_iter = mcmc_iter
         self._burn = burn
+        # TODO
+        # - examine acceptance rates, convergence
+        # - log key steps
 
     def initialize_reward(self):
         """
@@ -369,6 +380,11 @@ class GBIRLPolicyWalk(GBIRL):
 
         QE = self._expert_trajectory_quality(r)
         QPi = self._generated_trajectory_quality(r, g_trajs)
+
+        self.data['lk'] = []
+        self.data['lk_new'] = []
+        for Q_i in QPi:
+            self.data['qloss'].append(sum(Qe - Qp for Qe, Qp in zip(QE, Q_i)))
 
         burn_point = int(self._mcmc_iter * self._burn / 100)
         for step in range(1, self._mcmc_iter+1):
@@ -430,9 +446,6 @@ class GBIRLPolicyWalk(GBIRL):
         prior_new = sum(self._prior(r_new))
         prior = sum(self._prior(r))
 
-        # print('New ---')
-        # print(QPi, QE)
-
         # likelihoods (un-normalized, since we only need the ratio)
         lk = 1
         for i, Qe in enumerate(QE):
@@ -445,6 +458,9 @@ class GBIRLPolicyWalk(GBIRL):
             lk_new *= np.exp(self._alpha * (Qe_new)) / \
                       (np.exp(self._alpha * (Qe_new)) +
                        sum(np.exp(self._alpha * (Qn[i])) for Qn in QPi_new))
+
+        self.data['lk'].append(lk)
+        self.data['lk_new'].append(lk_new)
 
         mh_ratio = (lk_new / lk) * (prior_new / prior)
         return mh_ratio

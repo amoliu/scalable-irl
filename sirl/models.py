@@ -262,6 +262,10 @@ class GraphMDP(ModelMixin):
         state_dict['b_duration'] = _controller_duration(gna(state, 'data'),
                                                         new_state)
         state_dict['b_data'] = gna(state, 'data')
+        # TODO
+        # - checkout using Langragian for exploration-exploitation tradeoff
+        # - set concentration as kinetic energy, and value/cost/priority as
+        # potential energy
         return state_dict
 
     def _update_state_costs(self):
@@ -274,6 +278,7 @@ class GraphMDP(ModelMixin):
         ...
 
         """
+        # TODO - create a node visitor from starts to goal??
         cmax = self._params.max_cost
         G = self._g
         converged = False
@@ -314,6 +319,9 @@ class GraphMDP(ModelMixin):
 
     def _find_best_policies(self):
         """ Find the best trajectories from starts to goal state """
+        # TODO
+        # - use nx inbuilt A* (from nodes a and b, check for a-->b, then get
+        # edge reward as cost from a to b)
         self._best_trajs = []
         G = self._g
         for start in G.filter_nodes_by_type(ntype='start'):
