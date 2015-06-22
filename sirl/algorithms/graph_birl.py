@@ -282,6 +282,10 @@ class PolicyWalkProposal(Proposal):
             else:
                 new_loc[i] += d
                 changed = True
+        # normalize reward weights to sum to 1, maybe elesewhere ???
+        if np.sum(new_loc) > 1e-09:
+            new_loc = new_loc / np.sum(new_loc)
+
         return new_loc
 
 
@@ -337,7 +341,7 @@ class GBIRLPolicyWalk(GBIRL):
     Using small step sizes generally implies the need for more samples
 
     """
-    def __init__(self, demos, mdp, prior, loss, step_size=1/5.0, burn=0.2,
+    def __init__(self, demos, mdp, prior, loss, step_size=1/4.0, burn=0.2,
                  max_iter=10, alpha=0.9, reward_max=1., mcmc_iter=200):
         super(GBIRLPolicyWalk, self).__init__(demos, mdp, prior, loss,
                                               alpha, max_iter)
@@ -443,21 +447,21 @@ class GBIRLPolicyWalk(GBIRL):
                 ratio = P(R_new|O) / P(R|O) x P(R_new)/P(R)
         """
         # reward priors
-        prior_new = sum(self._prior(r_new))
-        prior = sum(self._prior(r))
+        prior_new = np.sum(self._prior(r_new))
+        prior = np.sum(self._prior(r))
 
         # likelihoods (un-normalized, since we only need the ratio)
         lk = 1
         for i, Qe in enumerate(QE):
             lk *= np.exp(self._alpha * (Qe)) / \
                   (np.exp(self._alpha * (Qe)) +
-                   sum(np.exp(self._alpha * (Qn[i])) for Qn in QPi))
+                   np.sum(np.exp(self._alpha * (Qn[i])) for Qn in QPi))
 
         lk_new = 1
         for i, Qe_new in enumerate(QE_new):
             lk_new *= np.exp(self._alpha * (Qe_new)) / \
                       (np.exp(self._alpha * (Qe_new)) +
-                       sum(np.exp(self._alpha * (Qn[i])) for Qn in QPi_new))
+                       np.sum(np.exp(self._alpha * (Qn[i])) for Qn in QPi_new))
 
         self.data['lk'].append(lk)
         self.data['lk_new'].append(lk_new)

@@ -344,7 +344,7 @@ class GraphMDP(ModelMixin):
 
     def _improve_state(self, s):
         """ Improve a state's utility by adding connections """
-        neighbors = self._g.find_neighbors_range(s, self._params.beta)
+        neighbors = self._g.find_neighbors_range(s, self._params.radius)
         for n in neighbors:
             if n != s:
                 xs = self._g.gna(s, 'data')
@@ -368,7 +368,7 @@ class GraphMDP(ModelMixin):
         succeeding is small (taking into account uncertainity)
         """
         G = self._g
-        beta = self._params.beta
+        beta = self._params.radius
 
         for node in self._g.nodes:
             nedges = len(G.out_edges(node))
@@ -403,7 +403,7 @@ class GraphMDP(ModelMixin):
         sigma : float
             Variance of the exploration score
         """
-        nn = self._g.find_neighbors_data(state_dict['data'], self._params.beta)
+        nn = self._g.find_neighbors_data(state_dict['data'], self._params.radius)
         concentration = 1.0 / float(1 + len(nn))
         node_cost = state_dict['cost']
         train_data = [self._g.gna(n, 'data') for n in nn]
@@ -426,7 +426,7 @@ class GraphMDP(ModelMixin):
         concentration : float
             Concentation of the node
         """
-        neighbors = self._g.find_neighbors_range(state, self._params.beta)
+        neighbors = self._g.find_neighbors_range(state, self._params.radius)
         concentration = 1.0 / float(1 + len(neighbors))
         return concentration
 
@@ -462,7 +462,7 @@ class GraphMDPParams(object):
         self.n_expand = 1   # No of nodes to be expanded
         self.n_new = 20   # no of new nodes
         self.n_add = 1   # no of nodes to be added
-        self.beta = 1.8
+        self.radius = 1.8
         self.exp_thresh = 1.2
         self.max_traj_len = 500
         self.goal_reward = 30
@@ -517,4 +517,5 @@ def _controller_duration(source, target):
     """
     Returns the time it takes the controller to go from source to target
     """
+    # TODO - use speed instead of this fixed factor
     return edist(source, target) / 0.1
