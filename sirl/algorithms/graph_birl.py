@@ -11,17 +11,34 @@ from ..utils.common import Logger
 
 
 __all__ = [
-    'GBIRLPolicyWalk',
     'GaussianRewardPrior',
     'LaplacianRewardPrior',
     'UniformRewardPrior',
 ]
 
 
-class RewardLoss(object):
-    """docstring for RewardLoss"""
-    def __init__(self, arg):
-        self.arg = arg
+class RewardLoss(ModelMixin):
+    """Reward loss function """
+
+    __meta__ = ABCMeta
+
+    def __init__(self, name):
+        self.name = name
+
+    @abstractmethod
+    def __call__(self, r1, r2):
+        """ Reward loss between ``r1`` and ``r2`` """
+        raise NotImplementedError('Abstract')
+
+
+class LpRewardLoss(RewardLoss):
+    """L_p reward loss"""
+    def __init__(self, p, name='zoe'):
+        super(LpRewardLoss, self).__init__(name)
+        self.p = p
+
+    def __call__(self, r1, r2):
+        return np.linalg.norm(r1=r2, ord=self.p)
 
 
 ########################################################################
@@ -142,7 +159,6 @@ class GBIRL(ModelMixin, Logger):
     def solve(self):
         """ Find the true reward function """
         reward = self.initialize_reward()
-        # reward = np.ones(self._mdp._reward.dim) * -1.0
         self._compute_policy(reward=reward)
         init_g_trajs = self._generate_trajestories()
         g_trajs = [init_g_trajs]
