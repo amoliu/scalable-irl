@@ -403,7 +403,8 @@ class GraphMDP(ModelMixin):
         sigma : float
             Variance of the exploration score
         """
-        nn = self._g.find_neighbors_data(state_dict['data'], self._params.radius)
+        nn = self._g.find_neighbors_data(state_dict['data'],
+                                         self._params.radius)
         concentration = 1.0 / float(1 + len(nn))
         node_cost = state_dict['cost']
         train_data = [self._g.gna(n, 'data') for n in nn]

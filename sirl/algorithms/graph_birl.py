@@ -2,8 +2,7 @@
 from __future__ import division
 
 from abc import ABCMeta, abstractmethod
-from copy import deepcopy
-from numpy.random import choice, randint, uniform
+
 import numpy as np
 
 from .mdp_solvers import graph_policy_iteration
@@ -125,24 +124,25 @@ class GBIRL(ModelMixin, Logger):
         Reward loss callable
     _max_iter : int, optional (default=10)
         Number of iterations of the GBIRL algorith
-    _alpha : float, optional (default=0.9)
+    _beta : float, optional (default=0.9)
         Expert optimality parameter for softmax Boltzman temperature
 
     """
 
     __meta__ = ABCMeta
 
-    def __init__(self, demos, mdp, prior, loss, alpha=0.7, max_iter=10):
+    def __init__(self, demos, mdp, prior, loss, beta=0.7, max_iter=10):
         self._demos = demos
         self._prior = prior
         self._mdp = mdp
         self._loss = loss
-        self._alpha = alpha
+        self._beta = beta
         self._max_iter = max_iter
 
     def solve(self):
         """ Find the true reward function """
         reward = self.initialize_reward()
+        # reward = np.ones(self._mdp._reward.dim) * -1.0
         self._compute_policy(reward=reward)
         init_g_trajs = self._generate_trajestories()
         g_trajs = [init_g_trajs]
@@ -151,6 +151,10 @@ class GBIRL(ModelMixin, Logger):
         self.data['qloss'] = []
         self.data['trace'] = []
         self.data['walk'] = []
+        self.data['lk'] = []
+        self.data['lk_new'] = []
+        self.data['accept_ratios'] = []
+        self.data['mh_ratio'] = []
 
         for iteration in range(self._max_iter):
             # - Compute reward likelihood, find the new reward
@@ -159,6 +163,8 @@ class GBIRL(ModelMixin, Logger):
 
             self.data['trace'].append(result['trace'])
             self.data['walk'].append(result['walk'])
+            self.data['accept_ratios'].append(result['accept_ratio'])
+            self.data['mh_ratio'].extend(result['mh_ratio'])
 
             # - generate trajectories using current reward and store
             self._compute_policy(reward)
