@@ -48,11 +48,8 @@ def gp_predict(target, train_data, gram_matrix, train_labels):
     sigma_new : float
         Variance of target point prediction
     """
-    if not train_data:
-        return 10, 1    # TODO - make a better default value treatment
-    else:
-        k = [gp_kernel(target, yy) for yy in train_data]
-        Sinv = np.linalg.pinv(gram_matrix)
-        y_pred = np.dot(k, Sinv).dot(train_labels)     # y = K K^-1 y
-        sigma_new = gp_kernel(target, target) - np.dot(k, Sinv).dot(k)
-        return y_pred, sigma_new
+    k = [gp_kernel(target, yy) for yy in train_data]
+    Sinv = np.linalg.pinv(gram_matrix)
+    y_pred = np.dot(k, Sinv).dot(train_labels)     # y = K K^-1 y
+    sigma_new = gp_kernel(target, target) - np.dot(k, Sinv).dot(k)
+    return y_pred, sigma_new

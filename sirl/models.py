@@ -7,6 +7,7 @@ from abc import abstractproperty
 import json
 import numpy as np
 from numpy.random import uniform
+from sklearn import gaussian_process
 
 from .state_graph import StateGraph
 from algorithms.mdp_solvers import graph_policy_iteration
@@ -121,6 +122,11 @@ class GraphMDP(ModelMixin):
         self._max_conc = 1.0
         self._max_es = 1.0
         self._min_es = 0.0
+        self._gp = gaussian_process.GaussianProcess(corr='squared_exponential',
+                                                    regr='quadratic',
+                                                    theta0=1e-2,
+                                                    thetaL=1e-4,
+                                                    thetaU=1e-1)
 
     @abstractmethod
     def initialize_state_graph(self, samples):
@@ -204,13 +210,6 @@ class GraphMDP(ModelMixin):
             graph_policy_iteration(self)
             self._update_state_priorities()
             self._find_best_policies()
-
-            # - prune graph
-            # self._prune_graph()
-            # self._update_state_costs()
-            # graph_policy_iteration(self)
-            # self._update_state_priorities()
-            # self._find_best_policies()
 
         return self
 
@@ -319,27 +318,19 @@ class GraphMDP(ModelMixin):
 
     def _find_best_policies(self):
         """ Find the best trajectories from starts to goal state """
-        # TODO
-        # - use nx inbuilt A* (from nodes a and b, check for a-->b, then get
-        # edge reward as cost from a to b)
         self._best_trajs = []
         G = self._g
         for start in G.filter_nodes_by_type(ntype='start'):
-            # bt = [(start, G.gna(start, 'data'))]
             bt = [start]
             t = 0
-            while t < self._params.max_traj_len:
-                # print(G.nodes, G.gna(start, 'pi'), G.out_edges(start))
+            while t < self._params.max_traj_len and not self.terminal(start):
                 action = G.out_edges(start)[G.gna(start, 'pi')]
                 next_node = action[1]
                 t += max(G.gea(start, next_node, 'duration'), 1.0)
-                # bt.append((next_node, G.gna(next_node, 'data')))
-                bt.append(next_node)
-
-                if self.terminal(next_node):
-                    break
-
+                # t += G.gea(start, next_node, 'duration')
                 start = next_node
+                if start not in bt:
+                    bt.append(start)
             self._best_trajs.append(bt)
 
     def _improve_state(self, s):
@@ -407,10 +398,21 @@ class GraphMDP(ModelMixin):
                                          self._params.radius)
         concentration = 1.0 / float(1 + len(nn))
         node_cost = state_dict['cost']
-        train_data = [self._g.gna(n, 'data') for n in nn]
+        if len(nn) < 1:
+            state_dict['V'] = self._params.goal_reward
+            return concentration, node_cost, self._params.goal_reward
+
+        td = [self._g.gna(n, 'data') for n in nn]
+        train_data = [[x[0], x[1]] for x in td]
         train_values = [self._g.gna(n, 'V') for n in nn]
+        train_data = np.array(train_data)
+
+        # self._gp.fit(train_data, train_values)
+        # y, v = self._gp.predict(state_dict['data'], eval_MSE=True)
+
         gram = gp_covariance(train_data, train_data)
         y, v = gp_predict(state_dict['data'], train_data, gram, train_values)
+
         state_dict['V'] = y
         return concentration, (node_cost + y), v
 

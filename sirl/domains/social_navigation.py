@@ -136,7 +136,7 @@ class SocialNavMDP(GraphMDP):
         # - add the init samples
         init_samples = list(samples)
         for sample in init_samples:
-            self._g.add_node(nid=self._node_id, data=sample, cost=-COST_LIMIT,
+            self._g.add_node(nid=self._node_id, data=sample, cost=COST_LIMIT,
                              priority=1, V=GR, pi=0, Q=[], ntype='simple')
             self._node_id += 1
 

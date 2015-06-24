@@ -101,9 +101,13 @@ class StateGraph(object):
         -----
         Includes self in the result
         """
-        neigbors = filter(lambda n: eud(self.gna(n, 'data'), loc) <= distance,
-                          self.G.nodes())
-        return neigbors
+        # neighbors = filter(lambda n: eud(self.gna(n, 'data'), loc) <= distance,
+        #                    self.G.nodes())
+        neighbors = set()
+        for n in self.nodes:
+            if 0.0 < eud(self.gna(n, 'data'), loc) <= distance:
+                neighbors.add(n)
+        return neighbors
 
     def find_neighbors_range(self, nid, distance):
         """ Find node neigbors within distance range
@@ -138,6 +142,15 @@ class StateGraph(object):
         """ Filter nodes by node type """
         sns = filter(lambda n: self.gna(n, 'type') == ntype, self.nodes)
         return sns
+
+    def search_path(self, source, target):
+        """ Search for a path from ``source`` to ``target`` using A*"""
+        def metric(a, b):
+            if self.edge_exists(source, target):
+                return -1*self.gea(source, target, 'reward')
+            return 1000
+        path = nx.astar_path(self.G, source, target, heuristic=metric)
+        return path
 
     def plot_graph(self, ax=None, path=[]):
         """
