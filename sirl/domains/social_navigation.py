@@ -11,14 +11,11 @@ import matplotlib as mpl
 
 
 from ..models import LocalController
-from ..models import MDPReward
 from ..models import GraphMDP
 from ..models import _controller_duration
 
+from ..utils.geometry import edist
 from ..algorithms.mdp_solvers import graph_policy_iteration
-from ..utils.geometry import edist, angle_between, distance_to_segment
-from ..utils.geometry import line_crossing
-from ..utils.common import eval_gaussian
 
 
 ########################################################################
@@ -81,111 +78,6 @@ class SocialNavLocalController(LocalController):
             return (nx, ny)
         return state
 
-
-########################################################################
-
-
-class SocialNavReward(MDPReward):
-    """ Social Navigation Reward Funtion """
-    def __init__(self, persons, relations, goal, weights, discount,
-                 kind='linfa', resolution=0.1):
-        super(SocialNavReward, self).__init__(kind)
-        self._persons = persons
-        self._relations = relations
-        self._resolution = resolution
-        self._goal = goal
-        self._weights = weights
-        self._gamma = discount
-
-    def __call__(self, state_a, state_b):
-        source, target = np.array(state_a), np.array(state_b)
-        # increase resolution of action trajectory (option)
-        duration = _controller_duration(source, target)
-        action_traj = [target * t / duration + source * (1 - t / duration)
-                       for t in range(int(duration))]
-        action_traj.append(target)
-        action_traj = np.array(action_traj)
-
-        phi = [self._relation_disturbance(action_traj),
-               self._social_disturbance(action_traj),
-               # self._goal_deviation_angle((source, target))]
-               self._goal_deviation_count(action_traj)]
-        reward = np.dot(phi, self._weights)
-        return reward, phi
-
-    @property
-    def dim(self):
-        return 3
-
-    # -------------------------------------------------------------
-    # internals
-    # -------------------------------------------------------------
-
-    def _goal_deviation_angle(self, action):
-        source, target = action[0], action[1]
-        v1 = np.array([target[0]-source[0], target[1]-source[1]])
-        v2 = np.array([self._goal[0]-source[0], self._goal[1]-source[1]])
-        duration = _controller_duration(v1, v2)
-        goal_dev = angle_between(v1, v2) * self._gamma ** duration
-        return goal_dev
-
-    def _goal_deviation_count(self, action):
-        """ Goal deviation measured by counts for every time
-        a waypoint in the action trajectory recedes away from the goal
-        """
-        dist = []
-        for i in range(action.shape[0]-1):
-            dnow = edist(self._goal, action[i])
-            dnext = edist(self._goal, action[i + 1])
-            dist.append(max((dnext - dnow) * self._gamma ** i, 0))
-        return sum(dist)
-
-    def _social_disturbance(self, action):
-        pd = [min([edist(wp, person) for person in self._persons])
-              for wp in action]
-        phi = sum(1 * self._gamma**i for i, d in enumerate(pd) if d < 0.45)
-        return phi
-
-    def _social_disturbance2(self, action):
-        assert isinstance(action, np.ndarray),\
-            'numpy ``ndarray`` expected for action trajectory'
-        phi = np.zeros(action.shape[0])
-        for i, p in enumerate(action):
-            for hp in self._persons:
-                ed = edist(hp, p)
-                if ed < 2.4:
-                    phi[i] = eval_gaussian(ed, sigma=1.2) * self._gamma**i
-        return np.sum(phi)
-
-    def _relation_disturbance(self, action):
-        # TODO - fix relations to start from 0 instead of 1
-        atime = action.shape[0]
-        c = [sum(line_crossing(action[t][0],
-                 action[t][1],
-                 action[t+1][0],
-                 action[t+1][1],
-                 self._persons[i-1][0],
-                 self._persons[i-1][1],
-                 self._persons[j-1][0],
-                 self._persons[j-1][1])
-             for [i, j] in self._relations) for t in range(int(atime - 1))]
-        ec = sum(self._gamma**i * x for i, x in enumerate(c))
-        return ec
-
-    def _relation_disturbance2(self, action):
-        assert isinstance(action, np.ndarray),\
-            'numpy ``ndarray`` expected for action trajectory'
-        phi = np.zeros(action.shape[0])
-        for k, act in enumerate(action):
-            for (i, j) in self._relations:
-                link = ((self._persons[i-1][0], self._persons[i-1][1]),
-                        (self._persons[j-1][0], self._persons[j-1][1]))
-
-                sdist, inside = distance_to_segment(act, link[0], link[1])
-                if inside and sdist < 0.24:
-                    phi[k] = eval_gaussian(sdist, sigma=1.2) * self._gamma**k
-
-        return np.sum(phi)
 
 ########################################################################
 
@@ -369,7 +261,7 @@ class SocialNavMDP(GraphMDP):
                 if n in best_nodes and i == p:
                     print(gna(n, 'cost'), gea(e[0], e[1], 'reward'))
                     self.ax.plot((x1, x2), (y1, y2), ls='-',
-                                 lw=4.0, c='g', zorder=3)
+                                 lw=2.0, c='g', zorder=3)
                 else:
                     if not show_rewards:
                         self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
