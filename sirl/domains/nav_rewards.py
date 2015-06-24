@@ -144,8 +144,8 @@ class GaussianSocialNavReward(MDPReward):
         for i, p in enumerate(action):
             for hp in self._persons:
                 ed = edist(hp, p)
-                if ed < 2.4:
-                    phi[i] = eval_gaussian(ed, sigma=1.2) * self._gamma**i
+                if ed < 1.2:
+                    phi[i] = eval_gaussian(ed, sigma=0.5) * self._gamma**i
         return np.sum(phi)
 
     def _relation_disturbance(self, action):
@@ -159,6 +159,6 @@ class GaussianSocialNavReward(MDPReward):
 
                 sdist, inside = distance_to_segment(act, link[0], link[1])
                 if inside and sdist < 0.24:
-                    phi[k] = eval_gaussian(sdist, sigma=1.2) * self._gamma**k
+                    phi[k] = eval_gaussian(sdist, sigma=0.5) * self._gamma**k
 
         return np.sum(phi)

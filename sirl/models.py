@@ -13,7 +13,7 @@ from .state_graph import StateGraph
 from algorithms.mdp_solvers import graph_policy_iteration
 from algorithms.function_approximation import gp_predict, gp_covariance
 
-from utils.common import wchoice
+from utils.common import wchoice, map_range
 from utils.geometry import edist
 from .base import ModelMixin
 
@@ -176,7 +176,8 @@ class GraphMDP(ModelMixin):
                     if es < self._min_es:
                         self._min_es = es
                     conc = conc / float(self._max_conc)
-                    es = (es - self._min_es)/1.0*(self._max_es - self._min_es)
+                    es = map_range(es, self._min_es, self._max_es, 0.0, 1.0)
+                    print(es, conc, var_es, self._params.exp_thresh)
                     if var_es > self._params.exp_thresh:
                         exp_queue.append(new_state)
                         exp_probs.append(es + cscale*conc)
@@ -327,7 +328,6 @@ class GraphMDP(ModelMixin):
                 action = G.out_edges(start)[G.gna(start, 'pi')]
                 next_node = action[1]
                 t += max(G.gea(start, next_node, 'duration'), 1.0)
-                # t += G.gea(start, next_node, 'duration')
                 start = next_node
                 if start not in bt:
                     bt.append(start)
@@ -399,16 +399,12 @@ class GraphMDP(ModelMixin):
         concentration = 1.0 / float(1 + len(nn))
         node_cost = state_dict['cost']
         if len(nn) < 1:
-            state_dict['V'] = self._params.goal_reward
-            return concentration, node_cost, self._params.goal_reward
+            y = 10
+            state_dict['V'] = y
+            return concentration, node_cost+y, 1
 
-        td = [self._g.gna(n, 'data') for n in nn]
-        train_data = [[x[0], x[1]] for x in td]
+        train_data = [self._g.gna(n, 'data') for n in nn]
         train_values = [self._g.gna(n, 'V') for n in nn]
-        train_data = np.array(train_data)
-
-        # self._gp.fit(train_data, train_values)
-        # y, v = self._gp.predict(state_dict['data'], eval_MSE=True)
 
         gram = gp_covariance(train_data, train_data)
         y, v = gp_predict(state_dict['data'], train_data, gram, train_values)

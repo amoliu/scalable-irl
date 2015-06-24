@@ -101,12 +101,12 @@ class StateGraph(object):
         -----
         Includes self in the result
         """
-        # neighbors = filter(lambda n: eud(self.gna(n, 'data'), loc) <= distance,
-        #                    self.G.nodes())
-        neighbors = set()
-        for n in self.nodes:
-            if 0.0 < eud(self.gna(n, 'data'), loc) <= distance:
-                neighbors.add(n)
+        neighbors = filter(lambda n: eud(self.gna(n, 'data'), loc) <= distance,
+                           self.G.nodes())
+        # neighbors = set()
+        # for n in self.nodes:
+        #     if  eud(self.gna(n, 'data'), loc) <= distance:
+        #         neighbors.add(n)
         return neighbors
 
     def find_neighbors_range(self, nid, distance):

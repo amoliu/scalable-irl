@@ -27,6 +27,13 @@ def eval_gaussian(x, mu=0.0, sigma=0.2):
     return norm.pdf(x, loc=mu, scale=sigma)
 
 
+def map_range(value, mina, maxa, mint, maxt):
+    denom = maxa - mina
+    if abs(denom) < 1e-09:
+        denom = 1e-09
+    return mint + ((value - mina) * (maxt - mint) / denom)
+
+
 ##########################################################################
 
 class Timer:

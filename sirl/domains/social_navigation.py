@@ -14,6 +14,7 @@ from ..models import LocalController
 from ..models import GraphMDP
 from ..models import _controller_duration
 
+from ..utils.common import map_range
 from ..utils.geometry import edist
 from ..algorithms.mdp_solvers import graph_policy_iteration
 
@@ -136,7 +137,7 @@ class SocialNavMDP(GraphMDP):
         # - add the init samples
         init_samples = list(samples)
         for sample in init_samples:
-            self._g.add_node(nid=self._node_id, data=sample, cost=COST_LIMIT,
+            self._g.add_node(nid=self._node_id, data=sample, cost=-COST_LIMIT,
                              priority=1, V=GR, pi=0, Q=[], ntype='simple')
             self._node_id += 1
 
@@ -281,10 +282,3 @@ class SocialNavMDP(GraphMDP):
 
 def _rgb_to_hex(rgb):
     return ('#%02X%02X%02X' % (rgb[0], rgb[1], rgb[2]))
-
-
-def map_range(value, mina, maxa, mint, maxt):
-    denom = maxa - mina
-    if abs(denom) < 1e-09:
-        denom = 1e-09
-    return mint + ((value - mina) * (maxt - mint) / denom)

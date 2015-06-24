@@ -162,8 +162,7 @@ class GBIRLPolicyWalk(GBIRL):
 
             # - compute acceptance probability for the new reward
             mh_ratio = self._mh_ratio(r_mean, r_new, QE, QE_new, QPi, QPi_new)
-            # if uniform(0, 1) < min(1, mh_ratio):
-            if mh_ratio > 1.0:
+            if uniform(0, 1) < min(1, mh_ratio):
                 r_mean = self._iterative_reward_mean(r_mean, r_new, step)
                 result['accept_ratio'] += 1
 
