@@ -226,9 +226,10 @@ class GBIRL(ModelMixin, Logger):
 
         graph_policy_iteration(self._mdp)
 
-    def _expert_trajectory_quality(self, reward, gr=30):
+    def _expert_trajectory_quality(self, reward):
         """ Compute the Q-function of expert trajectories """
         G = self._mdp.graph
+        gr = self._mdp._params.goal_reward
 
         QEs = []
         for traj in self._demos:
@@ -246,7 +247,7 @@ class GBIRL(ModelMixin, Logger):
             QEs.append(QE)
         return QEs
 
-    def _generated_trajectory_quality(self, reward, g_trajs, gr=30):
+    def _generated_trajectory_quality(self, reward, g_trajs):
         """ Compute the Q-function of generated trajectories """
         G = self._mdp.graph
 

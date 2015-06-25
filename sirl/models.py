@@ -7,7 +7,6 @@ from abc import abstractproperty
 import json
 import numpy as np
 from numpy.random import uniform
-from sklearn import gaussian_process
 
 from .state_graph import StateGraph
 from algorithms.mdp_solvers import graph_policy_iteration
@@ -122,11 +121,6 @@ class GraphMDP(ModelMixin):
         self._max_conc = 1.0
         self._max_es = 1.0
         self._min_es = 0.0
-        self._gp = gaussian_process.GaussianProcess(corr='squared_exponential',
-                                                    regr='quadratic',
-                                                    theta0=1e-2,
-                                                    thetaL=1e-4,
-                                                    thetaU=1e-1)
 
     @abstractmethod
     def initialize_state_graph(self, samples):
@@ -248,7 +242,7 @@ class GraphMDP(ModelMixin):
         gna = self._g.gna
         iteration = len(self._g.nodes)
         duration = _sample_control_time(iteration, self._params.max_samples)
-        action = np.random.uniform(0.0, 1.0)
+        action = uniform(0.0, 1.0)
         new_state = self._controller(gna(state, 'data'), action, duration)
         reward, phi = self._reward(gna(state, 'data'), new_state)
 
@@ -261,10 +255,6 @@ class GraphMDP(ModelMixin):
         state_dict['b_duration'] = _controller_duration(gna(state, 'data'),
                                                         new_state)
         state_dict['b_data'] = gna(state, 'data')
-        # TODO
-        # - checkout using Langragian for exploration-exploitation tradeoff
-        # - set concentration as kinetic energy, and value/cost/priority as
-        # potential energy
         return state_dict
 
     def _update_state_costs(self):
@@ -278,6 +268,7 @@ class GraphMDP(ModelMixin):
 
         """
         # TODO - create a node visitor from starts to goal??
+        # - What about multiple goal start cases?
         cmax = self._params.max_cost
         G = self._g
         converged = False
@@ -466,12 +457,12 @@ class GraphMDPParams(object):
         self.goal_reward = 30
         self.p_best = 0.4
         self.max_samples = 50
-        self.max_edges = 9
-        self.start_states = [(1, 1), (9, 5)]
-        self.goal_state = (5.5, 9)
+        self.max_edges = 360
+        self.start_states = []
+        self.goal_state = (1, 1)
         self.init_type = 'random'
         self.max_cost = 1000
-        self.conc_scale = 5
+        self.conc_scale = 1
 
     @property
     def _to_json(self):

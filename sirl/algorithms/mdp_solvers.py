@@ -8,7 +8,7 @@ A set of MDP solvers, including
 """
 
 
-def graph_policy_iteration(mdp, epsilon=1e-05, maxit=20):
+def graph_policy_iteration(mdp, epsilon=1e-07, maxit=20):
     """ Graph policy iteration for use with adaptive state graphs
 
     Perform policy iteration on the MDP graph. The value function and

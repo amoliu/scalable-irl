@@ -210,49 +210,49 @@ class GBIRLPolicyWalk(GBIRL):
             .. math::
                 ratio = P(R_new|O) / P(R|O) x P(R_new)/P(R)
         """
-        # # reward priors
-        # prior_new = np.sum(self._prior(r_new))
-        # prior = np.sum(self._prior(r))
-
-        # # likelihoods (un-normalized, since we only need the ratio)
-        # lk = 1
-        # for i, Qe in enumerate(QE):
-        #     lk *= np.exp(self._beta * (Qe)) / \
-        #           (np.exp(self._beta * (Qe)) +
-        #            np.sum(np.exp(self._beta * (Qn[i])) for Qn in QPi))
-
-        # lk_new = 1
-        # for i, Qe_new in enumerate(QE_new):
-        #     lk_new *= np.exp(self._beta * (Qe_new)) / \
-        #               (np.exp(self._beta * (Qe_new)) +
-        #                np.sum(np.exp(self._beta * (Qn[i])) for Qn in QPi_new))
-
-        # self.data['lk'].append(lk)
-        # self.data['lk_new'].append(lk_new)
-
-        # mh_ratio = (lk_new / lk) * (prior_new / prior)
-
         # reward priors
-        prior_new = np.sum(self._prior.log_p(r_new))
-        prior = np.sum(self._prior.log_p(r))
+        prior_new = np.sum(self._prior(r_new))
+        prior = np.sum(self._prior(r))
 
-        # log-likelihoods
-        lk = 0
-        for QP_i in QPi:
-            for q_e in QE:
-                qs = np.sum([np.exp(self._beta*(q_i - q_e)) for q_i in QP_i])
-                lk += -np.log(qs)
+        # likelihoods (un-normalized, since we only need the ratio)
+        lk = 1
+        for i, Qe in enumerate(QE):
+            lk *= np.exp(self._beta * (Qe)) / \
+                  (np.exp(self._beta * (Qe)) +
+                   np.sum(np.exp(self._beta * (Qn[i])) for Qn in QPi))
 
-        lk_new = 0
-        for QP_n in QPi_new:
-            for q_n in QE_new:
-                qs = np.sum([np.exp(self._beta*(q_j - q_n)) for q_j in QP_n])
-                lk_new += -np.log(qs)
+        lk_new = 1
+        for i, Qe_new in enumerate(QE_new):
+            lk_new *= np.exp(self._beta * (Qe_new)) / \
+                      (np.exp(self._beta * (Qe_new)) +
+                       np.sum(np.exp(self._beta * (Qn[i])) for Qn in QPi_new))
 
         self.data['lk'].append(lk)
         self.data['lk_new'].append(lk_new)
 
-        mh_ratio = (lk_new + prior_new) / (lk + prior)
+        mh_ratio = (lk_new / lk) * (prior_new / prior)
+
+        # reward priors
+        # prior_new = np.sum(self._prior.log_p(r_new))
+        # prior = np.sum(self._prior.log_p(r))
+
+        # # log-likelihoods
+        # lk = 0
+        # for QP_i in QPi:
+        #     for q_e in QE:
+        #         qs = np.sum([np.exp(self._beta*(q_i - q_e)) for q_i in QP_i])
+        #         lk += -np.log(qs)
+
+        # lk_new = 0
+        # for QP_n in QPi_new:
+        #     for q_n in QE_new:
+        #         qs = np.sum([np.exp(self._beta*(q_j - q_n)) for q_j in QP_n])
+        #         lk_new += -np.log(qs)
+
+        # self.data['lk'].append(lk)
+        # self.data['lk_new'].append(lk_new)
+
+        # mh_ratio = (lk_new + prior_new) / (lk + prior)
 
         return mh_ratio
 
