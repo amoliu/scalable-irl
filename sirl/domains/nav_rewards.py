@@ -115,7 +115,6 @@ class GaussianSocialNavReward(MDPReward):
                self._social_disturbance(action_traj),
                self._goal_deviation_count(action_traj)]
         reward = np.dot(phi, self._weights)
-        print(phi, reward)
         return reward, phi
 
     @property

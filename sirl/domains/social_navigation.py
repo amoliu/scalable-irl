@@ -14,7 +14,6 @@ from ..models import LocalController
 from ..models import GraphMDP
 from ..models import _controller_duration
 
-from ..utils.common import map_range
 from ..utils.geometry import edist
 from ..algorithms.mdp_solvers import graph_policy_iteration
 
@@ -123,21 +122,21 @@ class SocialNavMDP(GraphMDP):
         # - add start and goal samples to initialization set
         self._g.clear()
         GR = self._params.goal_reward
-        COST_LIMIT = self._params.max_cost
+        CLIMIT = self._params.max_cost
         for start in self._params.start_states:
             self._g.add_node(nid=self._node_id, data=start, cost=0,
                              priority=1, V=GR, pi=0, Q=[], ntype='start')
             self._node_id += 1
 
         self._g.add_node(nid=self._node_id, data=self._params.goal_state,
-                         cost=-COST_LIMIT, priority=1, V=GR, pi=0,
+                         cost=-CLIMIT, priority=1, V=GR, pi=0,
                          Q=[], ntype='goal')
         self._node_id += 1
 
         # - add the init samples
         init_samples = list(samples)
         for sample in init_samples:
-            self._g.add_node(nid=self._node_id, data=sample, cost=-COST_LIMIT,
+            self._g.add_node(nid=self._node_id, data=sample, cost=-CLIMIT,
                              priority=1, V=GR, pi=0, Q=[], ntype='simple')
             self._node_id += 1
 
