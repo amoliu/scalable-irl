@@ -145,7 +145,7 @@ class GaussianSocialNavReward(MDPReward):
                 ed = edist(hp, p)
                 if ed < 1.2:
                     phi[i] = eval_gaussian(ed, sigma=0.5) * self._gamma**i
-        return np.sum(phi)
+        return sum(phi)
 
     def _relation_disturbance(self, action):
         assert isinstance(action, np.ndarray),\
@@ -160,4 +160,4 @@ class GaussianSocialNavReward(MDPReward):
                 if inside and sdist < 0.24:
                     phi[k] = eval_gaussian(sdist, sigma=0.5) * self._gamma**k
 
-        return np.sum(phi)
+        return sum(phi)

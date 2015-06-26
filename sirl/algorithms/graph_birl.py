@@ -3,6 +3,7 @@ from __future__ import division
 
 from abc import ABCMeta, abstractmethod
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from .mdp_solvers import graph_policy_iteration
@@ -156,7 +157,7 @@ class GBIRL(ModelMixin, Logger):
         self._beta = beta
         self._max_iter = max_iter
 
-    def solve(self):
+    def solve(self, persons, relations):
         """ Find the true reward function """
         reward = self.initialize_reward()
         self._compute_policy(reward=reward)
@@ -189,6 +190,9 @@ class GBIRL(ModelMixin, Logger):
 
             # - compute quality loss over the trajectories
             # TODO
+
+            self._mdp.visualize(persons, relations)
+            plt.savefig('learning_{}.pdf'.format(iteration))
 
             print('Iteration: {}'.format(iteration))
 
@@ -250,6 +254,7 @@ class GBIRL(ModelMixin, Logger):
     def _generated_trajectory_quality(self, reward, g_trajs):
         """ Compute the Q-function of generated trajectories """
         G = self._mdp.graph
+        gr = self._mdp._params.goal_reward
 
         QPiv = []
         for g_traj in g_trajs:

@@ -12,7 +12,7 @@ from .state_graph import StateGraph
 from algorithms.mdp_solvers import graph_policy_iteration
 from algorithms.function_approximation import gp_predict, gp_covariance
 
-from utils.common import wchoice, map_range
+from utils.common import wchoice, map_range, Timer
 from utils.geometry import edist
 from .base import ModelMixin
 
@@ -122,6 +122,9 @@ class GraphMDP(ModelMixin):
         self._max_es = 1.0
         self._min_es = 0.0
 
+        self.data = dict()
+        self.data['timing'] = []
+
     @abstractmethod
     def initialize_state_graph(self, samples):
         """ Initialize graph using set of initial samples """
@@ -137,6 +140,9 @@ class GraphMDP(ModelMixin):
         p_b = self._params.p_best
         cscale = self._params.conc_scale
         while self._node_id < self._params.max_samples:
+            t = Timer()
+            t.__enter__()
+
             if self._node_id % 10 == 0:
                 print('Run: no.nodes = {}'.format(self._node_id))
 
@@ -204,6 +210,10 @@ class GraphMDP(ModelMixin):
             graph_policy_iteration(self)
             self._update_state_priorities()
             self._find_best_policies()
+
+            t.__exit__()
+            delta = t.interval
+            self.data['timing'].append(delta)
 
         return self
 

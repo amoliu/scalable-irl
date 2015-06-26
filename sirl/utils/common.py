@@ -34,6 +34,13 @@ def map_range(value, mina, maxa, mint, maxt):
     return mint + ((value - mina) * (maxt - mint) / denom)
 
 
+def softmax(x1, x2):
+    """ Compute the `Softmax(x1, x2) wrt to elements of x1, and x2"""
+    mx = max(x1, x2)
+    mn = min(x1, x2)
+    return mx + np.log(1 + np.exp(mx-mn))
+
+
 ##########################################################################
 
 class Timer:
