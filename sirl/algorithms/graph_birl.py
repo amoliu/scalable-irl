@@ -67,10 +67,10 @@ class UniformRewardPrior(RewardPrior):
         super(UniformRewardPrior, self).__init__(name)
 
     def __call__(self, r):
-        return r
+        return r / np.sum(r)
 
     def log_p(self, r):
-        return np.log(r)
+        return np.log(self.__call__(r))
 
 
 class GaussianRewardPrior(RewardPrior):
@@ -80,8 +80,9 @@ class GaussianRewardPrior(RewardPrior):
         self._sigma = sigma
 
     def __call__(self, r):
-        return np.exp(-np.square(r)/(2.0*self._sigma**2)) /\
+        rp = np.exp(-np.square(r)/(2.0*self._sigma**2)) /\
             np.sqrt(2.0*np.pi)*self._sigma
+        return rp / np.sum(rp)
 
     def log_p(self, r):
         # TODO - make analytical
@@ -95,7 +96,8 @@ class LaplacianRewardPrior(RewardPrior):
         self._sigma = sigma
 
     def __call__(self, r):
-        return np.exp(-np.fabs(r)/(2.0*self._sigma)) / (2.0*self._sigma)
+        rp = np.exp(-np.fabs(r)/(2.0*self._sigma)) / (2.0*self._sigma)
+        return rp / np.sum(rp)
 
     def log_p(self, r):
         # TODO - make analytical
@@ -187,9 +189,6 @@ class GBIRL(ModelMixin, Logger):
             self._compute_policy(reward)
             trajs = self._generate_trajestories()
             g_trajs.append(trajs)
-
-            # - compute quality loss over the trajectories
-            # TODO
 
             self._mdp.visualize(persons, relations)
             plt.savefig('learning_{}.pdf'.format(iteration))

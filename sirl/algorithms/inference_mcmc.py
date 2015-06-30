@@ -205,14 +205,11 @@ class GBIRLPolicyWalk(GBIRL):
         Returns
         --------
         mh_ratio : float
-            The ratio corresponding to,
-
-            .. math::
-                ratio = P(R_new|O) / P(R|O) x P(R_new)/P(R)
+            The ratio corresponding to :math:`P(r_n|O) / P(r|O) x P(r_n)/P(r)`
         """
         # reward priors
-        prior_new = np.sum(self._prior(r_new))
-        prior = np.sum(self._prior(r))
+        prior_new = np.prod(self._prior(r_new))
+        prior = np.prod(self._prior(r))
 
         # likelihoods (un-normalized, since we only need the ratio)
         lk = 1
