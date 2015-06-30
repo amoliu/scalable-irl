@@ -17,10 +17,6 @@ from utils.geometry import edist
 from .base import ModelMixin
 
 
-# Seed random number generator
-# np.random.seed(42)
-
-
 ########################################################################
 
 class LocalController(ModelMixin):
@@ -512,9 +508,9 @@ def _tmax(it, max_iter):
     # return _tmin(it, max_iter) + 5
 
 
-def _controller_duration(source, target):
+def _controller_duration(source, target, speed=0.1):
     """
     Returns the time it takes the controller to go from source to target
+    assuming a simple straight line controller
     """
-    # TODO - use speed instead of this fixed factor
-    return edist(source, target) / 0.1
+    return edist(source, target) / speed

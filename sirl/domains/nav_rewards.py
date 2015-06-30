@@ -22,7 +22,7 @@ class HistogramSocialNavReward(MDPReward):
 
     """
     def __init__(self, persons, relations, goal, weights, discount,
-                 kind='linfa', resolution=0.1):
+                 kind='linfa', resolution=0.1, hzone=0.45):
         super(HistogramSocialNavReward, self).__init__(kind)
         self._persons = persons
         self._relations = relations
@@ -30,6 +30,7 @@ class HistogramSocialNavReward(MDPReward):
         self._goal = goal
         self._weights = weights
         self._gamma = discount
+        self._hzone = hzone
 
     def __call__(self, state_a, state_b):
         source, target = np.array(state_a), np.array(state_b)
@@ -68,7 +69,8 @@ class HistogramSocialNavReward(MDPReward):
     def _social_disturbance(self, action):
         pd = [min([edist(wp, person) for person in self._persons])
               for wp in action]
-        phi = sum(1 * self._gamma**i for i, d in enumerate(pd) if d < 0.45)
+        phi = sum(1 * self._gamma**i
+                  for i, d in enumerate(pd) if d < self._hzone)
         return phi
 
     def _relation_disturbance(self, action):
@@ -137,8 +139,6 @@ class GaussianSocialNavReward(MDPReward):
         return sum(dist)
 
     def _social_disturbance(self, action):
-        assert isinstance(action, np.ndarray),\
-            'numpy ``ndarray`` expected for action trajectory'
         phi = np.zeros(action.shape[0])
         for i, p in enumerate(action):
             for hp in self._persons:
@@ -148,8 +148,6 @@ class GaussianSocialNavReward(MDPReward):
         return sum(phi)
 
     def _relation_disturbance(self, action):
-        assert isinstance(action, np.ndarray),\
-            'numpy ``ndarray`` expected for action trajectory'
         phi = np.zeros(action.shape[0])
         for k, act in enumerate(action):
             for (i, j) in self._relations:
