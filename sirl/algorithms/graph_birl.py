@@ -170,8 +170,6 @@ class GBIRL(ModelMixin, Logger):
         self.data['qloss'] = []
         self.data['trace'] = []
         self.data['walk'] = []
-        self.data['lk'] = []
-        self.data['lk_new'] = []
         self.data['accept_ratios'] = []
         self.data['mh_ratio'] = []
 
@@ -183,7 +181,6 @@ class GBIRL(ModelMixin, Logger):
             self.data['trace'].append(result['trace'])
             self.data['walk'].append(result['walk'])
             self.data['accept_ratios'].append(result['accept_ratio'])
-            self.data['mh_ratio'].extend(result['mh_ratio'])
 
             # - generate trajectories using current reward and store
             self._compute_policy(reward)
