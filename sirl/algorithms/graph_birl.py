@@ -67,7 +67,9 @@ class UniformRewardPrior(RewardPrior):
         super(UniformRewardPrior, self).__init__(name)
 
     def __call__(self, r):
-        return r / np.sum(r)
+        rp = np.ones(r.shape[0])
+        dist = rp / np.sum(rp)
+        return dist
 
     def log_p(self, r):
         return np.log(self.__call__(r))
@@ -171,7 +173,6 @@ class GBIRL(ModelMixin, Logger):
         self.data['trace'] = []
         self.data['walk'] = []
         self.data['accept_ratios'] = []
-        self.data['mh_ratio'] = []
         self.data['iter_rewards'] = []
 
         for iteration in range(self._max_iter):
@@ -270,6 +271,5 @@ class GBIRL(ModelMixin, Logger):
                     else:
                         QPi += (self._mdp.gamma ** time) * gr
                 QPis.append(QPi)
-
             QPiv.append(QPis)
         return QPiv
