@@ -70,8 +70,8 @@ class SocialNavLocalController(LocalController):
         If the local controller ends up beyond the limits of the world config,
         then the current state is returned to avoid sampling `outside'.
         """
-        nx = state[0] + np.cos(action * 2 * np.pi) * duration * 0.1
-        ny = state[1] + np.sin(action * 2 * np.pi) * duration * 0.1
+        nx = state[0] + np.cos(action * 2 * np.pi) * duration
+        ny = state[1] + np.sin(action * 2 * np.pi) * duration
 
         if self._wconfig.x < nx < self._wconfig.w and\
                 self._wconfig.y < ny < self._wconfig.h:
@@ -196,17 +196,16 @@ class SocialNavMDP(GraphMDP):
 
     def _setup_visuals(self):
         """ Prepare figure axes for plotting """
-        self.figure = plt.figure(figsize=(12, 9))
-        self.ax = plt.axes([0, 0, 0.8, 1])
+        self.figure = plt.figure(figsize=(9, 9))
+        self.ax = plt.axes([0, 0, 1, 1])
         self.figure.add_axes(self.ax)
-
         self.ax.set_xlim([self._wconfig.x, self._wconfig.w])
         self.ax.set_ylim([self._wconfig.y, self._wconfig.h])
 
-        self.record_status = self.figure.text(0.825, 0.3, 'Recording [OFF]',
-                                              fontsize=14, color='blue')
-        self.figure.text(0.825, 0.2, '#Demos: ', fontsize=10)
-        self.demo_count = self.figure.text(0.925, 0.2, '0', fontsize=10)
+        # self.record_status = self.figure.text(0.825, 0.3, 'Recording [OFF]',
+        #                                       fontsize=14, color='blue')
+        # self.figure.text(0.825, 0.2, '#Demos: ', fontsize=10)
+        # self.demo_count = self.figure.text(0.925, 0.2, '0', fontsize=10)
 
         # self.figure.canvas.mpl_connect('key_press_event', self._key_press)
         # self.figure.canvas.mpl_connect('button_press_event', self._btn_click)
@@ -259,7 +258,6 @@ class SocialNavMDP(GraphMDP):
                 x1, y1 = ndata[0], ndata[1]
                 x2, y2 = tdata[0], tdata[1]
                 if n in best_nodes and i == p:
-                    print(gna(n, 'cost'), gea(e[0], e[1], 'reward'))
                     self.ax.plot((x1, x2), (y1, y2), ls='-',
                                  lw=2.0, c='g', zorder=3)
                 else:

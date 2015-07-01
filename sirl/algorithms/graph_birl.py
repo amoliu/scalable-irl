@@ -172,11 +172,13 @@ class GBIRL(ModelMixin, Logger):
         self.data['walk'] = []
         self.data['accept_ratios'] = []
         self.data['mh_ratio'] = []
+        self.data['iter_rewards'] = []
 
         for iteration in range(self._max_iter):
             # - Compute reward likelihood, find the new reward
             result = self.find_next_reward(reward, g_trajs)
             reward = result['reward']
+            self.data['iter_rewards'].append(reward)
 
             self.data['trace'].append(result['trace'])
             self.data['walk'].append(result['walk'])

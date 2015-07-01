@@ -37,7 +37,7 @@ class PolicyWalkProposal(Proposal):
         new_loc = np.array(loc)
         changed = False
         while not changed:
-            d = choice([-self.delta, 0, self.delta])
+            d = choice([-self.delta, self.delta])
             i = randint(self.dim)
             if self.bounded:
                 if -1 <= new_loc[i]+d <= 1:
@@ -139,8 +139,8 @@ class GBIRLPolicyWalk(GBIRL):
 
     def _policy_walk(self, init_reward, g_trajs, result):
         """ Policy Walk MCMC reward posterior computation """
-        r = deepcopy(init_reward)
-        # r = self.initialize_reward()
+        # r = deepcopy(init_reward)
+        r = self.initialize_reward()
         r_mean = deepcopy(r)
         p_dist = PolicyWalkProposal(r.shape[0], self._delta, bounded=False)
 

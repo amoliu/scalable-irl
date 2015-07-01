@@ -495,7 +495,7 @@ def _sample_control_time(iteration, max_iter):
     """
     max_time = _tmax(iteration, max_iter)
     min_time = _tmin(iteration, max_iter)
-    return uniform(0, 1) * (max_time - min_time + 1) + min_time
+    return (uniform(0, 1) * (max_time - min_time + 1) + min_time) * 0.1
 
 
 def _tmin(it, max_iter):
