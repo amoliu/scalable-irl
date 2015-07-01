@@ -102,28 +102,31 @@ class GBIRLPolicyWalk(GBIRL):
 
     """
     def __init__(self, demos, mdp, prior, loss, step_size=0.3, burn=0.2,
-                 max_iter=10, beta=0.9, reward_max=1.0, mcmc_iter=200):
+                 max_iter=10, beta=0.9, reward_max=1.0, mcmc_iter=200,
+                 cooling=False):
         super(GBIRLPolicyWalk, self).__init__(demos, mdp, prior, loss,
                                               beta, max_iter)
         self._delta = step_size
         self._rmax = reward_max
         self._mcmc_iter = mcmc_iter
         self._burn = burn
+        self._tempered = cooling
 
     def initialize_reward(self):
         """
         Generate initial reward for the algorithm in $R^{|S| / \delta}$
         """
         rdim = self._mdp._reward.dim
-        # v = np.arange(-self._rmax, self._rmax+self._delta, self._delta)
-        # reward = np.zeros(rdim)
-        # for i in range(rdim):
-        #     reward[i] = choice(v)
         loc = [-self._rmax + i * self._delta
                for i in range(int(self._rmax / self._delta + 1))]
-        reward = [loc[randrange(int(self._rmax / self._delta + 1))]
-                  for _ in range(rdim)]
-        return np.array(reward)
+        if self._tempered:
+            reward = np.array([max(self._prior(loc)) for _ in range(rdim)])
+        else:
+            reward = [loc[randrange(int(self._rmax / self._delta + 1))]
+                      for _ in range(rdim)]
+            reward = np.array(reward)
+
+        return reward
 
     def find_next_reward(self, reward, g_trajs):
         """ Compute a new reward based on current generated trajectories """
@@ -162,7 +165,12 @@ class GBIRLPolicyWalk(GBIRL):
 
             # - compute acceptance probability for the new reward
             mh_ratio = self._mh_ratio(r_mean, r_new, QE, QE_new, QPi, QPi_new)
-            if uniform(0, 1) < min(1, mh_ratio):
+
+            accept_probability = min(1, mh_ratio)
+            if self._tempered:
+                accept_probability = min(1, mh_ratio) ** self._cooling(step)
+
+            if uniform(0, 1) < accept_probability:
                 r_mean = self._iterative_reward_mean(r_mean, r_new, step)
                 result['accept_ratio'] += 1
 
@@ -275,3 +283,7 @@ class GBIRLPolicyWalk(GBIRL):
         r_mean = [((step - 1) / float(step)) * m_r + 1.0 / step * r
                   for m_r, r in zip(r_mean, r_new)]
         return np.array(r_mean)
+
+    def _cooling(self, step):
+        """ Tempering """
+        return 5 + step / 50.0
