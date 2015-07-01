@@ -500,12 +500,10 @@ def _sample_control_time(iteration, max_iter):
 
 def _tmin(it, max_iter):
     return int(50 * (1 - it / float(max_iter)) + 5 * it / float(max_iter))
-    # return int(100 * (1 - it / float(max_iter)) + 10 * it / float(max_iter))
 
 
 def _tmax(it, max_iter):
     return _tmin(it, max_iter) + 2
-    # return _tmin(it, max_iter) + 5
 
 
 def _controller_duration(source, target, speed=0.1):

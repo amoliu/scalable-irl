@@ -2,6 +2,7 @@ from __future__ import division
 
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
+from random import randrange
 
 from numpy.random import choice, randint, uniform
 import numpy as np
@@ -108,20 +109,21 @@ class GBIRLPolicyWalk(GBIRL):
         self._rmax = reward_max
         self._mcmc_iter = mcmc_iter
         self._burn = burn
-        # TODO
-        # - examine acceptance rates, convergence
-        # - log key steps
 
     def initialize_reward(self):
         """
         Generate initial reward for the algorithm in $R^{|S| / \delta}$
         """
         rdim = self._mdp._reward.dim
-        v = np.arange(-self._rmax, self._rmax+self._delta, self._delta)
-        reward = np.zeros(rdim)
-        for i in range(rdim):
-            reward[i] = choice(v)
-        return reward
+        # v = np.arange(-self._rmax, self._rmax+self._delta, self._delta)
+        # reward = np.zeros(rdim)
+        # for i in range(rdim):
+        #     reward[i] = choice(v)
+        loc = [-self._rmax + i * self._delta
+               for i in range(int(self._rmax / self._delta + 1))]
+        reward = [loc[randrange(int(self._rmax / self._delta + 1))]
+                  for _ in range(rdim)]
+        return np.array(reward)
 
     def find_next_reward(self, reward, g_trajs):
         """ Compute a new reward based on current generated trajectories """
@@ -142,16 +144,14 @@ class GBIRLPolicyWalk(GBIRL):
         # r = deepcopy(init_reward)
         r = self.initialize_reward()
         r_mean = deepcopy(r)
-        p_dist = PolicyWalkProposal(r.shape[0], self._delta, bounded=False)
+        p_dist = PolicyWalkProposal(r.shape[0], self._delta, bounded=True)
 
         QE = self._expert_trajectory_quality(r)
         QPi = self._generated_trajectory_quality(r, g_trajs)
         ql = sum([sum(Qe - Qp for Qe, Qp in zip(QE, Q_i)) for Q_i in QPi])
         self.data['qloss'].append(ql)
-        # for Q_i in QPi:
-        #     self.data['qloss'].append(sum(Qe-Qp for Qe, Qp in zip(QE, Q_i)))
-
         burn_point = int(self._mcmc_iter * self._burn / 100)
+
         for step in range(1, self._mcmc_iter+1):
             # - generate new reward sample
             r_new = p_dist(loc=r_mean)
@@ -180,6 +180,24 @@ class GBIRLPolicyWalk(GBIRL):
         return result
 
     def _mh_ratio(self, r, r_new, QE, QE_new, QPi, QPi_new):
+        posterior_ratio = 1  # assuming uniform prior
+        lk = 1
+        lk_new = 1
+
+        for i, Qe in enumerate(QE):
+            lk *= np.exp(self._beta * (Qe)) / \
+                  (np.exp(self._beta * (Qe)) +
+                   sum(np.exp(self._beta * (Q[i])) for Q in QPi))
+        for i, Qe_new in enumerate(QE_new):
+            lk_new *= np.exp(self._beta * (Qe_new)) / \
+                      (np.exp(self._beta * (Qe_new)) +
+                       sum(np.exp(self._beta * (Qn[i])) for Qn in QPi_new))
+
+        posterior_ratio *= lk_new / lk
+
+        return posterior_ratio
+
+    def _mh_ratio2(self, r, r_new, QE, QE_new, QPi, QPi_new):
         """ Compute the Metropolis-Hastings acceptance ratio
 
         Given a new reward (weights), MH ratio is used to determine whether or
