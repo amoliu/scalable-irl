@@ -1,3 +1,7 @@
+"""
+Sampling (MCMC) based approximate inference for GBIRL
+"""
+
 from __future__ import division
 
 from abc import ABCMeta, abstractmethod
@@ -113,6 +117,14 @@ class GBIRLPolicyWalk(GBIRL):
         self._burn = burn
         self._tempered = cooling
 
+        # some data for diagnosis
+        self.data = dict()
+        self.data['qloss'] = []
+        self.data['trace'] = []
+        self.data['walk'] = []
+        self.data['accept_ratios'] = []
+        self.data['iter_rewards'] = []
+
     def initialize_reward(self):
         """
         Generate initial reward for the algorithm in $R^{|S| / \delta}$
@@ -125,26 +137,20 @@ class GBIRLPolicyWalk(GBIRL):
         reward = np.array(r)
         if self._tempered:
             # initialize to the maximum of prior
-            prior = self._prior(r)
+            prior = self._prior(reward)
             reward = np.array([max(prior) for _ in range(rdim)])
 
         return reward
 
     def find_next_reward(self, reward, g_trajs):
         """ Compute a new reward based on current generated trajectories """
-        result = dict()
-        result['trace'] = []
-        result['walk'] = []
-        result['reward'] = None
-        result['accept_ratio'] = 0
-
-        return self._policy_walk(reward, g_trajs, result)
+        return self._policy_walk(g_trajs)
 
     # -------------------------------------------------------------
     # internals
     # -------------------------------------------------------------
 
-    def _policy_walk(self, init_reward, g_trajs, result):
+    def _policy_walk(self, g_trajs):
         """ Policy Walk MCMC reward posterior computation """
         r = self.initialize_reward()
         r_mean = deepcopy(r)
@@ -168,19 +174,19 @@ class GBIRLPolicyWalk(GBIRL):
 
             if accept_probability > uniform(0, 1):
                 r_mean = self._iterative_reward_mean(r_mean, r_new, step)
-                result['accept_ratio'] += 1
+                self.data['accept_ratios'].append(1)
 
             # - handling sample burning
             if step > burn_point:
-                result['walk'].append(r_new)
-                result['trace'].append(r_mean)
-                result['reward'] = r_mean
+                self.data['iter_rewards'].append(r_mean)
+                self.data['trace'].append(r_mean)
+                self.data['walk'].append(r_new)
 
             if step % 10 == 0:
                 print('It: %s, R: %s, R_mean: %s' % (step, r_new, r_mean))
             # self.debug('It: %s, R: %s, R_mean: %s' % (step, r_new, r_mean))
 
-        return result
+        return r_mean
 
     def _mh_ratio(self, r, r_new, QE, QE_new, QPi, QPi_new):
         """ Compute the Metropolis-Hastings acceptance ratio
@@ -228,7 +234,6 @@ class GBIRLPolicyWalk(GBIRL):
         lk_new = -logsumexp(z_new)
 
         mh_ratio = (lk_new + p_new) / (lk + p)
-
         return mh_ratio
 
     def _iterative_reward_mean(self, r_mean, r_new, step):
