@@ -142,7 +142,7 @@ class GBIRLPolicyWalk(GBIRL):
 
         return reward
 
-    def find_next_reward(self, reward, g_trajs):
+    def find_next_reward(self, g_trajs):
         """ Compute a new reward based on current generated trajectories """
         return self._policy_walk(g_trajs)
 
@@ -178,7 +178,6 @@ class GBIRLPolicyWalk(GBIRL):
 
             # - handling sample burning
             if step > burn_point:
-                self.data['iter_rewards'].append(r_mean)
                 self.data['trace'].append(r_mean)
                 self.data['walk'].append(r_new)
 
@@ -186,6 +185,7 @@ class GBIRLPolicyWalk(GBIRL):
                 print('It: %s, R: %s, R_mean: %s' % (step, r_new, r_mean))
             # self.debug('It: %s, R: %s, R_mean: %s' % (step, r_new, r_mean))
 
+        self.data['iter_rewards'].append(r_mean)
         return r_mean
 
     def _mh_ratio(self, r, r_new, QE, QE_new, QPi, QPi_new):

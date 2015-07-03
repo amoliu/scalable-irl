@@ -9,6 +9,7 @@ from random import randrange
 
 from scipy.misc import logsumexp
 import numpy as np
+import scipy as sp
 
 from .graph_birl import GBIRL
 
@@ -43,40 +44,56 @@ class GradientGBIRL(GBIRL):
         Number of MCMC samples to use in the PolicyWalk algorithm
 
     """
-    def __init__(self, demos, mdp, prior, loss, step_size=0.3,
-                 max_iter=10, beta=0.9, reward_max=1.0, grad_iter=200):
+    def __init__(self, demos, mdp, prior, loss, max_iter=10, beta=0.9,
+                 reward_max=1.0, grad_iter=200):
         super(GradientGBIRL, self).__init__(demos, mdp, prior, loss,
                                             beta, max_iter)
         self._rmax = reward_max
         self._grad_iter = grad_iter
 
-    def initialize_reward(self):
+        self.data = dict()
+        self.data['qloss'] = []
+
+    def initialize_reward(self, delta=0.2):
         """
         Generate initial reward
         """
         rdim = self._mdp._reward.dim
-        loc = [-self._rmax + i * self._delta
-               for i in range(int(self._rmax / self._delta + 1))]
-        r = [loc[randrange(int(self._rmax / self._delta + 1))]
-             for _ in range(rdim)]
+        loc = [-self._rmax + i * delta
+               for i in range(int(self._rmax / delta + 1))]
+        r = [loc[randrange(int(self._rmax / delta + 1))] for _ in range(rdim)]
         reward = np.array(r)
         return reward
 
     def find_next_reward(self, g_trajs):
         """ Compute a new reward based on current generated trajectories """
-        return None
+        # initialize the reward
+        r_init = self.initialize_reward()
+
+        # hack - put the g_trajs a member to avoid passing it to the objective
+        self.g_trajs = g_trajs
+
+        # run optimization to minimize N_llk
+        objective = self._neg_loglk
+        res = sp.optimize.fmin_bfgs(objective, r_init)
+
+        print(res)
+        print(type(res))
+        reward = res
+
+        return reward
 
     # -------------------------------------------------------------
     # internals
     # -------------------------------------------------------------
 
-    def _neg_loglk(self, r, g_trajs):
+    def _neg_loglk(self, r):
         """ Compute the negative log likelihood with respect to the given
         reward and generated trajectories.
         """
         # - prepare the trajectory quality scores
         QE = self._expert_trajectory_quality(r)
-        QPi = self._generated_trajectory_quality(r, g_trajs)
+        QPi = self._generated_trajectory_quality(r, self.g_trajs)
         ql = sum([sum(Qe - Qp for Qe, Qp in zip(QE, Q_i)) for Q_i in QPi])
         self.data['qloss'].append(ql)
 
