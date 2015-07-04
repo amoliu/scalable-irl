@@ -109,10 +109,10 @@ class LaplacianRewardPrior(RewardPrior):
 ########################################################################
 # Algorithms
 
-class GBIRL(ModelMixin, Logger):
-    """GraphBIRL algorithm
+class TBIRL(ModelMixin, Logger):
+    """Sampled Trajectory based BIRL algorithm (TBIRL)
 
-    Bayesian Inverse Reinforcement Learning on Adaptive State-Graph (GBIRL)
+    Bayesian Inverse Reinforcement Learning on Adaptive State-Graph
 
     This is an iterative algorithm that improves the reward based on the
     quality differences between expert trajectories and trajectories
@@ -129,7 +129,7 @@ class GBIRL(ModelMixin, Logger):
     loss : callable
         Reward loss callable
     max_iter : int, optional (default=10)
-        Number of iterations of the GBIRL algorith
+        Number of iterations of the TBIRL algorithm
     alpha : float, optional (default=0.9)
         Expert optimality parameter for softmax Boltzman temperature
 
@@ -145,7 +145,7 @@ class GBIRL(ModelMixin, Logger):
     _loss : callable
         Reward loss callable
     _max_iter : int, optional (default=10)
-        Number of iterations of the GBIRL algorith
+        Number of iterations of the TBIRL algorith
     _beta : float, optional (default=0.9)
         Expert optimality parameter for softmax Boltzman temperature
 

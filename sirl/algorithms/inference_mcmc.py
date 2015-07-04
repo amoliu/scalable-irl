@@ -1,5 +1,5 @@
 """
-Sampling (MCMC) based approximate inference for GBIRL
+Sampling (MCMC) based approximate inference for TBIRL
 """
 
 from __future__ import division
@@ -13,7 +13,7 @@ from scipy.misc import logsumexp
 import numpy as np
 
 from ..base import ModelMixin
-from .graph_birl import GBIRL
+from .graph_birl import TBIRL
 
 
 ########################################################################
@@ -58,11 +58,11 @@ class PolicyWalkProposal(Proposal):
 ########################################################################
 
 
-class GBIRLPolicyWalk(GBIRL):
+class TBIRLPolicyWalk(TBIRL):
     """GraphBIRL algorithm using PolicyWalk MCMC
 
     Bayesian Inverse Reinforcement Learning on Adaptive State-Graphs using
-    PolicyWalk (GBIRL-PW)
+    PolicyWalk (TBIRL-PW)
 
     Reward posterior disctribution is computed using MCMC samples via a
     grid walk on the space of rewards.
@@ -82,7 +82,7 @@ class GBIRLPolicyWalk(GBIRL):
     burn : float, optional (default=0.2)
         Fraction of MCMC samples to throw away before the chain stabilizes
     max_iter : int, optional (default=10)
-        Number of iterations of the GBIRL algorith
+        Number of iterations of the TBIRL algorithm
     beta : float, optional (default=0.9)
         Expert optimality parameter for softmax Boltzman temperature
     reward_max : float, optional (default=1.0)
@@ -109,7 +109,7 @@ class GBIRLPolicyWalk(GBIRL):
     def __init__(self, demos, mdp, prior, loss, step_size=0.3, burn=0.2,
                  max_iter=10, beta=0.9, reward_max=1.0, mcmc_iter=200,
                  cooling=False):
-        super(GBIRLPolicyWalk, self).__init__(demos, mdp, prior, loss,
+        super(TBIRLPolicyWalk, self).__init__(demos, mdp, prior, loss,
                                               beta, max_iter)
         self._delta = step_size
         self._rmax = reward_max

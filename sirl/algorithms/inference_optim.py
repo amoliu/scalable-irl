@@ -1,21 +1,20 @@
 """
-Optimization based (approximate) inference for GBIRL
+Optimization based (approximate) inference for TBIRL
 """
 
 from __future__ import division
 
-from copy import deepcopy
 from random import randrange
 
 from scipy.misc import logsumexp
 import numpy as np
 import scipy as sp
 
-from .graph_birl import GBIRL
+from .graph_birl import TBIRL
 
 
-class GradientGBIRL(GBIRL):
-    """GraphBIRL algorithm using gradient minimization of the likelihood
+class TBIRLOpt(TBIRL):
+    """TBIRL algorithm using direct optimization on the likelihood
 
     Parameters
     ----------
@@ -28,28 +27,30 @@ class GradientGBIRL(GBIRL):
     loss : callable
         Reward loss callable
     max_iter : int, optional (default=10)
-        Number of iterations of the GBIRL algorith
+        Number of iterations of the TBIRL algorithm
     beta : float, optional (default=0.9)
         Expert optimality parameter for softmax Boltzman temperature
     reward_max : float, optional (default=1.0)
         Maximum value of the reward signal (for a single dimension)
-    grad_iter : int, optional (default=200)
-        Maximum number of iterations for gradient optimization
 
     Attributes
     -----------
     _rmax : float, optional (default=1.0)
         Maximum value of the reward signal (for a single dimension)
-    _grad_iter : int, optional (default=200)
-        Number of MCMC samples to use in the PolicyWalk algorithm
-
+    _bounds : tuple, optional (default=None)
+        Box bounds for L-BFGS optimization of the negative log-likelihood,
+        specified for each dimension of the reward function vector, e.g.
+        ((-1, 1), (-1, 0)) for a 2D reward vector
     """
     def __init__(self, demos, mdp, prior, loss, max_iter=10, beta=0.9,
-                 reward_max=1.0, grad_iter=200):
-        super(GradientGBIRL, self).__init__(demos, mdp, prior, loss,
-                                            beta, max_iter)
+                 reward_max=1.0, bounds=None):
+        super(TBIRLOpt, self).__init__(demos, mdp, prior, loss,
+                                       beta, max_iter)
         self._rmax = reward_max
-        self._grad_iter = grad_iter
+        self._bounds = bounds
+        if self._bounds is None:
+            self._bounds = tuple((-self._rmax, self._rmax)
+                                 for _ in range(self._mdp._reward.dim))
 
         self.data = dict()
         self.data['qloss'] = []
@@ -75,9 +76,8 @@ class GradientGBIRL(GBIRL):
 
         # run optimization to minimize N_llk
         objective = self._neg_loglk
-        bounds = tuple((-1, 1) for _ in range(self._mdp._reward.dim))
         res = sp.optimize.fmin_l_bfgs_b(objective, r_init, approx_grad=1,
-                                        bounds=bounds)
+                                        bounds=self._bounds)
 
         print(res)
         reward = res[0]
