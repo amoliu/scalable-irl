@@ -107,3 +107,86 @@ class GradientGBIRL(GBIRL):
         lk = logsumexp(z)
 
         return lk
+
+    def get_diff_feature_matrix(self, start_state):
+        nb_g_trajs = sum(1 for i in self.g_trajs)
+        time = 0
+        rdim = self._mdp._reward.dim
+        QEf = np.zeros(rdim + 1)
+        for no in self._demos[start_state]:
+            if no.get_edges() != []:
+                p = no.get_pol()
+                tmp = list(no.get_edges()[p].get_features())
+                tmp.append(0)
+                tmp = np.array(tmp)
+                tmp = (self._mdp.gamma ** time) * tmp
+                QEf += tmp
+                time += no.get_edges()[p].get_time()
+            else:
+                tmp = ([0] * rdim)
+                tmp.append(1)
+                tmp = np.array(tmp)
+                tmp = (self._mdp.gamma ** time) * tmp
+                QEf += tmp
+        Qf = np.zeros((rdim + 1) * nb_g_trajs).reshape(rdim + 1, nb_g_trajs)
+        for i, compared_policy in enumerate(self.g_trajs):
+            QPif = np.zeros(rdim + 1)
+            time = 0
+            for no in compared_policy[start_state]:
+                if no.get_edges() != []:
+                    p = no.get_pol()
+                    tmp = list(no.get_edges()[p].get_features())
+                    tmp.append(0)
+                    tmp = np.array(tmp)
+                    tmp = (self._mdp.gamma ** time) * tmp
+                    QPif += tmp
+                    time += no.get_edges()[p].get_time()
+                else:
+                    tmp = ([0] * rdim)
+                    tmp.append(1)
+                    tmp = np.array(tmp)
+                    tmp = (self._mdp.gamma ** time) * tmp
+                    QPif += tmp
+            Qf[:, i] = np.transpose(QPif - QEf)
+        return Qf
+
+    def _ais(self, start_state, r):
+        goal_reward = self._mdp._params.goal_reward
+        time = 0
+        QE = 0
+        for no in self._demos[start_state]:
+            if no.get_edges() != []:
+                p = no.get_pol()
+                r = np.dot(r, no.get_edges()[p].get_features())
+                QE += (self._mdp.gamma ** time) * r
+                time += no.get_edges()[p].get_time()
+            else:
+                QE += (self._mdp.gamma ** time) * goal_reward
+
+        QPis = []
+        for compared_policy in self.g_trajs:
+            QPi = 0
+            time = 0
+            for no in compared_policy[start_state]:
+                if no.get_edges() != []:
+                    p = no.get_pol()
+                    r = np.dot(r, no.get_edges()[p].get_features())
+                    QPi += (self._mdp.gamma ** time) * r
+                    time += no.get_edges()[p].get_time()
+                else:
+                    QPi += (self._mdp.gamma ** time) * goal_reward
+            QPis.append(QPi)
+        QPis = [np.exp(Q - QE) for Q in QPis]
+        tot = sum(Q for Q in QPis)
+        QPis = [Q / float(1 + tot) for Q in QPis]
+        QPis = np.array(QPis)
+        return QPis
+
+    def _grad_nloglk(self, r):
+        """ Gradient of the negative log likelihood
+        """
+        num_starts = sum(1 for i in self._demos)
+        grad = sum(np.mat(self.get_diff_feature_matrix(i)) *
+                   np.transpose(np.mat(self._ais(i, r)))
+                   for i in xrange(num_starts))
+        return grad
