@@ -75,9 +75,9 @@ class GradientGBIRL(GBIRL):
 
         # run optimization to minimize N_llk
         objective = self._neg_loglk
-        # res = sp.optimize.fmin_bfgs(objective, r_init)
+        bounds = tuple((-1, 1) for _ in range(self._mdp._reward.dim))
         res = sp.optimize.fmin_l_bfgs_b(objective, r_init, approx_grad=1,
-                                        bounds=((-1, 1), (-1, 1), (-1, 1)))
+                                        bounds=bounds)
 
         print(res)
         reward = res[0]
