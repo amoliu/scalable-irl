@@ -95,8 +95,7 @@ class TBIRLOpt(TBIRL):
         # - prepare the trajectory quality scores
         QE = self._expert_trajectory_quality(r)
         QPi = self._generated_trajectory_quality(r, self.g_trajs)
-        ql = sum([sum(Qe - Qp for Qe, Qp in zip(QE, Q_i)) for Q_i in QPi])
-        self.data['qloss'].append(ql)
+        self.data['qloss'].append(self._loss(QE,  QPi))
 
         # - the N_lk
         z = []

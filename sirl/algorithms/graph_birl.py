@@ -15,6 +15,7 @@ __all__ = [
     'GaussianRewardPrior',
     'LaplacianRewardPrior',
     'UniformRewardPrior',
+    'TrajQualityLoss',
 ]
 
 
@@ -32,14 +33,17 @@ class RewardLoss(ModelMixin):
         raise NotImplementedError('Abstract')
 
 
-class LpRewardLoss(RewardLoss):
-    """L_p reward loss"""
-    def __init__(self, p, name='zoe'):
-        super(LpRewardLoss, self).__init__(name)
+class TrajQualityLoss(RewardLoss):
+    """ Trajectory quality loss :math:`||Q(s) - Q(s)||_p` """
+    def __init__(self, p=2, name='tqloss'):
+        super(TrajQualityLoss, self).__init__(name)
         self.p = p
 
-    def __call__(self, r1, r2):
-        return np.linalg.norm(r1=r2, ord=self.p)
+    def __call__(self, QE, QPi):
+        ql = sum([sum((Qe - Qp)**self.p
+                 for Qe, Qp in zip(QE, Q_i))
+                 for Q_i in QPi])
+        return ql
 
 
 ########################################################################
