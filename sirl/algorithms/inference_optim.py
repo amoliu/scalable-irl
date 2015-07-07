@@ -111,35 +111,40 @@ class TBIRLOpt(TBIRL):
         nb_g_trajs = sum(1 for i in self.g_trajs)
         time = 0
         rdim = self._mdp._reward.dim
+        G = self._mdp.graph
+
         QEf = np.zeros(rdim + 1)
-        for no in self._demos[start_state]:
-            if no.get_edges() != []:
-                p = no.get_pol()
-                tmp = list(no.get_edges()[p].get_features())
+        for n in self._demos[start_state]:
+            actions = G.out_edges(n)
+            if actions:
+                e = actions[G.gna(n, 'pi')]
+                tmp = list(G.gea(e[0], e[1], 'phi'))
                 tmp.append(0)
                 tmp = np.array(tmp)
+                time += G.gea(e[0], e[1], 'duration')
                 tmp = (self._mdp.gamma ** time) * tmp
                 QEf += tmp
-                time += no.get_edges()[p].get_time()
+                time += G.gea(e[0], e[1], 'duration')
             else:
                 tmp = ([0] * rdim)
                 tmp.append(1)
                 tmp = np.array(tmp)
                 tmp = (self._mdp.gamma ** time) * tmp
                 QEf += tmp
+
         Qf = np.zeros((rdim + 1) * nb_g_trajs).reshape(rdim + 1, nb_g_trajs)
-        for i, compared_policy in enumerate(self.g_trajs):
+        for i, generated_traj in enumerate(self.g_trajs):
             QPif = np.zeros(rdim + 1)
             time = 0
-            for no in compared_policy[start_state]:
-                if no.get_edges() != []:
-                    p = no.get_pol()
-                    tmp = list(no.get_edges()[p].get_features())
+            for n in generated_traj[start_state]:
+                if n.get_edges() != []:
+                    e = actions[G.gna(n, 'pi')]
+                    tmp = list(G.gea(e[0], e[1], 'phi'))
                     tmp.append(0)
                     tmp = np.array(tmp)
                     tmp = (self._mdp.gamma ** time) * tmp
                     QPif += tmp
-                    time += no.get_edges()[p].get_time()
+                    time += G.gea(e[0], e[1], 'duration')
                 else:
                     tmp = ([0] * rdim)
                     tmp.append(1)
@@ -151,27 +156,30 @@ class TBIRLOpt(TBIRL):
 
     def _ais(self, start_state, r):
         goal_reward = self._mdp._params.goal_reward
+        G = self._mdp.graph
         time = 0
         QE = 0
-        for no in self._demos[start_state]:
-            if no.get_edges() != []:
-                p = no.get_pol()
-                r = np.dot(r, no.get_edges()[p].get_features())
+        for n in self._demos[start_state]:
+            actions = G.out_edges(n)
+            if actions:
+                e = actions[G.gna(n, 'pi')]
+                r = np.dot(r, G.gea(e[0], e[1], 'phi'))
                 QE += (self._mdp.gamma ** time) * r
-                time += no.get_edges()[p].get_time()
+                time += G.gea(e[0], e[1], 'duration')
             else:
                 QE += (self._mdp.gamma ** time) * goal_reward
 
         QPis = []
-        for compared_policy in self.g_trajs:
+        for generated_traj in self.g_trajs:
             QPi = 0
             time = 0
-            for no in compared_policy[start_state]:
-                if no.get_edges() != []:
-                    p = no.get_pol()
-                    r = np.dot(r, no.get_edges()[p].get_features())
-                    QPi += (self._mdp.gamma ** time) * r
-                    time += no.get_edges()[p].get_time()
+            for n in generated_traj[start_state]:
+                actions = G.out_edges(n)
+                if actions:
+                    e = actions[G.gna(n, 'pi')]
+                    r = np.dot(r, G.gea(e[0], e[1], 'phi'))
+                    QE += (self._mdp.gamma ** time) * r
+                    time += G.gea(e[0], e[1], 'duration')
                 else:
                     QPi += (self._mdp.gamma ** time) * goal_reward
             QPis.append(QPi)
@@ -187,5 +195,5 @@ class TBIRLOpt(TBIRL):
         num_starts = sum(1 for i in self._demos)
         grad = sum(np.mat(self.get_diff_feature_matrix(i)) *
                    np.transpose(np.mat(self._ais(i, r)))
-                   for i in xrange(num_starts))
+                   for i in range(num_starts))
         return grad
