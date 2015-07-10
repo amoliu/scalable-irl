@@ -1,6 +1,7 @@
 
 from __future__ import division
 from collections import namedtuple
+from copy import copy
 
 import numpy as np
 
@@ -123,43 +124,12 @@ class SocialNavMDP(GraphMDP):
 
     def initialize_state_graph(self, samples):
         """ Initialize graph using set of initial samples """
-        # - add start and goal samples to initialization set
         self._g.clear()
-        GR = self._params.goal_reward
-        CLIMIT = self._params.max_cost
-        for start in self._params.start_states:
-            self._g.add_node(nid=self._node_id, data=start, cost=0,
-                             priority=1, V=GR, pi=0, Q=[], ntype='start')
-            self._node_id += 1
 
-        self._g.add_node(nid=self._node_id, data=self._params.goal_state,
-                         cost=-CLIMIT, priority=1, V=GR, pi=0,
-                         Q=[], ntype='goal')
-        self._node_id += 1
-
-        # - add the init samples
-        init_samples = list(samples)
-        for sample in init_samples:
-            self._g.add_node(nid=self._node_id, data=sample, cost=-CLIMIT,
-                             priority=1, V=GR, pi=0, Q=[], ntype='simple')
-            self._node_id += 1
-
-        # - add edges between each pair
-        for n in self._g.nodes:
-            for m in self._g.nodes:
-                if n == m or self.terminal(n):
-                    continue
-                ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
-                r, phi = self._reward(ndata, mdata)
-                d = _controller_duration(ndata, mdata)
-                self._g.add_edge(source=n, target=m, reward=r,
-                                 duration=d, phi=phi)
-
-        # - update graph attributes
-        self._update_state_costs()
-        graph_policy_iteration(self)
-        self._update_state_priorities()
-        self._find_best_policies()
+        if self._params.init_type == 'random':
+            self._random_init(samples)
+        elif self._params.init_type == 'trajectory':
+            self._traj_init(samples)
 
     def terminal(self, state):
         """ Check if a state is terminal (goal state) """
@@ -197,6 +167,88 @@ class SocialNavMDP(GraphMDP):
     # -------------------------------------------------------------
     # internals
     # -------------------------------------------------------------
+
+    def _random_init(self, samples):
+        """ Initialize from random samples """
+        GR = self._params.goal_reward
+        CLIMIT = self._params.max_cost
+        for start in self._params.start_states:
+            self._g.add_node(nid=self._node_id, data=start, cost=0,
+                             priority=1, V=GR, pi=0, Q=[], ntype='start')
+            self._node_id += 1
+
+        self._g.add_node(nid=self._node_id, data=self._params.goal_state,
+                         cost=-CLIMIT, priority=1, V=GR, pi=0,
+                         Q=[], ntype='goal')
+        self._node_id += 1
+
+        # - add the init samples
+        init_samples = list(samples)
+        for sample in init_samples:
+            self._g.add_node(nid=self._node_id, data=sample, cost=-CLIMIT,
+                             priority=1, V=GR, pi=0, Q=[], ntype='simple')
+            self._node_id += 1
+
+        # - add edges between each pair
+        for n in self._g.nodes:
+            for m in self._g.nodes:
+                if n == m or self.terminal(n):
+                    continue
+                ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
+                r, phi = self._reward(ndata, mdata)
+                d = _controller_duration(ndata, mdata)
+                self._g.add_edge(source=n, target=m, reward=r,
+                                 duration=d, phi=phi)
+
+        # - update graph attributes
+        self._update_state_costs()
+        graph_policy_iteration(self)
+        self._update_state_priorities()
+        self._find_best_policies()
+
+    def _traj_init(self, trajs):
+        """ Initialize from trajectories """
+        GR = self._params.goal_reward
+        CLIMIT = self._params.max_cost
+
+        # - goal state
+        self._g.add_node(nid=self._node_id, data=self._params.goal_state,
+                         cost=-CLIMIT, priority=1, V=GR, pi=0,
+                         Q=[], ntype='goal')
+        g = copy(self._node_id)
+        self._node_id += 1
+
+        for traj in trajs:
+            # - add start
+            start = traj[0]
+            self._g.add_node(nid=self._node_id, data=start, cost=0,
+                             priority=1, V=GR, pi=0, Q=[], ntype='start')
+            n = copy(self._node_id)
+            self._node_id += 1
+
+            # - add the rest of the waypoints
+            for wp in traj[1:]:
+                self._g.add_node(nid=self._node_id, data=wp, cost=-CLIMIT,
+                                 priority=1, V=GR, pi=0, Q=[], ntype='simple')
+                m = copy(self._node_id)
+                ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
+                r, phi = self._reward(ndata, mdata)
+                d = _controller_duration(ndata, mdata)
+                self._g.add_edge(source=n, target=m, reward=r,
+                                 duration=d, phi=phi)
+                n = copy(self._node_id)
+                self._node_id += 1
+
+            fdata, tdata = self._g.gna(m, 'data'), self._g.gna(g, 'data')
+            r, phi = self._reward(fdata, tdata)
+            d = _controller_duration(fdata, tdata)
+            self._g.add_edge(source=m, target=g, reward=r, duration=d, phi=phi)
+
+        # - update graph attributes
+        self._update_state_costs()
+        graph_policy_iteration(self)
+        self._update_state_priorities()
+        self._find_best_policies()
 
     def _setup_visuals(self):
         """ Prepare figure axes for plotting """
