@@ -117,6 +117,10 @@ class SocialNavMDP(GraphMDP):
             'Expects a ``WorldConfig`` object'
         self._wconfig = world_config
 
+        # manual demonstration recording
+        self._recording = False
+        self._demos = list()
+
     def initialize_state_graph(self, samples):
         """ Initialize graph using set of initial samples """
         # - add start and goal samples to initialization set
@@ -196,19 +200,62 @@ class SocialNavMDP(GraphMDP):
 
     def _setup_visuals(self):
         """ Prepare figure axes for plotting """
-        self.figure = plt.figure(figsize=(9, 9))
-        self.ax = plt.axes([0, 0, 1, 1])
+        self.figure = plt.figure(figsize=(12, 9))
+        self.ax = plt.axes([0, 0, 0.8, 1])
         self.figure.add_axes(self.ax)
         self.ax.set_xlim([self._wconfig.x, self._wconfig.w])
         self.ax.set_ylim([self._wconfig.y, self._wconfig.h])
 
-        # self.record_status = self.figure.text(0.825, 0.3, 'Recording [OFF]',
-        #                                       fontsize=14, color='blue')
-        # self.figure.text(0.825, 0.2, '#Demos: ', fontsize=10)
-        # self.demo_count = self.figure.text(0.925, 0.2, '0', fontsize=10)
+        self.record_status = self.figure.text(0.825, 0.3, 'Recording [OFF]',
+                                              fontsize=14, color='blue')
+        self.figure.text(0.825, 0.2, '#Demos: ', fontsize=10)
+        self.demo_count = self.figure.text(0.925, 0.2, '0', fontsize=10)
 
-        # self.figure.canvas.mpl_connect('key_press_event', self._key_press)
-        # self.figure.canvas.mpl_connect('button_press_event', self._btn_click)
+        self.figure.canvas.mpl_connect('key_press_event', self._key_press)
+        self.figure.canvas.mpl_connect('button_press_event', self._btn_click)
+
+    def _key_press(self, event):
+        """Handler for key press events
+        Used for demonstration recording and experiment handling
+        """
+        if event.key == 'R':
+            print('Starting recordning demos')
+            if self._recording is False:
+                print('Recording new demonstration')
+                self.record_status.set_text("Recording [ON]")
+                self.new_demo = list()
+                self.demo_color = np.random.choice(['r', 'b', 'g', 'k',
+                                                   'm', 'y', 'c'])
+                self._recording = True
+            else:
+                print('Done recording demo')
+                self._demos.append(np.array(self.new_demo))
+                self.record_status.set_text("Recording [OFF]")
+                self.demo_count.set_text(str(len(self._demos)))
+                self._recording = False
+
+                if len(self._demos):
+                    last_demo = self._demos[len(self._demos) - 1]
+                    self.ax.plot(last_demo[:, 0], last_demo[:, 1],
+                                 color=self.demo_color, ls='-', lw=1)
+        elif event.key == 'S':
+            if self._recording:
+                print('Please finish recording before saving')
+            else:
+                print('Saving demos as: demos.npy')
+                d = np.array(self._demos)
+                fname = 'demos_metropolis.npy'
+                print(d, fname)
+                np.save(fname, d)
+        self.figure.canvas.draw()
+
+    def _btn_click(self, event):
+        if self._recording:
+            self.new_demo.append([event.xdata, event.ydata])
+            cc = self.demo_color
+            self.ax.add_artist(Circle((event.xdata, event.ydata),
+                               0.03, fc=cc, ec=cc))
+            self.figure.canvas.draw()
 
     def _plot_graph_in_world(self, show_rewards=False):
         """ Shows the lattest version of the world with MDP
