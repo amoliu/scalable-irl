@@ -97,7 +97,7 @@ class TBIRLOpt(TBIRL):
         QPi = self._generated_trajectory_quality(r, self.g_trajs)
         self.data['qloss'].append(self._loss(QE,  QPi))
 
-        # - the N_lk
+        # - the negative log likelihood
         z = []
         for q_e in QE:
             for QP_i in QPi:
@@ -107,8 +107,8 @@ class TBIRLOpt(TBIRL):
 
         return lk
 
-    def get_diff_feature_matrix(self, start_state):
-        nb_g_trajs = sum(1 for i in self.g_trajs)
+    def _get_diff_feature_matrix(self, start_state):
+        num_g_trajs = len(self.g_trajs)
         time = 0
         rdim = self._mdp._reward.dim
         G = self._mdp.graph
@@ -132,7 +132,7 @@ class TBIRLOpt(TBIRL):
                 tmp = (self._mdp.gamma ** time) * tmp
                 QEf += tmp
 
-        Qf = np.zeros((rdim + 1) * nb_g_trajs).reshape(rdim + 1, nb_g_trajs)
+        Qf = np.zeros((rdim + 1) * num_g_trajs).reshape(rdim + 1, num_g_trajs)
         for i, generated_traj in enumerate(self.g_trajs):
             QPif = np.zeros(rdim + 1)
             time = 0
@@ -192,8 +192,8 @@ class TBIRLOpt(TBIRL):
     def _grad_nloglk(self, r):
         """ Gradient of the negative log likelihood
         """
-        num_starts = sum(1 for i in self._demos)
-        grad = sum(np.mat(self.get_diff_feature_matrix(i)) *
+        num_starts = len(self._demos)
+        grad = sum(np.mat(self._get_diff_feature_matrix(i)) *
                    np.transpose(np.mat(self._ais(i, r)))
                    for i in range(num_starts))
         return grad
