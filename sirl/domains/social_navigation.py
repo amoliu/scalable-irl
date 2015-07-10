@@ -218,9 +218,11 @@ class SocialNavMDP(GraphMDP):
         g = copy(self._node_id)
         self._node_id += 1
 
+        self._params.start_states = []
         for traj in trajs:
             # - add start
             start = traj[0]
+            self._params.start_states.append(start)
             self._g.add_node(nid=self._node_id, data=start, cost=0,
                              priority=1, V=GR, pi=0, Q=[], ntype='start')
             n = copy(self._node_id)
@@ -332,7 +334,7 @@ class SocialNavMDP(GraphMDP):
 
         for i, n in enumerate(G.nodes):
             [posx, posy] = gna(n, 'data')
-            if [posx, posy] in self._params.start_states:
+            if gna(n, 'type') == 'start':
                 color = ['black', 'black']
                 nr = 1.0
             elif self.terminal(n):
