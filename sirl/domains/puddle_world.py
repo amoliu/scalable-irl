@@ -13,7 +13,7 @@ from ..models import LocalController
 from ..models import GraphMDP
 from ..models import _controller_duration
 
-from ..utils.geometry import edist
+from ..utils.geometry import edist, distance_to_segment
 from ..algorithms.mdp_solvers import graph_policy_iteration
 
 
@@ -84,10 +84,10 @@ class PuddleWorldMDP(GraphMDP):
 class Puddle(object):
     """ A puddle in a continous puddle world
     Represented by combinations of a line and semi-circles at each end,
-    i.e.
-    (-----------)
+    i.e. (-----------)
+
     Parameters
-    R-----------
+    -----------
     x1 : float
         X coordinate of the start of the center line
     x2 : float
@@ -98,13 +98,14 @@ class Puddle(object):
         Y coordinate of the end of the center line
     radius : float
         Thickness/breadth of the puddle in all directions
+
     Attributes
     -----------
-    `start_pose` : array-like
+    _start_pose : array-like
         1D numpy array with the start of the line at the puddle center line
-    `end_pose`: array-like
+    _end_pose: array-like
         1D numpy array with the end of the line at the puddle center line
-    `radius`: float
+    _radius: float
         Thickness/breadth of the puddle in all directions
     """
     def __init__(self, x1, y1, x2, y2, radius, **kwargs):
@@ -113,22 +114,22 @@ class Puddle(object):
         assert y1 >= 0 and y1 <= 1, 'Puddle coordinates must be in [0, 1]'
         assert y2 >= 0 and y2 <= 1, 'Puddle coordinates must be in [0, 1]'
         assert radius > 0, 'Puddle radius must be > 0'
-        self.start_pose = np.array([x1, y1])
-        self.end_pose = np.array([x2, y2])
-        self.radius = radius
+        self._start_pose = np.array([x1, y1])
+        self._end_pose = np.array([x2, y2])
+        self._radius = radius
 
     def cost(self, x, y):
-        dist_puddle, inside = distance_to_segment(self.start_pose,
-                                                  self.end_pose, (x, y))
-        if inside and dist_puddle < self.radius:
-            return -400.0 * (self.radius - dist_puddle)
+        dist_puddle, inside = distance_to_segment(self._start_pose,
+                                                  self._end_pose, (x, y))
+        if inside and dist_puddle < self._radius:
+            return -400.0 * (self._radius - dist_puddle)
         return 0.0
 
     @property
     def location(self):
-        return self.start_pose[0], self.start_pose[1],\
-            self.end_pose[0], self.end_pose[1]
+        return self.s_tart_pose[0], self._start_pose[1],\
+            self._end_pose[0], self._end_pose[1]
 
     @property
     def length(self):
-        return edist(self.start_pose, self.end_pose)
+        return edist(self._start_pose, self._end_pose)
