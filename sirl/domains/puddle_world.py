@@ -29,9 +29,10 @@ class PuddleWorldControler(LocalController):
     def __call__(self, state, action, duration):
         """ Run a local controller from a ``state`` using ``action``
         """
-        nx = state[0] + np.cos(action * 2 * np.pi) * duration
-        ny = state[1] + np.sin(action * 2 * np.pi) * duration
+        nx = state[0] + np.cos(action * 2 * np.pi) * duration * 0.1
+        ny = state[1] + np.sin(action * 2 * np.pi) * duration * 0.1
 
+        # print(nx, ny, duration)
         if 0 < nx < 1 and 0 < ny < 1:
             return (nx, ny)
         return state
@@ -60,7 +61,7 @@ class PuddleReward(MDPReward):
             reward.append(sum(p.cost(wp[0], wp[1])
                           for p in self._puddles)*self._gamma**i)
 
-        return sum(reward), reward
+        return -sum(reward), reward
 
     @property
     def dim(self):

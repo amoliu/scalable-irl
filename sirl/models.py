@@ -173,6 +173,7 @@ class GraphMDP(ModelMixin):
                         self._min_es = es
                     conc = conc / float(self._max_conc)
                     es = map_range(es, self._min_es, self._max_es, 0.0, 1.0)
+                    # print(conc, es, var_es, self._params.exp_thresh)
                     if var_es > self._params.exp_thresh:
                         exp_queue.append(new_state)
                         exp_probs.append(es + cscale*conc)
