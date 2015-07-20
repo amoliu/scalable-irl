@@ -60,7 +60,7 @@ class PuddleReward(MDPReward):
             reward.append(sum(p.cost(wp[0], wp[1])
                           for p in self._puddles)*self._gamma**i)
 
-        return sum(reward)
+        return sum(reward), reward
 
     @property
     def dim(self):
@@ -84,13 +84,12 @@ class PuddleWorldMDP(GraphMDP):
         Algorithm parameters for the various steps
 
     """
-    def __init__(self, discount, reward, controller, params, world_config):
+    def __init__(self, discount, reward, controller, params):
         super(PuddleWorldMDP, self).__init__(discount, reward,
                                              controller, params)
         self._setup_puddles()
         self._recording = False
         self._demos = list()
-        self._setup_visuals()
 
     def initialize_state_graph(self, samples):
         GR = self._params.goal_reward
@@ -135,6 +134,9 @@ class PuddleWorldMDP(GraphMDP):
         if edist(position, self._params.goal_state) < 0.05:
             return True
         return False
+
+    def visualize(self):
+        self._setup_visuals()
 
     # -------------------------------------------------------------
     # internals
