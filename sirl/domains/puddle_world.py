@@ -6,8 +6,8 @@ import numpy as np
 # from matplotlib.patches import Circle, Ellipse
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Wedge, Circle
-# import matplotlib.cm as cm
-# import matplotlib as mpl
+import matplotlib.cm as cm
+import matplotlib as mpl
 
 
 from ..models import LocalController
@@ -137,6 +137,7 @@ class PuddleWorldMDP(GraphMDP):
 
     def visualize(self):
         self._setup_visuals()
+        self._plot_graph_in_world()
 
     # -------------------------------------------------------------
     # internals
@@ -243,6 +244,67 @@ class PuddleWorldMDP(GraphMDP):
                                0.005, fc=cc, ec=cc))
             self.figure.canvas.draw()
 
+    def _plot_graph_in_world(self, show_rewards=False):
+        """ Shows the lattest version of the world with MDP
+        """
+        G = self._g
+        gna = G.gna
+        gea = G.gea
+
+        if show_rewards:
+            rewards = [gea(e[0], e[1], 'reward') for e in G.all_edges]
+            n = mpl.colors.Normalize(vmin=min(rewards), vmax=max(rewards))
+            m = cm.ScalarMappable(norm=n, cmap=cm.jet)
+
+        values = [gna(n, 'V') for n in G.nodes]
+        nv = mpl.colors.Normalize(vmin=min(values), vmax=max(values))
+        mv = cm.ScalarMappable(norm=nv, cmap=cm.jet)
+
+        best_nodes = set()
+        for traj in self._best_trajs:
+            for state in traj:
+                best_nodes.add(state)
+
+        for i, n in enumerate(G.nodes):
+            [posx, posy] = gna(n, 'data')
+            if gna(n, 'type') == 'start':
+                color = ['black', 'black']
+                nr = 1.0
+            elif self.terminal(n):
+                color = ['green', 'black']
+                nr = 1.5
+            elif n in best_nodes:
+                color = ['green', 'green']
+                nr = 0.5
+            else:
+                # rgcol = _rgb_to_hex(((0, 0, 255 * i / float(n_nodes))))
+                rgcol = mv.to_rgba(gna(n, 'V'))
+                color = [rgcol, rgcol]
+                nr = 0.5
+            self.ax.add_artist(Circle((posx, posy), nr/100., fc=color[0],
+                               ec=color[1], lw=1.5, zorder=3))
+
+            p = gna(n, 'pi')
+            ndata = gna(n, 'data')
+            for i, e in enumerate(G.out_edges(n)):
+                t = e[1]
+                tdata = gna(t, 'data')
+                x1, y1 = ndata[0], ndata[1]
+                x2, y2 = tdata[0], tdata[1]
+                if n in best_nodes and i == p:
+                    self.ax.plot((x1, x2), (y1, y2), ls='-',
+                                 lw=2.0, c='g', zorder=3)
+                else:
+                    if not show_rewards:
+                        self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
+                                     c='0.7', alpha=0.5)
+                    else:
+                        cost = gea(e[0], e[1], 'reward')
+                        self.ax.arrow(x1, y1, 0.97*(x2-x1), 0.97*(y2-y1),
+                                      width=0.01, head_width=0.15,
+                                      head_length=0.15,
+                                      fc=m.to_rgba(cost), ec=m.to_rgba(cost))
+
 
 ########################################################################
 
@@ -275,11 +337,11 @@ class Puddle(object):
 
     Attributes
     -----------
-    _start_pose : array-like
+    start_pose : array-like
         1D numpy array with the start of the line at the puddle center line
-    _end_pose: array-like
+    end_pose: array-like
         1D numpy array with the end of the line at the puddle center line
-    _radius: float
+    radius: float
         Thickness/breadth of the puddle in all directions
     """
     def __init__(self, x1, y1, x2, y2, radius, **kwargs):
@@ -288,22 +350,22 @@ class Puddle(object):
         assert y1 >= 0 and y1 <= 1, 'Puddle coordinates must be in [0, 1]'
         assert y2 >= 0 and y2 <= 1, 'Puddle coordinates must be in [0, 1]'
         assert radius > 0, 'Puddle radius must be > 0'
-        self._start_pose = np.array([x1, y1])
-        self._end_pose = np.array([x2, y2])
-        self._radius = radius
+        self.start_pose = np.array([x1, y1])
+        self.end_pose = np.array([x2, y2])
+        self.radius = radius
 
     def cost(self, x, y):
-        dist_puddle, inside = distance_to_segment(self._start_pose,
-                                                  self._end_pose, (x, y))
-        if inside and dist_puddle < self._radius:
-            return -400.0 * (self._radius - dist_puddle)
+        dist_puddle, inside = distance_to_segment(self.start_pose,
+                                                  self.end_pose, (x, y))
+        if inside and dist_puddle < self.radius:
+            return -400.0 * (self.radius - dist_puddle)
         return 0.0
 
     @property
     def location(self):
-        return self.s_tart_pose[0], self._start_pose[1],\
-            self._end_pose[0], self._end_pose[1]
+        return self.start_pose[0], self.start_pose[1],\
+            self.end_pose[0], self.end_pose[1]
 
     @property
     def length(self):
-        return edist(self._start_pose, self._end_pose)
+        return edist(self.start_pose, self.end_pose)
