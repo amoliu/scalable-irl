@@ -61,7 +61,7 @@ class PuddleReward(MDPReward):
             reward.append(sum(p.cost(wp[0], wp[1])
                           for p in self._puddles)*self._gamma**i)
 
-        return -sum(reward), reward
+        return sum(reward), reward
 
     @property
     def dim(self):
