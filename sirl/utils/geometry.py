@@ -12,13 +12,42 @@ __all__ = [
            "normalize_vector",
            "distance_to_segment",
            "edist",
-           "line_crossing"
+           "line_crossing",
+           "anisotropic_distance",
            ]
 
 
 def edist(v1, v2):
     """ Euclidean distance between two 2D vectors """
-    return np.sqrt((v1[0] - v2[0])**2 + (v1[1] - v2[1])**2)
+    return np.hypot(v1[0] - v2[0], v1[1] - v2[1])
+
+
+def anisotropic_distance(focal_agent, other_agent,
+                         phi_ij=None, ak=2.48, bk=1.0,
+                         lambda_=0.4, rij=0.9):
+    """
+    Anisotropic distance based on the Social Force Model (SFM)
+    model of pedestrian dynamics.
+    """
+    ei = np.array([-focal_agent[2], -focal_agent[3]])
+    ei = normalize_vector(ei)
+
+    if phi_ij is None:
+        phi = np.arctan2(other_agent[1] - focal_agent[1],
+                         other_agent[0] - focal_agent[0])
+    else:
+        phi = phi_ij
+
+    dij = edist(focal_agent, other_agent)
+    nij = np.array([np.cos(phi), np.sin(phi)])
+    ns = 2
+    alpha = ak * np.exp((rij - dij) / bk) * nij
+    beta_ = np.tile(np.ones(shape=(1, ns)) * lambda_ + ((1 - lambda_)
+                    * (np.ones(shape=(1, ns)) - (np.dot(nij.T, ei)).T) / 2.),
+                    [1, 1])
+    curve = np.multiply(alpha, beta_).T
+    dc = np.hypot(curve[0], curve[1])
+    return dc
 
 
 def distance_to_segment(x, xs, xe):

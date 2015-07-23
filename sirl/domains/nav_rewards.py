@@ -5,24 +5,25 @@ import numpy as np
 from ..models import MDPReward
 from ..models import _controller_duration
 
-from ..utils.geometry import edist
+from ..utils.geometry import edist, anisotropic_distance
 from ..utils.geometry import line_crossing
 
 
 __all__ = [
-    'SimpleHistrogramReward',
-    'ScaledHistogramReward',
+    'SimpleReward',
+    'ScaledSimpleReward',
+    'AnisotropicReward',
 ]
 
 
-class SimpleHistrogramReward(MDPReward):
+class SimpleReward(MDPReward):
     """ Social Navigation Reward Funtion
     based on intrusion counts (histogram)
 
     """
     def __init__(self, persons, relations, goal, weights, discount,
                  kind='linfa', resolution=1, hzone=0.45):
-        super(SimpleHistrogramReward, self).__init__(kind)
+        super(SimpleReward, self).__init__(kind)
         self._persons = persons
         self._relations = relations
         self._resolution = resolution
@@ -91,13 +92,13 @@ class SimpleHistrogramReward(MDPReward):
 ############################################################################
 
 
-class ScaledHistogramReward(SimpleHistrogramReward):
+class ScaledSimpleReward(SimpleReward):
     """ Social Navigation Reward Funtion using Gaussians """
     def __init__(self, persons, relations, goal, weights, discount,
                  kind='linfa', resolution=1, hzone=0.45):
-        super(ScaledHistogramReward, self).__init__(persons, relations, goal,
-                                                    weights, discount,
-                                                    resolution, hzone)
+        super(ScaledSimpleReward, self).__init__(persons, relations, goal,
+                                                 weights, discount,
+                                                 resolution, hzone)
     # --- override key functions
 
     def _social_disturbance(self, action):
@@ -110,5 +111,28 @@ class ScaledHistogramReward(SimpleHistrogramReward):
             hz = speed * 0.5 * self._hzone
             for wp in action:
                 if edist(wp, p) < hz:
+                    phi += 1
+        return phi
+
+
+############################################################################
+
+
+class AnisotropicReward(SimpleReward):
+    """ Simple reward using an Anisotropic circle around persons"""
+    def __init__(self, persons, relations, goal, weights, discount,
+                 kind='linfa', resolution=1, hzone=0.45):
+        super(AnisotropicReward, self).__init__(persons, relations, goal,
+                                                weights, discount,
+                                                resolution, hzone)
+
+    def _social_disturbance(self, action):
+        phi = 0
+        for p in self._persons:
+            # speed = np.hypot(p[2], p[3])
+            # hz = speed * 0.5 * self._hzone
+            for wp in action:
+                ad = anisotropic_distance(p, wp, ak=self._hzone)
+                if edist(wp, p) < ad:
                     phi += 1
         return phi
