@@ -135,8 +135,8 @@ class GraphMDP(ModelMixin):
         """ Run the adaptive state-graph procedure to solve the mdp """
         p_b = self._params.p_best
         cscale = self._params.conc_scale
+        t = Timer()
         while self._node_id < self._params.max_samples:
-            t = Timer()
             t.__enter__()
 
             if self._node_id % 10 == 0:

@@ -146,7 +146,7 @@ class SocialNavMDP(GraphMDP):
         """
         self._setup_visuals()
 
-        for p in persons:
+        for _, p in persons.items():
             phead = np.degrees(np.arctan2(p[3], p[2]))
             self.ax.add_artist(Ellipse((p[0], p[1]), width=0.3, height=0.6,
                                angle=phead, color='r', fill=False, lw=1.5,
@@ -156,8 +156,8 @@ class SocialNavMDP(GraphMDP):
             self.ax.arrow(p[0], p[1], p[2]/5., p[3]/5., fc='r', ec='r', lw=1.5,
                           head_width=0.14, head_length=0.1, zorder=3)
         for [i, j] in relations:
-            x1, y1 = persons[i-1][0], persons[i-1][1]
-            x2, y2 = persons[j-1][0], persons[j-1][1]
+            x1, y1 = persons[i][0], persons[i][1]
+            x2, y2 = persons[j][0], persons[j][1]
             self.ax.plot((x1, x2), (y1, y2), ls='-', c='r', lw=2.0, zorder=2)
 
         self._plot_graph_in_world()

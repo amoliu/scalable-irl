@@ -67,7 +67,7 @@ class SimpleReward(MDPReward):
         return sum(dist)
 
     def _social_disturbance(self, action):
-        pd = [min([edist(wp, person) for person in self._persons])
+        pd = [min([edist(wp, person) for _, person in self._persons.items()])
               for wp in action]
         phi = sum(1 * self._gamma**i
                   for i, d in enumerate(pd) if d < self._hzone)
@@ -80,10 +80,10 @@ class SimpleReward(MDPReward):
                  action[t][1],
                  action[t+1][0],
                  action[t+1][1],
-                 self._persons[i-1][0],
-                 self._persons[i-1][1],
-                 self._persons[j-1][0],
-                 self._persons[j-1][1])
+                 self._persons[i][0],
+                 self._persons[i][1],
+                 self._persons[j][0],
+                 self._persons[j][1])
              for [i, j] in self._relations) for t in range(int(atime - 1))]
         ec = sum(self._gamma**i * x for i, x in enumerate(c))
         return ec
@@ -132,7 +132,7 @@ class AnisotropicReward(SimpleReward):
             # speed = np.hypot(p[2], p[3])
             # hz = speed * 0.5 * self._hzone
             for wp in action:
-                ad = anisotropic_distance(p, wp, ak=self._hzone)
+                ad = anisotropic_distance(p, wp, ak=2*self._hzone)
                 if edist(wp, p) < ad:
                     phi += 1
         return phi
