@@ -95,7 +95,7 @@ class SimpleReward(MDPReward):
 class ScaledSimpleReward(SimpleReward):
     """ Social Navigation Reward Funtion using Gaussians """
     def __init__(self, persons, relations, goal, weights, discount,
-                 kind='linfa', resolution=1, hzone=0.45):
+                 kind='linfa', resolution=0.2, hzone=0.45):
         super(ScaledSimpleReward, self).__init__(persons, relations, goal,
                                                  weights, discount,
                                                  resolution, hzone)
@@ -106,7 +106,7 @@ class ScaledSimpleReward(SimpleReward):
         that is scaled by the person's speed. Assuming 1m/s = ``_hzone``
         """
         phi = 0
-        for p in self._persons:
+        for _, p in self._persons.items():
             speed = np.hypot(p[2], p[3])
             hz = speed * 0.5 * self._hzone
             for wp in action:
@@ -121,14 +121,14 @@ class ScaledSimpleReward(SimpleReward):
 class AnisotropicReward(SimpleReward):
     """ Simple reward using an Anisotropic circle around persons"""
     def __init__(self, persons, relations, goal, weights, discount,
-                 kind='linfa', resolution=1, hzone=0.45):
+                 kind='linfa', resolution=0.2, hzone=0.45):
         super(AnisotropicReward, self).__init__(persons, relations, goal,
                                                 weights, discount,
                                                 resolution, hzone)
 
     def _social_disturbance(self, action):
         phi = 0
-        for p in self._persons:
+        for _, p in self._persons.items():
             # speed = np.hypot(p[2], p[3])
             # hz = speed * 0.5 * self._hzone
             for wp in action:
