@@ -3,7 +3,6 @@ from __future__ import division
 import numpy as np
 
 from ..models import MDPReward
-from ..models import _controller_duration
 
 from ..utils.geometry import edist, anisotropic_distance
 from ..utils.geometry import line_crossing
@@ -22,28 +21,19 @@ class SimpleReward(MDPReward):
 
     """
     def __init__(self, persons, relations, goal, weights, discount,
-                 kind='linfa', resolution=0.2, hzone=0.45):
+                 kind='linfa', hzone=0.45):
         super(SimpleReward, self).__init__(kind)
         self._persons = persons
         self._relations = relations
-        self._resolution = resolution
         self._goal = goal
         self._weights = weights
         self._gamma = discount
         self._hzone = hzone
 
-    def __call__(self, state_a, state_b):
-        source, target = np.array(state_a), np.array(state_b)
-        # increase resolution of action trajectory (option)
-        duration = _controller_duration(source, target) * 1.0/self._resolution
-        action_traj = [target * t / duration + source * (1 - t / duration)
-                       for t in range(int(duration))]
-        action_traj.append(target)
-        action_traj = np.array(action_traj)
-
-        phi = [self._relation_disturbance(action_traj),
-               self._social_disturbance(action_traj),
-               self._goal_deviation_count(action_traj)]
+    def __call__(self, state, action):
+        phi = [self._relation_disturbance(action),
+               self._social_disturbance(action),
+               self._goal_deviation_count(action)]
         reward = np.dot(phi, self._weights)
         return reward, phi
 
@@ -74,7 +64,6 @@ class SimpleReward(MDPReward):
         return phi
 
     def _relation_disturbance(self, action):
-        # TODO - fix relations to start from 0 instead of 1
         atime = action.shape[0]
         c = [sum(line_crossing(action[t][0],
                  action[t][1],
@@ -95,10 +84,9 @@ class SimpleReward(MDPReward):
 class ScaledSimpleReward(SimpleReward):
     """ Social Navigation Reward Funtion using Gaussians """
     def __init__(self, persons, relations, goal, weights, discount,
-                 kind='linfa', resolution=0.2, hzone=0.45):
+                 kind='linfa', hzone=0.45):
         super(ScaledSimpleReward, self).__init__(persons, relations, goal,
-                                                 weights, discount,
-                                                 resolution, hzone)
+                                                 weights, discount, hzone)
     # --- override key functions
 
     def _social_disturbance(self, action):
@@ -108,7 +96,7 @@ class ScaledSimpleReward(SimpleReward):
         phi = 0
         for _, p in self._persons.items():
             speed = np.hypot(p[2], p[3])
-            hz = speed * 0.5 * self._hzone
+            hz = speed * self._hzone
             for wp in action:
                 if edist(wp, p) < hz:
                     phi += 1
@@ -121,10 +109,9 @@ class ScaledSimpleReward(SimpleReward):
 class AnisotropicReward(SimpleReward):
     """ Simple reward using an Anisotropic circle around persons"""
     def __init__(self, persons, relations, goal, weights, discount,
-                 kind='linfa', resolution=0.2, hzone=0.45):
+                 kind='linfa', hzone=0.45):
         super(AnisotropicReward, self).__init__(persons, relations, goal,
-                                                weights, discount,
-                                                resolution, hzone)
+                                                weights, discount, hzone)
 
     def _social_disturbance(self, action):
         phi = 0

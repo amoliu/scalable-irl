@@ -19,7 +19,7 @@ def test_local_controller():
         def __init__(self, kind):
             super(ConcreteLC, self).__init__(kind)
 
-        def __call__(self, state, action, duration):
+        def __call__(self, state, action, duration, max_speed):
             return 42
 
     subclass = ConcreteLC(kind='some-name')

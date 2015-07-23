@@ -1,7 +1,7 @@
 
 from __future__ import division
 
-
+import itertools
 import numpy as np
 
 
@@ -14,7 +14,34 @@ __all__ = [
            "edist",
            "line_crossing",
            "anisotropic_distance",
+           "trajectory_length",
            ]
+
+
+def trajectory_length(traj):
+    """
+    Compute the length of a path travelled by an agent
+    Parameters
+    -----------
+    traj : numpy array
+        Trajectory representing the path travelled as a `numpy` array of
+        shape [frame_size x n_waypoints]. Frame encodes information at
+        every time step [x, y, vx, vy, ...]
+
+    Returns
+    ---------
+    path_length : float
+        Length of the path based on Euclidean distance metric
+    """
+
+    assert traj.ndim == 2, "Trajectory must be a two dimensional array"
+
+    path_length = 0.0
+    for i, j in itertools.izip(range(traj.shape[0]), range(1, traj.shape[0])):
+        current, nextstep = traj[i, 0:2], traj[j, 0:2]
+        path_length += np.linalg.norm(current - nextstep)
+
+    return path_length
 
 
 def edist(v1, v2):

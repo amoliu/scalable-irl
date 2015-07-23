@@ -26,7 +26,7 @@ class PuddleWorldControler(LocalController):
     def __init__(self, kind='linear'):
         super(PuddleWorldControler, self).__init__(kind)
 
-    def __call__(self, state, action, duration):
+    def __call__(self, state, action, duration, max_speed):
         """ Run a local controller from a ``state`` using ``action``
         """
         nx = state[0] + np.cos(action * 2 * np.pi) * duration * 0.1

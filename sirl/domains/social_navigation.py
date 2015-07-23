@@ -41,15 +41,16 @@ class SocialNavLocalController(LocalController):
         Configuration of the navigation task world
 
     """
-    def __init__(self, world_config, kind='linear'):
+    def __init__(self, world_config, resolution=0.2, kind='linear'):
         super(SocialNavLocalController, self).__init__(kind)
         self._wconfig = world_config
+        self._resolution = resolution
 
-    def __call__(self, state, action, duration):
+    def __call__(self, state, action, duration, max_speed):
         """ Run a local controller from a state
 
         Run the local controller at the given ``state`` using the ``action``
-        represented by an angle, :math:` \alpha \in [0, \pi]` for a time limit
+        represented by an angle, :math:` \\alpha \in [0, \pi]` for a time limit
         given by ``duration``
 
         Parameters
@@ -60,24 +61,46 @@ class SocialNavLocalController(LocalController):
             Angle representing the action taken
         duration : float
             Real time interval limit for executing the controller
+        max_speed : float
+            Local speed limit
 
         Returns
         --------
         new_state : array of shape (2)
             New state reached by the controller
-
+        trajectory : array of shape(N, 2)
+            Local trajectory result
         Note
         ----
         If the local controller ends up beyond the limits of the world config,
-        then the current state is returned to avoid sampling `outside'.
+        then the current state is returned to avoid sampling `outside' and
+        `None` is returned as trajectory.
         """
-        nx = state[0] + np.cos(action * 2 * np.pi) * duration
-        ny = state[1] + np.sin(action * 2 * np.pi) * duration
+        nx = state[0] + np.cos(action) * duration
+        ny = state[1] + np.sin(action) * duration
 
         if self._wconfig.x < nx < self._wconfig.w and\
                 self._wconfig.y < ny < self._wconfig.h:
-            return (nx, ny)
-        return state
+            dt = (max_speed * duration) * 1.0 / self._resolution
+            start = np.array([state[0], state[1]])
+            target = np.array([nx, ny])
+            traj = [target * t/dt + start * (1 - t/dt) for t in range(int(dt))]
+            traj.append(target)
+            traj = np.array(traj)
+            return target, traj
+
+        return state, None
+
+    def trajectory(self, start, target, max_speed):
+        """ Compute trajectories between two states"""
+        start = np.array(start)
+        target = np.array(target)
+        duration = edist(start, target)
+        dt = (max_speed * duration) * 1.0 / self._resolution
+        traj = [target * t/dt + start * (1 - t/dt) for t in range(int(dt))]
+        traj.append(target)
+        traj = np.array(traj)
+        return traj
 
 
 ########################################################################
@@ -195,10 +218,12 @@ class SocialNavMDP(GraphMDP):
                 if n == m or self.terminal(n):
                     continue
                 ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
-                r, phi = self._reward(ndata, mdata)
-                d = _controller_duration(ndata, mdata)
+                traj = self._controller.trajectory(ndata, mdata,
+                                                   self._params.speed)
+                d = _controller_duration(traj)
+                r, phi = self._reward(ndata, traj)
                 self._g.add_edge(source=n, target=m, reward=r,
-                                 duration=d, phi=phi)
+                                 duration=d, phi=phi, traj=traj)
 
         # - update graph attributes
         self._update_state_costs()
@@ -234,17 +259,22 @@ class SocialNavMDP(GraphMDP):
                                  priority=1, V=GR, pi=0, Q=[], ntype='simple')
                 m = copy(self._node_id)
                 ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
-                r, phi = self._reward(ndata, mdata)
-                d = _controller_duration(ndata, mdata)
+                traj = self._controller.trajectory(ndata, mdata,
+                                                   self._params.speed)
+                d = _controller_duration(traj)
+                r, phi = self._reward(ndata, traj)
                 self._g.add_edge(source=n, target=m, reward=r,
-                                 duration=d, phi=phi)
+                                 duration=d, phi=phi, traj=traj)
                 n = copy(self._node_id)
                 self._node_id += 1
 
             fdata, tdata = self._g.gna(m, 'data'), self._g.gna(g, 'data')
-            r, phi = self._reward(fdata, tdata)
-            d = _controller_duration(fdata, tdata)
-            self._g.add_edge(source=m, target=g, reward=r, duration=d, phi=phi)
+            traj = self._controller.trajectory(fdata, tdata,
+                                               self._params.speed)
+            d = _controller_duration(traj)
+            r, phi = self._reward(fdata, traj)
+            self._g.add_edge(source=m, target=g, reward=r,
+                             duration=d, phi=phi, traj=traj)
 
         # - update graph attributes
         self._update_state_costs()

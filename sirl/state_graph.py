@@ -10,7 +10,7 @@ class StateGraph(object):
     """ State Graph """
 
     _node_attrs = ('data', 'cost', 'priority', 'Q', 'V', 'pi', 'type')
-    _edge_attrs = ('source', 'target', 'duration', 'reward', 'phi')
+    _edge_attrs = ('source', 'target', 'duration', 'reward', 'phi', 'traj')
 
     def __init__(self):
         self._graph = nx.DiGraph()
@@ -28,7 +28,7 @@ class StateGraph(object):
         else:
             warnings.warn('Node already exits in the graph, not added')
 
-    def add_edge(self, source, target, duration, reward, phi):
+    def add_edge(self, source, target, duration, reward, phi, traj):
         """
         Add a new edge into the graph
         """
@@ -38,7 +38,7 @@ class StateGraph(object):
 
         elif not self.G.has_edge(source, target):
             self.G.add_edge(source, target, duration=duration,
-                            reward=reward, phi=phi)
+                            reward=reward, phi=phi, traj=traj)
         else:
             warnings.warn('Edge ({}--{}) already exists in the graph'
                           .format(source, target))

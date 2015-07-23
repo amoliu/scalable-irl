@@ -13,7 +13,7 @@ from algorithms.mdp_solvers import graph_policy_iteration
 from algorithms.function_approximation import gp_predict, gp_covariance
 
 from utils.common import wchoice, map_range, Timer
-from utils.geometry import edist
+from utils.geometry import edist, trajectory_length
 from .base import ModelMixin
 
 
@@ -28,7 +28,10 @@ class LocalController(ModelMixin):
         self.kind = kind
 
     @abstractmethod
-    def __call__(self, state, action, duration):
+    def __call__(self, state, action, duration, max_speed):
+        """ Execute a local controller at ``state`` using ``action``
+        for period lasting ``duration`` and speed limit ``max_speed``
+        """
         raise NotImplementedError('Abstract method')
 
 
@@ -43,7 +46,7 @@ class MDPReward(ModelMixin):
         self.kind = kind
 
     @abstractmethod
-    def __call__(self, state_a, state_b):
+    def __call__(self, state, action):
         raise NotImplementedError('Abstract method')
 
     @abstractproperty
@@ -181,22 +184,27 @@ class GraphMDP(ModelMixin):
             # - expand around exploration states (if any)
             for _ in range(min(len(exp_queue), self._params.n_add)):
                 index = wchoice(np.arange(len(exp_queue)), exp_probs)
-                sen = exp_queue[index]
+                sn = exp_queue[index]
 
                 # add the selected node to the graph
                 nid = self._node_id
-                self._g.add_node(nid=nid, data=sen['data'],
-                                 cost=sen['cost'], pi=0, Q=[0], V=sen['V'],
+                self._g.add_node(nid=nid, data=sn['data'],
+                                 cost=sn['cost'], pi=0, Q=[0], V=sn['V'],
                                  ntype='simple', priority=exp_probs[index])
-                self._g.add_edge(source=sen['b_state'], target=nid,
-                                 reward=sen['f_reward'], phi=sen['f_phi'],
-                                 duration=sen['b_duration'])
-                rb, phi = self._reward(sen['data'], sen['b_data'])
-                self._g.add_edge(source=nid, target=sen['b_state'], reward=rb,
-                                 duration=sen['b_duration'], phi=phi)
+                self._g.add_edge(source=sn['b_state'], target=nid,
+                                 reward=sn['f_reward'], phi=sn['f_phi'],
+                                 duration=sn['f_duration'], traj=sn['f_traj'])
+
+                # - compute the missing backwards phi and rewards
+                b_traj = self._controller.trajectory(sn['data'], sn['b_data'],
+                                                     self._params.speed)
+                b_r, b_phi = self._reward(sn['data'], b_traj)
+                b_d = _controller_duration(b_traj)
+                self._g.add_edge(source=nid, target=sn['b_state'], reward=b_r,
+                                 duration=b_d, phi=b_phi, traj=b_traj)
 
                 # remove from queue??
-                exp_queue.remove(sen)
+                exp_queue.remove(sn)
                 exp_probs.remove(exp_probs[index])
 
                 self._node_id += 1
@@ -249,20 +257,34 @@ class GraphMDP(ModelMixin):
         gna = self._g.gna
         iteration = len(self._g.nodes)
         duration = _sample_control_time(iteration, self._params.max_samples)
-        action = uniform(0.0, 1.0)
-        new_state = self._controller(gna(state, 'data'), action, duration)
-        reward, phi = self._reward(gna(state, 'data'), new_state)
+
+        cs = gna(state, 'data')
+        vmax = self._params.speed
+
+        succeeded = False
+        while not succeeded:
+            action = uniform(0.0, 2.0*np.pi)
+            ns, f_traj = self._controller(cs, action, duration, vmax)
+            if f_traj is not None:
+                succeeded = True
+                break
+
+        # - can be costly, only compute the forward case here
+        reward, phi = self._reward(state=gna(state, 'data'), action=f_traj)
 
         state_dict = dict()
-        state_dict['data'] = new_state
+        state_dict['data'] = ns
         state_dict['cost'] = gna(state, 'cost')+reward
+
+        # - forwards info
         state_dict['f_reward'] = reward
         state_dict['f_phi'] = phi
+        state_dict['f_traj'] = f_traj
+        state_dict['f_duration'] = _controller_duration(f_traj)
+
+        # - backwards info
         state_dict['b_state'] = state
-        state_dict['b_duration'] = _controller_duration(gna(state, 'data'),
-                                                        new_state,
-                                                        self._params.speed)
-        state_dict['b_data'] = gna(state, 'data')
+        state_dict['b_data'] = cs
         return state_dict
 
     def _update_state_costs(self):
@@ -334,21 +356,26 @@ class GraphMDP(ModelMixin):
     def _improve_state(self, s):
         """ Improve a state's utility by adding connections """
         neighbors = self._g.find_neighbors_range(s, self._params.radius)
+        vmax = self._params.speed
         for n in neighbors:
             if n != s:
                 xs = self._g.gna(s, 'data')
                 xn = self._g.gna(n, 'data')
-                d = _controller_duration(xs, xn, self._params.speed)
                 if len(self._g.out_edges(s)) < self._params.max_edges:
                     if not self._g.edge_exists(s, n) and not self.terminal(s):
-                        reward, phi = self._reward(xs, xn)
+                        traj = self._controller.trajectory(xs, xn, vmax)
+                        d = _controller_duration(traj)
+                        reward, phi = self._reward(xs, traj)
+
                         self._g.add_edge(source=s, target=n, phi=phi,
-                                         duration=d, reward=reward)
+                                         duration=d, reward=reward, traj=traj)
                 if len(self._g.out_edges(n)) < self._params.max_edges:
                     if not self._g.edge_exists(n, s) and not self.terminal(n):
-                        reward_back, phi = self._reward(xn, xs)
+                        traj = self._controller.trajectory(xn, xs, vmax)
+                        d = _controller_duration(traj)
+                        rb, phi = self._reward(xn, traj)
                         self._g.add_edge(source=n, target=s, phi=phi,
-                                         duration=d, reward=reward_back)
+                                         duration=d, reward=rb, traj=traj)
 
     def _prune_graph(self):
         """ Prune the graph
@@ -498,20 +525,21 @@ def _sample_control_time(iteration, max_iter):
     """
     max_time = _tmax(iteration, max_iter)
     min_time = _tmin(iteration, max_iter)
-    return (uniform(0, 1) * (max_time - min_time + 1) + min_time) * 0.1
+    delta = uniform(min_time, max_time)
+    return delta
 
 
 def _tmin(it, max_iter):
-    return int(50 * (1 - it / float(max_iter)) + 5 * it / float(max_iter))
+    return 2.4 * (1 - it/float(max_iter)) + 0.45*it/float(max_iter)
 
 
 def _tmax(it, max_iter):
-    return _tmin(it, max_iter) + 2
+    return 7.2 * (1 - it/float(max_iter)) + 3.6*it/float(max_iter)
 
 
-def _controller_duration(source, target, speed=1):
+def _controller_duration(action):
     """
-    Returns the time it takes the controller to go from source to target
-    assuming a simple straight line controller
+    Returns the time it takes the controller to execute an action represented
+    by a trajectory.
     """
-    return edist(source, target) / speed
+    return trajectory_length(action)
