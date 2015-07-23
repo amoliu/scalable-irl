@@ -22,7 +22,7 @@ class SimpleReward(MDPReward):
 
     """
     def __init__(self, persons, relations, goal, weights, discount,
-                 kind='linfa', resolution=1, hzone=0.45):
+                 kind='linfa', resolution=0.2, hzone=0.45):
         super(SimpleReward, self).__init__(kind)
         self._persons = persons
         self._relations = relations
@@ -35,7 +35,7 @@ class SimpleReward(MDPReward):
     def __call__(self, state_a, state_b):
         source, target = np.array(state_a), np.array(state_b)
         # increase resolution of action trajectory (option)
-        duration = _controller_duration(source, target) * self._resolution
+        duration = _controller_duration(source, target) * 1.0/self._resolution
         action_traj = [target * t / duration + source * (1 - t / duration)
                        for t in range(int(duration))]
         action_traj.append(target)

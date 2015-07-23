@@ -260,7 +260,8 @@ class GraphMDP(ModelMixin):
         state_dict['f_phi'] = phi
         state_dict['b_state'] = state
         state_dict['b_duration'] = _controller_duration(gna(state, 'data'),
-                                                        new_state)
+                                                        new_state,
+                                                        self._params.speed)
         state_dict['b_data'] = gna(state, 'data')
         return state_dict
 
@@ -337,7 +338,7 @@ class GraphMDP(ModelMixin):
             if n != s:
                 xs = self._g.gna(s, 'data')
                 xn = self._g.gna(n, 'data')
-                d = _controller_duration(xs, xn)
+                d = _controller_duration(xs, xn, self._params.speed)
                 if len(self._g.out_edges(s)) < self._params.max_edges:
                     if not self._g.edge_exists(s, n) and not self.terminal(s):
                         reward, phi = self._reward(xs, xn)
@@ -470,6 +471,7 @@ class GraphMDPParams(object):
         self.init_type = 'random'
         self.max_cost = 1000
         self.conc_scale = 1
+        self.speed = 1
 
     @property
     def _to_json(self):
@@ -507,7 +509,7 @@ def _tmax(it, max_iter):
     return _tmin(it, max_iter) + 2
 
 
-def _controller_duration(source, target, speed=0.1):
+def _controller_duration(source, target, speed=1):
     """
     Returns the time it takes the controller to go from source to target
     assuming a simple straight line controller
