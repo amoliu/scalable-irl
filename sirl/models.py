@@ -377,28 +377,6 @@ class GraphMDP(ModelMixin):
                         self._g.add_edge(source=n, target=s, phi=phi,
                                          duration=d, reward=rb, traj=traj)
 
-    def _prune_graph(self):
-        """ Prune the graph
-
-        Remove edges that are long, in which the probability of a controller
-        succeeding is small (taking into account uncertainity)
-        """
-        G = self._g
-        beta = self._params.radius
-
-        for node in self._g.nodes:
-            nedges = len(G.out_edges(node))
-            if nedges > 2:
-                sweep = 0
-                for e in G.out_edges(node):
-                    if G.gea(e[0], e[1], 'duration') > beta and\
-                            len(G.out_edges(node)) > 2 and sweep < nedges:
-                        G.remove_edge(e[0], e[1])
-                        pol = np.argmax([G.gea(d[0], d[1], 'reward')
-                                        for d in G.out_edges(node)])
-                        G.sna(node, 'pi', pol)
-                sweep += 1
-
     def _exploration_score(self, state_dict):
         """ Exploration score :math:`p(s)`
 
