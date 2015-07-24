@@ -6,6 +6,7 @@ from ..models import MDPReward
 
 from ..utils.geometry import edist, anisotropic_distance
 from ..utils.geometry import line_crossing
+from ..utils.geometry import distance_to_segment
 
 
 __all__ = [
@@ -20,11 +21,12 @@ class SimpleReward(MDPReward):
     based on intrusion counts (histogram)
 
     """
-    def __init__(self, persons, relations, goal, weights, discount,
+    def __init__(self, persons, relations, objects, goal, weights, discount,
                  kind='linfa', hzone=0.45):
         super(SimpleReward, self).__init__(kind)
         self._persons = persons
         self._relations = relations
+        self._objects = objects
         self._goal = goal
         self._weights = weights
         self._gamma = discount
@@ -33,13 +35,14 @@ class SimpleReward(MDPReward):
     def __call__(self, state, action):
         phi = [self._relation_disturbance(action),
                self._social_disturbance(action),
-               self._goal_deviation_count(action)]
+               self._goal_deviation_count(action),
+               self._affordance_disturbance(action)]
         reward = np.dot(phi, self._weights)
         return reward, phi
 
     @property
     def dim(self):
-        return 3
+        return 4
 
     # -------------------------------------------------------------
     # internals
@@ -77,6 +80,23 @@ class SimpleReward(MDPReward):
         ec = sum(self._gamma**i * x for i, x in enumerate(c))
         return ec
 
+    def _affordance_disturbance(self, action):
+        phi = 0
+        for b in self._objects:
+            line = ((b[0][0], b[0][1]), (b[1][0], b[1][1]))
+            Ax = line[0][0]
+            Ay = line[0][1]
+            Bx = line[1][0]
+            By = line[1][1]
+            back = np.sign((Bx-Ax)*(b[2][1]-Ay)-(By-Ay)*(b[2][0]-Ax))
+            for wp in action:
+                dist, inside = distance_to_segment(wp, line[0], line[1])
+                if dist < 5:  # add check if someone is facing affordance
+                    # - check which side wp in on
+                    side = np.sign((Bx-Ax)*(wp[1]-Ay)-(By-Ay)*(wp[0]-Ax))
+                    if side != back:
+                        phi += 1
+        return phi
 
 ############################################################################
 
