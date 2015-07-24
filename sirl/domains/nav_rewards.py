@@ -91,7 +91,7 @@ class SimpleReward(MDPReward):
             back = np.sign((Bx-Ax)*(b[2][1]-Ay)-(By-Ay)*(b[2][0]-Ax))
             for wp in action:
                 dist, inside = distance_to_segment(wp, line[0], line[1])
-                if dist < 5:  # add check if someone is facing affordance
+                if inside and dist < 5:  # add check if someone
                     # - check which side wp in on
                     side = np.sign((Bx-Ax)*(wp[1]-Ay)-(By-Ay)*(wp[0]-Ax))
                     if side != back:
