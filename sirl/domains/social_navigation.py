@@ -179,6 +179,12 @@ class SocialNavMDP(GraphMDP):
                                ec='r', lw=2.5, aa=True, zorder=3))
             self.ax.arrow(p[0], p[1], p[2]/5., p[3]/5., fc='r', ec='r', lw=1.5,
                           head_width=0.14, head_length=0.1, zorder=3)
+
+            speed = np.hypot(p[2], p[3])
+            hz = speed * 0.55
+            self.ax.add_artist(Circle((p[0], p[1]), radius=hz, color='r',
+                               ec='r', lw=1, aa=True, alpha=0.2))
+
         for [i, j] in relations:
             x1, y1 = persons[i][0], persons[i][1]
             x2, y2 = persons[j][0], persons[j][1]

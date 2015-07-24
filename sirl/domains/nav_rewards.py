@@ -39,7 +39,7 @@ class SimpleReward(MDPReward):
 
     @property
     def dim(self):
-        return 5
+        return 3
 
     # -------------------------------------------------------------
     # internals
@@ -152,3 +152,59 @@ class AnisotropicReward(SimpleReward):
                 if edist(wp, p) < ad:
                     phi += 1
         return phi
+
+
+############################################################################
+
+
+class FlowMergeReward(MDPReward):
+    """Flow reward function for merging and interacting with flows """
+    def __init__(self, persons, relations, goal, weights,
+                 discount, radius=1.2, kind='linfa'):
+        super(FlowMergeReward, self).__init__(kind)
+        self._persons = persons
+        self._relations = relations
+        self._goal = goal
+        self._weights = weights
+        self._gamma = discount
+        self._radius = radius
+
+    def __call__(self, state, action):
+        phi = [self._relation_disturbance(action),
+               self._social_disturbance(action),
+               self._goal_deviation_count(action)]
+        reward = np.dot(phi, self._weights)
+        return reward, phi
+
+    @property
+    def dim(self):
+        return 3
+
+    # -------------------------------------------------------------
+    # internals
+    # -------------------------------------------------------------
+
+    def _goal_deviation(self, action):
+        # TODO - change to theta/angles
+        dist = []
+        for i in range(action.shape[0]-1):
+            dnow = edist(self._goal, action[i])
+            dnext = edist(self._goal, action[i + 1])
+            dist.append(max((dnext - dnow) * self._gamma ** i, 0))
+        return sum(dist)
+
+    def _density(self, action):
+        phi = 0
+        for wp in action:
+            pd = [1 for _, p in self._persons.items()
+                  if edist(wp, p) <= self._radius]
+            phi += sum(d * self._gamma**i for i, d in enumerate(pd))
+        return phi
+
+    def _stream_flow(self, action):
+        dist = []
+        for i in range(action.shape[0]-1):
+            a = (action[i+1][0]-action[i][0], action[i+1][1]-action[i][1])
+            theta_action = np.arctan2(a[1], a[0])
+
+        return sum(dist)
