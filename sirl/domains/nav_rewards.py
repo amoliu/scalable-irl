@@ -36,13 +36,14 @@ class SimpleReward(MDPReward):
         phi = [self._relation_disturbance(action),
                self._social_disturbance(action),
                self._goal_deviation_count(action),
-               self._affordance_disturbance(action)]
+               self._affordance_disturbance(action),
+               self._affordance_distance(action)]
         reward = np.dot(phi, self._weights)
         return reward, phi
 
     @property
     def dim(self):
-        return 4
+        return 5
 
     # -------------------------------------------------------------
     # internals
@@ -101,7 +102,14 @@ class SimpleReward(MDPReward):
 
     def _affordance_distance(self, action):
         d = []
-        pass
+        for b in self._objects:
+            line = ((b[0][0], b[0][1]), (b[1][0], b[1][1]))
+            for wp in action:
+                dist, inside = distance_to_segment(wp, line[0], line[1])
+                if inside and dist < 1.2:
+                    d.append(dist)
+        phi = sum([k * self._gamma**i for i, k in enumerate(d)])
+        return phi
 
 ############################################################################
 

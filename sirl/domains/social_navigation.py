@@ -191,12 +191,12 @@ class SocialNavMDP(GraphMDP):
                 x2, y2 = b[1][0], b[1][1]
                 self.ax.plot((x1, x2), (y1, y2), ls='-', c='m', lw=3.0)
 
-                line = ((b[0][0], b[0][1]), (b[1][0], b[1][1]))
-                a_p = perp_from_point(line, 5, start=True)
-                b_p = perp_from_point(line, 5, start=False)
+                # line = ((b[0][0], b[0][1]), (b[1][0], b[1][1]))
+                # a_p = perp_from_point(line, 5, start=True)
+                # b_p = perp_from_point(line, 5, start=False)
 
-                affordance = [line[0], a_p, b_p, line[1]]
-                self.ax.add_artist(Polygon(xy=affordance, alpha=0.2, fc='g'))
+                # affordance = [line[0], a_p, b_p, line[1]]
+                # self.ax.add_artist(Polygon(xy=affordance, alpha=0.2, fc='g'))
 
         self._plot_graph_in_world()
 
