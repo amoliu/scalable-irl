@@ -308,3 +308,44 @@ def line_crossing(x1, y1, x2, y2, x3, y3, x4, y4):
                 return 1
             else:
                 return 0
+
+
+def point_infront_of_body(line, back_point, test_point):
+    """ Check if a point is on the front side a convex body given a point
+    on the back side. The line represents the face of the body
+    """
+    Ax = line[0][0]
+    Ay = line[0][1]
+    Bx = line[1][0]
+    By = line[1][1]
+    back = np.sign((Bx-Ax)*(back_point[1]-Ay)-(By-Ay)*(back_point[0]-Ax))
+
+    side = np.sign((Bx-Ax)*(test_point[1]-Ay)-(By-Ay)*(test_point[0]-Ax))
+    if side != back:
+        return True
+
+    return False
+
+
+def perp_from_point(line, distance, start=True):
+    """
+    Find a point perpendicular to the given line at the given distance
+    and passing through either the start or end of the line segment
+    """
+    Ax = line[0][0]
+    Ay = line[0][1]
+    Bx = line[1][0]
+    By = line[1][1]
+    # - find the y intercept of the perperdicular line
+    c = By + ((Bx-Ax)/(By-Ay))*Bx
+
+    if start:
+        vec = normalize_vector([(0-Ax), (c-Ay)])
+        transform = vec * distance
+        new_point = np.array((Ax, Ay)) + transform
+        return new_point
+    else:
+        vec = normalize_vector([(0-Bx), (c-By)])
+        transform = vec * distance
+        new_point = np.array((Bx, By)) + transform
+        return new_point

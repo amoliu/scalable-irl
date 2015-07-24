@@ -81,7 +81,7 @@ class SimpleReward(MDPReward):
         return ec
 
     def _affordance_disturbance(self, action):
-        phi = 0
+        d = []
         for b in self._objects:
             line = ((b[0][0], b[0][1]), (b[1][0], b[1][1]))
             Ax = line[0][0]
@@ -95,8 +95,13 @@ class SimpleReward(MDPReward):
                     # - check which side wp in on
                     side = np.sign((Bx-Ax)*(wp[1]-Ay)-(By-Ay)*(wp[0]-Ax))
                     if side != back:
-                        phi += 1
+                        d.append(dist)
+        phi = sum([k * self._gamma**i for i, k in enumerate(d)])
         return phi
+
+    def _affordance_distance(self, action):
+        d = []
+        pass
 
 ############################################################################
 
