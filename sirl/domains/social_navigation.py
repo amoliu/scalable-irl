@@ -162,13 +162,13 @@ class SocialNavMDP(GraphMDP):
             return True
         return False
 
-    def visualize(self, persons, relations, objects=[]):
+    def visualize(self, persons, relations, fsize=(12, 9)):
         """ Visualize the social navigation world
 
         Allows recording of demonstrations and also display of final
         graph representing the MDP
         """
-        self._setup_visuals()
+        self._setup_visuals(fsize)
 
         for _, p in persons.items():
             phead = np.degrees(np.arctan2(p[3], p[2]))
@@ -189,20 +189,6 @@ class SocialNavMDP(GraphMDP):
             x1, y1 = persons[i][0], persons[i][1]
             x2, y2 = persons[j][0], persons[j][1]
             self.ax.plot((x1, x2), (y1, y2), ls='-', c='r', lw=2.0, zorder=2)
-
-        if objects:
-            for b in objects:
-                self.ax.add_artist(Polygon(xy=b, hatch='x'))
-                x1, y1 = b[0][0], b[0][1]
-                x2, y2 = b[1][0], b[1][1]
-                self.ax.plot((x1, x2), (y1, y2), ls='-', c='m', lw=3.0)
-
-                # line = ((b[0][0], b[0][1]), (b[1][0], b[1][1]))
-                # a_p = perp_from_point(line, 5, start=True)
-                # b_p = perp_from_point(line, 5, start=False)
-
-                # affordance = [line[0], a_p, b_p, line[1]]
-                # self.ax.add_artist(Polygon(xy=affordance, alpha=0.2, fc='g'))
 
         self._plot_graph_in_world()
 
@@ -303,9 +289,9 @@ class SocialNavMDP(GraphMDP):
         self._update_state_priorities()
         self._find_best_policies()
 
-    def _setup_visuals(self):
+    def _setup_visuals(self, fsize=(12, 9)):
         """ Prepare figure axes for plotting """
-        self.figure = plt.figure(figsize=(12, 9))
+        self.figure = plt.figure(figsize=fsize)
         self.ax = plt.axes([0, 0, 0.8, 1])
         self.figure.add_axes(self.ax)
         self.ax.set_xlim([self._wconfig.x, self._wconfig.w])

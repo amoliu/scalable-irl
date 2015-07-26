@@ -6,8 +6,9 @@ import numpy as np
 
 
 __all__ = [
-           "normalize",
+           "normangle",
            "addangles",
+           "subangles",
            "angle_between",
            "normalize_vector",
            "distance_to_segment",
@@ -149,7 +150,7 @@ def distance_to_segment(x, xs, xe):
     return dmax, inside
 
 
-def normalize(theta, start=0):
+def normangle(theta, start=0):
     """
     Normalize an angle to be in the range :math:`[0, 2\pi]`
 
@@ -193,7 +194,11 @@ def addangles(alpha, beta):
     sum : float
         Sum (in radians, normalized to [0, 2pi])
     """
-    return normalize(alpha + beta, start=0)
+    return normangle(alpha + beta, start=0)
+
+
+def subangles(alpha, beta):
+    return normangle(alpha - beta, start=0)
 
 
 def normalize_vector(vector):
