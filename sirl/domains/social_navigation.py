@@ -16,7 +16,7 @@ from ..models import GraphMDP
 from ..models import _controller_duration
 
 from ..utils.geometry import edist
-from ..utils.geometry import perp_from_point
+from ..utils.geometry import normangle
 from ..algorithms.mdp_solvers import graph_policy_iteration
 
 
@@ -102,6 +102,112 @@ class SocialNavLocalController(LocalController):
         traj.append(target)
         traj = np.array(traj)
         return traj
+
+
+########################################################################
+
+
+class POSQLocalController(LocalController):
+    """ Local controller based on Two-point boundary value problem solver"""
+    def __init__(self, world_config, resolution=0.2, base=0.4, kind='linear'):
+        super(POSQLocalController, self).__init__(kind)
+        self._wconfig = world_config
+        self._resolution = resolution  # deltaT
+        self._base = base
+
+    def __call__(self, state, action, duration, max_speed):
+        nx = state[0] + np.cos(action) * duration
+        ny = state[1] + np.sin(action) * duration
+
+        if self._wconfig.x < nx < self._wconfig.w and\
+                self._wconfig.y < ny < self._wconfig.h:
+            start = np.array([state[0], state[1]])
+            target = np.array([nx, ny])
+            traj = self.trajectory(start, target, max_speed)
+            return target, traj
+
+        return state, None
+
+    def trajectory(self, start, target, max_speed):
+        """ Compute trajectories between two states using POSQ"""
+        traj = None
+        # - add POSQ
+        return traj
+
+    def _posq_step(self, t, xcurrent, xend, dir, b, oldBeta):
+        Kv = 5.9
+        Krho = 0.2    # Condition: Kalpha + 5/3*Kbeta - 2/pi*Krho > 0 !
+        Kalpha = 6.91
+        Kbeta = -1
+        Vmax = Krho                # [m/s]
+        RhoEndCondition = 0.00000510      # [m]
+
+        if t == 0:
+            oldBeta = 0
+
+        # extract coordinates
+        xc = xcurrent(1)
+        yc = xcurrent(2)
+        tc = xcurrent(3)
+        xe = xend(1)
+        ye = xend(2)
+        te = xend(3)
+        Verbose = 1
+
+        # rho
+        dx = xe - xc
+        dy = ye - yc
+        rho = np.sqrt(dx**2 + dy**2)
+        fRho = rho
+        if fRho > (Vmax/Krho):
+            fRho = Vmax/Krho
+
+        # alpha
+        alpha = np.arctan2(dy, dx) - tc
+        alpha = normangle(alpha, -np.pi)
+
+        # direction
+        if dir == 0:              # controller choose the forward direction
+            if alpha > np.pi/2:
+                fRho = -fRho                   # backwards
+                alpha = alpha-np.pi
+            elif alpha <= -np.pi/2:
+                fRho = -fRho                   # backwards
+                alpha = alpha+np.pi
+        elif dir == -1:                    # arrive backwards
+            fRho = -fRho
+            alpha = alpha+np.pi
+            if alpha > np.pi:
+                alpha = alpha - 2*np.pi
+
+        # phi
+        phi = te-tc
+        phi = normangle(phi, -np.pi)
+
+        beta = normangle(phi-alpha, -np.pi)
+        if abs(oldBeta-beta) > np.pi:           # avoid instability
+            beta = oldBeta
+        oldBeta = beta
+
+        # New version
+        vm = Krho*np.tanh(fRho*Kv)
+        vd = (Kalpha*alpha + Kbeta*beta)
+        eot = (rho < RhoEndCondition)
+
+        if eot and Verbose:
+            print('t:{} sec  x:{}  y:{}  theta:{}'
+                  .format(t, xc, yc, tc*180/np.pi))
+
+        # Convert speed to wheel speeds
+        vl = vm - vd*b/2
+        if abs(vl) > Vmax:
+            vl = Vmax*np.sign(vl)
+
+        vr = vm + vd*b/2
+        if abs(vr) > Vmax:
+            vr = Vmax*np.sign(vr)
+
+        return vl, vr, eot, vm, vd, oldBeta
 
 
 ########################################################################
