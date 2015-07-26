@@ -24,7 +24,7 @@ def test_local_controller():
 
     subclass = ConcreteLC(kind='some-name')
     assert_equal(subclass.kind, 'some-name')
-    assert_equal(subclass(1, 2, 3), 42)
+    assert_equal(subclass(1, 2, 3, 4), 42)
 
 
 def test_mdp_reward():
