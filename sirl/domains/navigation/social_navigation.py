@@ -265,11 +265,6 @@ class SocialNavMDP(GraphMDP):
         gna = G.gna
         gea = G.gea
 
-        if show_rewards:
-            rewards = [gea(e[0], e[1], 'reward') for e in G.all_edges]
-            n = mpl.colors.Normalize(vmin=min(rewards), vmax=max(rewards))
-            m = cm.ScalarMappable(norm=n, cmap=cm.jet)
-
         values = [gna(n, 'V') for n in G.nodes]
         nv = mpl.colors.Normalize(vmin=min(values), vmax=max(values))
         mv = cm.ScalarMappable(norm=nv, cmap=cm.jet)
@@ -305,20 +300,27 @@ class SocialNavMDP(GraphMDP):
                 tdata = gna(t, 'data')
                 x1, y1 = ndata[0], ndata[1]
                 x2, y2 = tdata[0], tdata[1]
-                if n in best_nodes and i == p:
-                    self.ax.plot((x1, x2), (y1, y2), ls='-',
-                                 lw=2.0, c='g', zorder=3)
-                else:
-                    if not show_rewards:
-                        self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
-                                     c='0.7', alpha=0.5)
-                    else:
-                        cost = gea(e[0], e[1], 'reward')
-                        self.ax.arrow(x1, y1, 0.97*(x2-x1), 0.97*(y2-y1),
-                                      width=0.01, head_width=0.15,
-                                      head_length=0.15,
-                                      fc=m.to_rgba(cost), ec=m.to_rgba(cost))
+                traj = gea(e[0], e[1], 'traj')
 
+                if n in best_nodes and i == p:
+                    for wp in traj:
+                        vx, vy = np.cos(wp[2]), np.sin(wp[2])
+                        self.ax.arrow(wp[0], wp[1], 0.2*vx, 0.2*vy, fc='g',
+                                      ec='g', lw=1.5, head_width=0.1,
+                                      head_length=0.08, zorder=3)
+
+                    # self.ax.plot((x1, x2), (y1, y2), ls='-',
+                    #              lw=2.0, c='g', zorder=3)
+                else:
+                    for wp in traj:
+                        # self.ax.plot(wp[0], wp[1], c='0.7')
+                        vx, vy = np.cos(wp[2]), np.sin(wp[2])
+                        self.ax.arrow(wp[0], wp[1], 0.1*vx, 0.1*vy, fc='0.7',
+                                      ec='0.7', lw=0.7, head_width=0.06,
+                                      head_length=0.03, zorder=1)
+
+                    # self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
+                    #              c='0.7', alpha=0.5)
 
 # -------------------------------------------------------------
 # simple utils

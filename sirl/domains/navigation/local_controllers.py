@@ -70,25 +70,22 @@ class LinearLocalController(LocalController):
 
         if self._wconfig.x < nx < self._wconfig.w and\
                 self._wconfig.y < ny < self._wconfig.h:
-            dt = (max_speed * duration) * 1.0 / self._resolution
-            start = np.array([state[0], state[1]])
-            target = np.array([nx, ny])
-            traj = [
-                target * t / dt + start * (1 - t / dt) for t in range(int(dt))]
-            traj.append(target)
-            traj = np.array(traj)
+            target = [nx, ny]
+            traj = self.trajectory(state, target, max_speed)
             return target, traj
 
         return state, None
 
     def trajectory(self, start, target, max_speed):
         """ Compute trajectories between two states"""
-        start = np.array(start)
-        target = np.array(target)
+        theta = np.arctan2(target[1]-start[1], target[0]-start[0])
+        start = np.array([start[0], start[1], theta])
+        target = np.array([target[0], target[1], theta])
+
         duration = edist(start, target)
         dt = (max_speed * duration) * 1.0 / self._resolution
         traj = [target * t / dt + start * (1 - t / dt) for t in range(int(dt))]
-        traj.append(target)
+        # traj.append(target)
         traj = np.array(traj)
         return traj
 
@@ -100,11 +97,13 @@ class POSQLocalController(LocalController):
 
     """ Local controller based on Two-point boundary value problem solver"""
 
-    def __init__(self, world_config, resolution=0.1, base=0.4, kind='linear'):
+    def __init__(self, world_config, goal, resolution=0.1,
+                 base=0.4, kind='linear'):
         super(POSQLocalController, self).__init__(kind)
         self._wconfig = world_config
         self._resolution = resolution  # deltaT
         self._base = base
+        self._goal = goal
 
     def __call__(self, state, action, duration, max_speed):
         nx = state[0] + np.cos(action) * duration
@@ -112,21 +111,25 @@ class POSQLocalController(LocalController):
 
         if self._wconfig.x < nx < self._wconfig.w and\
                 self._wconfig.y < ny < self._wconfig.h:
-            start = np.array([state[0], state[1], action])
-            target = np.array([nx, ny, 0])
-            traj = self.trajectory(start, target, max_speed)
+            target = [nx, ny]
+            traj = self.trajectory(state, target, max_speed)
             return target, traj
 
-        return state, traj
+        return state, None
 
     def trajectory(self, start, target, max_speed):
         """ Compute trajectories between two states using POSQ"""
-        direction = 1
-        initT = 0
+        theta = np.arctan2(target[1]-start[1], target[0]-start[0])
+        gtheta = np.arctan2(self._goal[1]-start[1], self._goal[0]-start[0])
 
+        start = np.array([start[0], start[1], theta])
+        target = np.array([target[0], target[1], theta])  # ????
+
+        direction = 1
+        init_t = 0
         traj, speedvec, vel, inct = self._posq_integrate(
             start, target, direction, self._resolution,
-            self._base, initT, max_speed, nS=0)
+            self._base, init_t, max_speed, nS=0)
 
         return traj
 
