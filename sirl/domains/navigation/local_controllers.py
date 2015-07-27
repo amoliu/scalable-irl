@@ -112,8 +112,8 @@ class POSQLocalController(LocalController):
 
         if self._wconfig.x < nx < self._wconfig.w and\
                 self._wconfig.y < ny < self._wconfig.h:
-            start = np.array([state[0], state[1], 0])
-            target = np.array([nx, ny, np.pi/2])
+            start = np.array([state[0], state[1], action])
+            target = np.array([nx, ny, 0])
             traj = self.trajectory(start, target, max_speed)
             return target, traj
 
@@ -121,7 +121,7 @@ class POSQLocalController(LocalController):
 
     def trajectory(self, start, target, max_speed):
         """ Compute trajectories between two states using POSQ"""
-        direction = 0
+        direction = 1
         initT = 0
 
         traj, speedvec, vel, inct = self._posq_integrate(
@@ -198,11 +198,11 @@ class POSQLocalController(LocalController):
 
     def _posq_step(self, t, xnow, xend, direction, old_beta, vmax):
         """ POSQ single step """
-        k_v = 5.9
-        k_rho = 0.2    # Condition: k_alpha + 5/3*k_beta - 2/pi*k_rho > 0 !
-        k_alpha = 0.91
+        k_v = 3.8
+        k_rho = 1    # Condition: k_alpha + 5/3*k_beta - 2/pi*k_rho > 0 !
+        k_alpha = 6
         k_beta = -1
-        rho_end = 0.0510      # [m]
+        rho_end = 0.00510      # [m]
 
         if t == 0:
             old_beta = 0
@@ -223,7 +223,7 @@ class POSQLocalController(LocalController):
         alpha = normangle(np.arctan2(dy, dx) - tc, -np.pi)
 
         # direction (forward or backward)
-        if direction == 0:
+        if direction == 1:
             if alpha > np.pi / 2:
                 f_rho = -f_rho                   # backwards
                 alpha = alpha - np.pi
