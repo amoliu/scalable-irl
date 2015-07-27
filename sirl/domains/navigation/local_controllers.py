@@ -130,6 +130,10 @@ class POSQLocalController(LocalController):
 
         return traj
 
+    # -------------------------------------------------------------
+    # internals
+    # -------------------------------------------------------------
+
     def _posq_integrate(self, xstart, xend, direction, deltaT,
                         b, initT, vmax, nS=0):
         """ POSQ Integration procedure to general full trajectory """
@@ -193,6 +197,7 @@ class POSQLocalController(LocalController):
         return xvec, speedvec, vel, inct
 
     def _posq_step(self, t, xnow, xend, direction, old_beta, vmax):
+        """ POSQ single step """
         k_v = 5.9
         k_rho = 0.2    # Condition: k_alpha + 5/3*k_beta - 2/pi*k_rho > 0 !
         k_alpha = 0.91
@@ -243,9 +248,9 @@ class POSQLocalController(LocalController):
         vd = (k_alpha * alpha + k_beta * beta)
         eot = (rho < rho_end)
 
-        if eot:
-            print('t:{}  x:{}  y:{}  theta:{}'
-                  .format(t, xc, yc, tc * 180 / np.pi))
+        # if eot:
+        #     print('t:{}  x:{}  y:{}  theta:{}'
+        #           .format(t, xc, yc, tc * 180 / np.pi))
 
         # Convert speed to wheel speeds
         vl = vm - vd * self._base / 2
