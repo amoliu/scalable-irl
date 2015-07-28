@@ -177,11 +177,17 @@ class FlowMergeReward(MDPReward):
         self._weights = weights
         self._gamma = discount
         self._radius = radius
+        self._hzone = 0.55
 
     def __call__(self, state, action):
         # density, speed, angle, goal-dev
-        d, f = self._flow_feature(action)
-        phi = [d, f, self._total_gd(action), self._goal_distance(action)]
+        density, heading_similarity = self._flow_feature(action)
+        phi = [density,
+               heading_similarity,
+               self._total_gd(action),
+               self._goal_distance(action),
+               self._relation_disturbance(action),
+               self._social_disturbance(action)]
         reward = np.dot(phi, self._weights)
         return reward, phi
 
@@ -201,34 +207,6 @@ class FlowMergeReward(MDPReward):
             dnext = edist(self._goal, action[i + 1])
             dist.append(max((dnext - dnow) * self._gamma ** i, 0))
         return sum(dist)
-
-    # def _stream_feature(self, action):
-    #     density = 0.0
-    #     sum_ang = 0.0
-    #     sum_mag = 0.0
-
-    #     # HACK- for straight line edges, in case of more complex controllers
-    #     # angles for action should be available with poses
-    #     r_theta = np.arctan2(action[-1][1]-action[0][1],
-    #                          action[-1][0]-action[0][0])
-
-    #     for wp in action:
-    #         for _, p in self._persons.items():
-    #             dist = edist(wp, p[0:2])
-    #             if dist < self._radius:
-    #                 density += 1
-    #                 # TODO - change to relative heading of people wrt goal
-    #                 p_theta = np.arctan2(p[3], p[2])
-    #                 sum_ang += normangle(p_theta - r_theta)
-    #                 sum_mag += np.linalg.norm(p[2:4])
-
-    #     if density > 0:
-    #         speed = sum_mag / density
-    #         angle = sum_ang / density
-    #     else:
-    #         speed, angle = sum_mag, sum_ang
-
-    #     return [density, speed, angle]
 
     def _goal_distance(self, action):
         phi = 0
@@ -257,6 +235,27 @@ class FlowMergeReward(MDPReward):
             phi_f.append(flow)
 
         return sum(phi_d), sum(phi_f)
+
+    def _social_disturbance(self, action):
+        pd = [min([edist(wp, person) for _, person in self._persons.items()])
+              for wp in action]
+        phi = sum(1 * self._gamma**i
+                  for i, d in enumerate(pd) if d < self._hzone)
+        return phi
+
+    def _relation_disturbance(self, action):
+        atime = action.shape[0]
+        c = [sum(line_crossing(action[t][0],
+                               action[t][1],
+                               action[t + 1][0],
+                               action[t + 1][1],
+                               self._persons[i][0],
+                               self._persons[i][1],
+                               self._persons[j][0],
+                               self._persons[j][1])
+                 for [i, j] in self._relations) for t in range(int(atime - 1))]
+        ec = sum(self._gamma**i * x for i, x in enumerate(c))
+        return ec
 
     def _goal_orientation(self, person):
         """ Compute a measure of how close a person will be to the goal in
