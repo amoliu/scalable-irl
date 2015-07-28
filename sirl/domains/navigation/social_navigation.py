@@ -286,7 +286,6 @@ class SocialNavMDP(GraphMDP):
                 color = ['green', 'green']
                 nr = 0.5
             else:
-                # rgcol = _rgb_to_hex(((0, 0, 255 * i / float(n_nodes))))
                 rgcol = mv.to_rgba(gna(n, 'V'))
                 color = [rgcol, rgcol]
                 nr = 0.5
@@ -294,12 +293,7 @@ class SocialNavMDP(GraphMDP):
                                ec=color[1], lw=1.5, zorder=3))
 
             p = gna(n, 'pi')
-            ndata = gna(n, 'data')
             for i, e in enumerate(G.out_edges(n)):
-                t = e[1]
-                tdata = gna(t, 'data')
-                x1, y1 = ndata[0], ndata[1]
-                x2, y2 = tdata[0], tdata[1]
                 traj = gea(e[0], e[1], 'traj')
 
                 if n in best_nodes and i == p:
@@ -309,18 +303,6 @@ class SocialNavMDP(GraphMDP):
                                       ec='g', lw=1.5, head_width=0.1,
                                       head_length=0.08, zorder=3)
 
-                    # self.ax.plot((x1, x2), (y1, y2), ls='-',
-                    #              lw=2.0, c='g', zorder=3)
-                else:
-                    for wp in traj:
-                        # self.ax.plot(wp[0], wp[1], c='0.7')
-                        vx, vy = np.cos(wp[2]), np.sin(wp[2])
-                        self.ax.arrow(wp[0], wp[1], 0.1*vx, 0.1*vy, fc='0.7',
-                                      ec='0.7', lw=0.7, head_width=0.06,
-                                      head_length=0.03, zorder=1)
-
-                    # self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
-                    #              c='0.7', alpha=0.5)
 
 # -------------------------------------------------------------
 # simple utils
