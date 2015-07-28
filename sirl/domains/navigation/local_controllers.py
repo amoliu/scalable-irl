@@ -72,7 +72,7 @@ class LinearLocalController(LocalController):
 
         if self._wconfig.x < nx < self._wconfig.w and\
                 self._wconfig.y < ny < self._wconfig.h:
-            target = [nx, ny]
+            target = [nx, ny, action, max_speed]
             traj = self.trajectory(state, target, max_speed)
             return target, traj
 
@@ -80,14 +80,16 @@ class LinearLocalController(LocalController):
 
     def trajectory(self, start, target, max_speed):
         """ Compute trajectories between two states"""
-        theta = np.arctan2(target[1]-start[1], target[0]-start[0])
-        start = np.array([start[0], start[1], theta])
-        target = np.array([target[0], target[1], theta])
+        # theta = np.arctan2(target[1]-start[1], target[0]-start[0])
+        # start = np.array([start[0], start[1], theta])
+        # target = np.array([target[0], target[1], theta])
+
+        start = np.array(start)
+        target = np.array(target)
 
         duration = edist(start, target)
         dt = (max_speed * duration) * 1.0 / self._resolution
         traj = [target * t / dt + start * (1 - t / dt) for t in range(int(dt))]
-        # traj.append(target)
         traj = np.array(traj)
         return traj
 
@@ -113,7 +115,7 @@ class POSQLocalController(LocalController):
 
         if self._wconfig.x < nx < self._wconfig.w and\
                 self._wconfig.y < ny < self._wconfig.h:
-            target = [nx, ny]
+            target = [nx, ny, action, max_speed]
             traj = self.trajectory(state, target, max_speed)
             return target, traj
 
@@ -122,16 +124,19 @@ class POSQLocalController(LocalController):
     def trajectory(self, start, target, max_speed):
         """ Compute trajectories between two states using POSQ"""
         theta = np.arctan2(target[1]-start[1], target[0]-start[0])
-        gtheta = np.arctan2(self._goal[1]-start[1], self._goal[0]-start[0])
+        # gtheta = np.arctan2(self._goal[1]-start[1], self._goal[0]-start[0])
 
-        start = np.array([start[0], start[1], theta])
-        target = np.array([target[0], target[1], theta])  # ????
+        start = np.array([start[0], start[1], start[2]])
+        target = np.array([target[0], target[1], theta])
 
         direction = 1
         init_t = 0
         traj, speedvec, vel, inct = self._posq_integrate(
             start, target, direction, self._resolution,
             self._base, init_t, max_speed, nS=0)
+
+        speeds = np.hypot(speedvec[:, 0], speedvec[:, 1])
+        traj = np.column_stack((traj, speeds))
 
         return traj
 

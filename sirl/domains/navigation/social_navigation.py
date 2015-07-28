@@ -112,20 +112,23 @@ class SocialNavMDP(GraphMDP):
         """ Initialize from random samples """
         GR = self._params.goal_reward
         CLIMIT = self._params.max_cost
+        GOAL = list(self._params.goal_state) + [0, self._params.speed]
+
         for start in self._params.start_states:
-            self._g.add_node(nid=self._node_id, data=start, cost=0,
+            st = list(start) + [0, self._params.speed]
+            self._g.add_node(nid=self._node_id, data=st, cost=0,
                              priority=1, V=GR, pi=0, Q=[], ntype='start')
             self._node_id += 1
 
-        self._g.add_node(nid=self._node_id, data=self._params.goal_state,
-                         cost=-CLIMIT, priority=1, V=GR, pi=0,
-                         Q=[], ntype='goal')
+        self._g.add_node(nid=self._node_id, data=GOAL, cost=-CLIMIT,
+                         priority=1, V=GR, pi=0, Q=[], ntype='goal')
         self._node_id += 1
 
         # - add the init samples
         init_samples = list(samples)
         for sample in init_samples:
-            self._g.add_node(nid=self._node_id, data=sample, cost=-CLIMIT,
+            smp = list(sample) + [0, self._params.speed]
+            self._g.add_node(nid=self._node_id, data=smp, cost=-CLIMIT,
                              priority=1, V=GR, pi=0, Q=[], ntype='simple')
             self._node_id += 1
 
@@ -275,7 +278,7 @@ class SocialNavMDP(GraphMDP):
                 best_nodes.add(state)
 
         for i, n in enumerate(G.nodes):
-            [posx, posy] = gna(n, 'data')
+            posx, posy, _, _ = gna(n, 'data')
             if gna(n, 'type') == 'start':
                 color = ['black', 'black']
                 nr = 1.0

@@ -22,6 +22,8 @@ class StateGraph(object):
         """
         Add a new node to the graph
         """
+        assert len(data) == 4, 'Expect state vector (x, y, theta, speed)'
+
         if nid not in self.G:
             self.G.add_node(nid, data=data, cost=cost, priority=priority,
                             Q=Q, V=V, pi=pi, type=ntype)

@@ -6,16 +6,18 @@ import numpy as np
 
 
 __all__ = [
-           "normangle",
-           "addangles",
-           "subangles",
-           "angle_between",
-           "normalize_vector",
-           "distance_to_segment",
-           "edist",
-           "line_crossing",
-           "anisotropic_distance",
-           "trajectory_length",
+           'normangle',
+           'addangles',
+           'subangles',
+           'angle_between',
+           'normalize_vector',
+           'distance_to_segment',
+           'edist',
+           'line_crossing',
+           'anisotropic_distance',
+           'trajectory_length',
+           'goal_bearing',
+           'relative_heading',
            ]
 
 
@@ -313,6 +315,26 @@ def line_crossing(x1, y1, x2, y2, x3, y3, x4, y4):
                 return 1
             else:
                 return 0
+
+
+def relative_heading(pose1, pose2):
+    """ Relative heading between two poses
+
+    Poses are 1D vector of [x, y, theta, speed]
+    """
+    return normangle(pose1[2] - pose2[2])
+
+
+def goal_bearing(pose, g):
+    """ The goal bearing of a pose
+
+    Goal is given a point in 2D
+
+    """
+    xp = pose[0] + pose[2] * np.cos(pose[2])
+    yp = pose[1] + pose[2] * np.sin(pose[2])
+    bearing = np.arctan2(g[1]-yp, g[0]-xp)
+    return bearing
 
 
 def point_infront_of_body(line, back_point, test_point):
