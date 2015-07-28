@@ -1,8 +1,8 @@
 
 from __future__ import division
+
 from abc import abstractmethod
 from abc import ABCMeta
-from abc import abstractproperty
 
 import json
 import numpy as np
@@ -13,48 +13,12 @@ from algorithms.mdp_solvers import graph_policy_iteration
 from algorithms.function_approximation import gp_predict, gp_covariance
 
 from utils.common import wchoice, map_range, Timer
-from utils.geometry import edist, trajectory_length
+from utils.geometry import trajectory_length
 from .base import ModelMixin
 
 
-########################################################################
+__all__ = ['GraphMDP']
 
-class LocalController(ModelMixin):
-    """ GraphMDP local controller """
-
-    __metaclass__ = ABCMeta
-
-    def __init__(self, kind='linear'):
-        self.kind = kind
-
-    @abstractmethod
-    def __call__(self, state, action, duration, max_speed):
-        """ Execute a local controller at ``state`` using ``action``
-        for period lasting ``duration`` and speed limit ``max_speed``
-        """
-        raise NotImplementedError('Abstract method')
-
-
-########################################################################
-
-class MDPReward(ModelMixin):
-    """ Reward  function base class """
-
-    __metaclass__ = ABCMeta
-
-    def __init__(self, kind='linfa'):
-        self.kind = kind
-
-    @abstractmethod
-    def __call__(self, state, action):
-        raise NotImplementedError('Abstract method')
-
-    @abstractproperty
-    def dim(self):
-        raise NotImplementedError('Abstract property')
-
-
-########################################################################
 
 class GraphMDP(ModelMixin):
     """ Adaptive State-Graph MDP
@@ -521,33 +485,3 @@ def _controller_duration(action):
     by a trajectory.
     """
     return trajectory_length(action)
-
-
-#############################################################################
-
-
-class Annotation(object):
-    """ Annotation in a scene e.g. info screen, kiosk, etc"""
-    def __init__(self, geometry, zone):
-        self.geom = geometry
-        self.zone = zone
-
-    def point_in_zone(self, point):
-        """ Check if a waypoint is in the influence zone"""
-        pass
-
-    def engaged(self, person):
-        """ Check is a person is engaged to an annotation,
-        e.g by looking/facing it like in the case of screens
-        or kiosks
-        """
-        pass
-
-    def disturbance(self, person):
-        """ Compute the disturbance induced by a robot stepping into
-        the influence zone of an annotation
-
-        Requires that the robot come in between the annotation and at
-        least one person engaged by it
-        """
-        pass
