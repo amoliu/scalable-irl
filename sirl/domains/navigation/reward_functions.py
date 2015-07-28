@@ -6,13 +6,13 @@ from ...models.reward import MDPReward
 
 from ...utils.geometry import edist, anisotropic_distance
 from ...utils.geometry import line_crossing
-from ...utils.geometry import normangle
 
 
 __all__ = [
     'SimpleReward',
     'ScaledSimpleReward',
     'AnisotropicReward',
+    'FlowMergeReward',
 ]
 
 
@@ -180,7 +180,8 @@ class FlowMergeReward(MDPReward):
 
     def __call__(self, state, action):
         # density, speed, angle, goal-dev
-        phi = self._stream_feature(action) + [self._goal_deviation(action)]
+        d, f = self._flow_feature(action)
+        phi = [d, f, self._total_gd(action), self._goal_distance(action)]
         reward = np.dot(phi, self._weights)
         return reward, phi
 
@@ -192,7 +193,7 @@ class FlowMergeReward(MDPReward):
     # internals
     # -------------------------------------------------------------
 
-    def _goal_deviation(self, action):
+    def _total_gd(self, action):
         # TODO - change to theta/angles
         dist = []
         for i in range(action.shape[0] - 1):
@@ -201,38 +202,68 @@ class FlowMergeReward(MDPReward):
             dist.append(max((dnext - dnow) * self._gamma ** i, 0))
         return sum(dist)
 
-    def _stream_feature(self, action):
-        density = 0.0
-        sum_ang = 0.0
-        sum_mag = 0.0
+    # def _stream_feature(self, action):
+    #     density = 0.0
+    #     sum_ang = 0.0
+    #     sum_mag = 0.0
 
-        # HACK- for straight line edges, in case of more complex controllers
-        # angles for action should be available with poses
-        r_theta = np.arctan2(action[-1][1]-action[0][1],
-                             action[-1][0]-action[0][0])
+    #     # HACK- for straight line edges, in case of more complex controllers
+    #     # angles for action should be available with poses
+    #     r_theta = np.arctan2(action[-1][1]-action[0][1],
+    #                          action[-1][0]-action[0][0])
+
+    #     for wp in action:
+    #         for _, p in self._persons.items():
+    #             dist = edist(wp, p[0:2])
+    #             if dist < self._radius:
+    #                 density += 1
+    #                 # TODO - change to relative heading of people wrt goal
+    #                 p_theta = np.arctan2(p[3], p[2])
+    #                 sum_ang += normangle(p_theta - r_theta)
+    #                 sum_mag += np.linalg.norm(p[2:4])
+
+    #     if density > 0:
+    #         speed = sum_mag / density
+    #         angle = sum_ang / density
+    #     else:
+    #         speed, angle = sum_mag, sum_ang
+
+    #     return [density, speed, angle]
+
+    def _goal_distance(self, action):
+        phi = 0
+        for i, wp in enumerate(action):
+            phi += edist(wp, self._goal) * self._gamma**i
+
+        return phi
+
+    def _flow_feature(self, action):
+        phi_d = []
+        phi_f = []
 
         for wp in action:
+            density = 0
+            flow = 0
             for _, p in self._persons.items():
                 dist = edist(wp, p[0:2])
                 if dist < self._radius:
                     density += 1
-                    # TODO - change to relative heading of people wrt goal
-                    p_theta = np.arctan2(p[3], p[2])
-                    sum_ang += normangle(p_theta - r_theta)
-                    sum_mag += np.linalg.norm(p[2:4])
+                    flow += self._goal_orientation(p)
 
-        if density > 0:
-            speed = sum_mag / density
-            angle = sum_ang / density
-        else:
-            speed, angle = sum_mag, sum_ang
+            if density > 0:
+                flow = flow / density
 
-        return [density, speed, angle]
+            phi_d.append(density)
+            phi_f.append(flow)
 
-    def _density(self, action):
-        phi = 0
-        for wp in action:
-            pd = [1 for _, p in self._persons.items()
-                  if edist(wp, p) <= self._radius]
-            phi += sum(d * self._gamma**i for i, d in enumerate(pd))
-        return phi
+        return sum(phi_d), sum(phi_f)
+
+    def _goal_orientation(self, person):
+        """ Compute a measure of how close a person will be to the goal in
+        the next time step using constant velocity model.
+        """
+        v = np.hypot(person[3], person[2])
+        pnext = (person[0] + v * person[2], person[1] + v * person[3])
+        dnow = edist(self._goal, person)
+        dnext = edist(self._goal, pnext)
+        return dnext - dnow
