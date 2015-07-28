@@ -2,9 +2,9 @@
 from nose.tools import assert_raises
 from nose.tools import assert_equal
 
-from sirl.models import LocalController
-from sirl.models import MDPReward
-from sirl.models import GraphMDP
+from sirl.models.local_controller import LocalController
+from sirl.models.reward import MDPReward
+from sirl.models.mdp import GraphMDP
 # from sirl.models import AlgoParams
 
 
@@ -21,6 +21,9 @@ def test_local_controller():
 
         def __call__(self, state, action, duration, max_speed):
             return 42
+
+        def trajectory(self, start, target, max_speed):
+            return None
 
     subclass = ConcreteLC(kind='some-name')
     assert_equal(subclass.kind, 'some-name')

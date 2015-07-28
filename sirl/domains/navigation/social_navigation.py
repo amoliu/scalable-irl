@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib as mpl
 
-from ...models import GraphMDP
-from ...models import _controller_duration
+from ...models.mdp import GraphMDP
+from ...models.mdp import _controller_duration
 
 from ...utils.geometry import edist
 from ...algorithms.mdp_solvers import graph_policy_iteration

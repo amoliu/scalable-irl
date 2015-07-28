@@ -1,11 +1,13 @@
 from __future__ import division
 
 import numpy as np
-import copy
 
-from ...models import LocalController
+from ...models.local_controller import LocalController
 from ...utils.geometry import normangle, edist
 from .social_navigation import WorldConfig
+
+
+__all__ = ['LinearLocalController', 'POSQLocalController']
 
 
 class LinearLocalController(LocalController):

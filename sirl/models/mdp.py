@@ -9,11 +9,11 @@ import numpy as np
 from numpy.random import uniform
 
 from .state_graph import StateGraph
-from algorithms.mdp_solvers import graph_policy_iteration
-from algorithms.function_approximation import gp_predict, gp_covariance
+from ..algorithms.mdp_solvers import graph_policy_iteration
+from ..algorithms.function_approximation import gp_predict, gp_covariance
 
-from utils.common import wchoice, map_range, Timer
-from utils.geometry import trajectory_length
+from ..utils.common import wchoice, map_range, Timer
+from ..utils.geometry import trajectory_length
 from .base import ModelMixin
 
 

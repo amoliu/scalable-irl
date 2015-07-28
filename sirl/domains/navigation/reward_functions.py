@@ -2,7 +2,7 @@ from __future__ import division
 
 import numpy as np
 
-from ...models import MDPReward
+from ...models.reward import MDPReward
 
 from ...utils.geometry import edist, anisotropic_distance
 from ...utils.geometry import line_crossing
