@@ -124,8 +124,6 @@ class POSQLocalController(LocalController):
     def trajectory(self, start, target, max_speed):
         """ Compute trajectories between two states using POSQ"""
         theta = np.arctan2(target[1]-start[1], target[0]-start[0])
-        # gtheta = np.arctan2(self._goal[1]-start[1], self._goal[0]-start[0])
-
         start = np.array([start[0], start[1], start[2]])
         target = np.array([target[0], target[1], theta])
 

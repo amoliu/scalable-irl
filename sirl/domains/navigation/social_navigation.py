@@ -297,13 +297,13 @@ class SocialNavMDP(GraphMDP):
 
             p = gna(n, 'pi')
             for i, e in enumerate(G.out_edges(n)):
-                traj = gea(e[0], e[1], 'traj')
-
                 if n in best_nodes and i == p:
+                    traj = gea(e[0], e[1], 'traj')
                     for wp in traj:
-                        vx, vy = np.cos(wp[2]), np.sin(wp[2])
-                        self.ax.arrow(wp[0], wp[1], 0.2*vx, 0.2*vy, fc='g',
-                                      ec='g', lw=1.5, head_width=0.1,
+                        v = wp[3]
+                        vx, vy = v*np.cos(wp[2]), v*np.sin(wp[2])
+                        self.ax.arrow(wp[0], wp[1], 0.5*vx, 0.5*vy, fc='g',
+                                      ec='g', lw=1.0, head_width=0.1,
                                       head_length=0.08, zorder=3)
 
 
