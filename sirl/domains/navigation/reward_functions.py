@@ -34,9 +34,9 @@ class SimpleReward(MDPReward):
         self._hzone = hzone
 
     def __call__(self, state, action):
-        phi = [self._relation_disturbance(action),
-               self._social_disturbance(action),
-               self._goal_deviation_count(action)]
+        phi = [self.__feature_relation_disturbance(action),
+               self.__feature_social_disturbance(action),
+               self.__feature_goal_deviation_count(action)]
         reward = np.dot(phi, self._weights)
         return reward, phi
 
@@ -48,7 +48,7 @@ class SimpleReward(MDPReward):
     # internals
     # -------------------------------------------------------------
 
-    def _goal_deviation_count(self, action):
+    def __feature_goal_deviation_count(self, action):
         """ Goal deviation measured by counts for every time
         a waypoint in the action trajectory recedes away from the goal
         """
@@ -59,14 +59,14 @@ class SimpleReward(MDPReward):
             dist.append(max((dnext - dnow) * self._gamma ** i, 0))
         return sum(dist)
 
-    def _social_disturbance(self, action):
+    def __feature_social_disturbance(self, action):
         pd = [min([edist(wp, person) for _, person in self._persons.items()])
               for wp in action]
         phi = sum(1 * self._gamma**i
                   for i, d in enumerate(pd) if d < self._hzone)
         return phi
 
-    def _relation_disturbance(self, action):
+    def __feature_relation_disturbance(self, action):
         atime = action.shape[0]
         c = [sum(line_crossing(action[t][0],
                                action[t][1],
@@ -123,7 +123,7 @@ class ScaledSimpleReward(SimpleReward):
                                                  weights, discount, hzone)
     # --- override key functions
 
-    def _social_disturbance(self, action):
+    def __feature_social_disturbance(self, action):
         """ social disturbance based on a circle around persons
         that is scaled by the person's speed. Assuming 1m/s = ``_hzone``
         """
@@ -149,7 +149,7 @@ class AnisotropicReward(SimpleReward):
         super(AnisotropicReward, self).__init__(persons, relations, goal,
                                                 weights, discount, hzone)
 
-    def _social_disturbance(self, action):
+    def __feature_social_disturbance(self, action):
         phi = 0
         for _, p in self._persons.items():
             # speed = np.hypot(p[2], p[3])
@@ -184,22 +184,24 @@ class FlowMergeReward(MDPReward):
         density, heading_similarity = self._flow_feature(action)
         phi = [density,
                heading_similarity,
-               self._total_gd(action),
-               self._goal_distance(action),
-               self._relation_disturbance(action),
-               self._social_disturbance(action)]
+               self._feature_goal_deviation(action),
+               self._feature_goal_distance(action),
+               self._feature_relation_disturbance(action),
+               self._feature_social_disturbance(action)]
         reward = np.dot(phi, self._weights)
         return reward, phi
 
     @property
     def dim(self):
-        return 4
+        # TODO - get an automatic way of handling this, via registers
+        # - use self dict with pre-names??
+        return 6
 
     # -------------------------------------------------------------
     # internals
     # -------------------------------------------------------------
 
-    def _total_gd(self, action):
+    def _feature_goal_deviation(self, action):
         # TODO - change to theta/angles
         dist = []
         for i in range(action.shape[0] - 1):
@@ -208,7 +210,7 @@ class FlowMergeReward(MDPReward):
             dist.append(max((dnext - dnow) * self._gamma ** i, 0))
         return sum(dist)
 
-    def _goal_distance(self, action):
+    def _feature_goal_distance(self, action):
         phi = 0
         for i, wp in enumerate(action):
             phi += edist(wp, self._goal) * self._gamma**i
@@ -236,14 +238,17 @@ class FlowMergeReward(MDPReward):
 
         return sum(phi_d), sum(phi_f)
 
-    def _social_disturbance(self, action):
-        pd = [min([edist(wp, person) for _, person in self._persons.items()])
-              for wp in action]
-        phi = sum(1 * self._gamma**i
-                  for i, d in enumerate(pd) if d < self._hzone)
+    def _feature_social_disturbance(self, action):
+        phi = 0
+        for _, p in self._persons.items():
+            speed = np.hypot(p[2], p[3])
+            hz = speed * self._hzone
+            for wp in action:
+                if edist(wp, p) < hz:
+                    phi += 1
         return phi
 
-    def _relation_disturbance(self, action):
+    def _feature_relation_disturbance(self, action):
         atime = action.shape[0]
         c = [sum(line_crossing(action[t][0],
                                action[t][1],
