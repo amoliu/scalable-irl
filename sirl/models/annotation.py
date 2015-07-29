@@ -4,7 +4,7 @@ from shapely.geometry import Polygon, Point
 import numpy as np
 
 from ..utils.geometry import ray_segment_intersection
-from ..utils.geometry import distance_to_segment
+from ..utils.geometry import distance_to_segment, normalize_vector
 from ..utils.geometry import edist
 
 
@@ -63,8 +63,7 @@ class Annotation(object):
         least one person engaged by it
         """
         if self.engaged(person) and self._point_in_zone(waypoint):
-            dist = distance_to_segment(waypoint, self._face[0], self._face[1])
-            return dist
+            return 1.0
 
         return 0.0
 
@@ -81,13 +80,23 @@ class Annotation(object):
         """ Check if a waypoint is in the influence zone"""
         return self._poly.contains(Point(point[0], point[1]))
 
-    def _compute_influence_area(self):
+    def _compute_influence_area2(self):
         a, b = self._face[0], self._face[1]
         r = self._zone
         # theta_a = np.arctan2(edist(a, b), self._zone)
-        theta_a = np.arctan2(b[1]-a[1], b[0]-a[0]) - np.pi/2.0
+        theta_a = np.arctan2(b[1]-a[1], b[0]-a[0]) + np.pi/2.0
+        theta_b = np.arctan2(a[1]-b[1], a[0]-b[0]) - np.pi/2.0
         # aprime = (b[0] + h*np.cos(theta_a), b[1] + h*np.sin(theta_a))
         # bprime = (a[0] + h*np.cos(theta_a), a[1] + h*np.sin(theta_a))
         aprime = (a[0] + r*np.cos(theta_a), a[1] + r*np.sin(theta_a))
-        bprime = (b[0] + r*np.cos(theta_a), b[1] + r*np.sin(theta_a))
+        bprime = (b[0] + r*np.cos(theta_b), b[1] + r*np.sin(theta_b))
         self._poly = Polygon([a, b, bprime, aprime])
+
+    def _compute_influence_area(self):
+        a, b = np.array(self._face[0]), np.array(self._face[1])
+        # v_ab = normalize_vector(np.array([b[0]-a[0], b[1]-a[1]]))
+        v_aa = normalize_vector(np.array([-(b[1]-a[1]), b[0]-a[0]]))
+        v_bb = normalize_vector(np.array([(a[1]-b[1]), a[0]-b[0]]))
+        aprime = a + self._zone * v_aa
+        bprime = b + self._zone * v_bb
+        self._poly = Polygon([a, aprime, bprime, b])
