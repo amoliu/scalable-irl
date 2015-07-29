@@ -23,32 +23,34 @@ class SimpleReward(MDPReward):
 
     """
 
-    def __init__(self, persons, relations, goal, weights, discount,
-                 kind='linfa', hzone=0.45):
+    def __init__(self, persons, relations, annotations, goal,
+                 weights, discount, kind='linfa', hzone=0.45):
         super(SimpleReward, self).__init__(kind)
         self._persons = persons
         self._relations = relations
+        self._annotations = annotations
         self._goal = goal
         self._weights = weights
         self._gamma = discount
         self._hzone = hzone
 
     def __call__(self, state, action):
-        phi = [self.__feature_relation_disturbance(action),
-               self.__feature_social_disturbance(action),
-               self.__feature_goal_deviation_count(action)]
+        phi = [self._feature_relation_disturbance(action),
+               self._feature_social_disturbance(action),
+               self._feature_goal_deviation_count(action),
+               self._feature_annotation_disturbance(action)]
         reward = np.dot(phi, self._weights)
         return reward, phi
 
     @property
     def dim(self):
-        return 3
+        return 4
 
     # -------------------------------------------------------------
     # internals
     # -------------------------------------------------------------
 
-    def __feature_goal_deviation_count(self, action):
+    def _feature_goal_deviation_count(self, action):
         """ Goal deviation measured by counts for every time
         a waypoint in the action trajectory recedes away from the goal
         """
@@ -59,14 +61,14 @@ class SimpleReward(MDPReward):
             dist.append(max((dnext - dnow) * self._gamma ** i, 0))
         return sum(dist)
 
-    def __feature_social_disturbance(self, action):
+    def _feature_social_disturbance(self, action):
         pd = [min([edist(wp, person) for _, person in self._persons.items()])
               for wp in action]
         phi = sum(1 * self._gamma**i
                   for i, d in enumerate(pd) if d < self._hzone)
         return phi
 
-    def __feature_relation_disturbance(self, action):
+    def _feature_relation_disturbance(self, action):
         atime = action.shape[0]
         c = [sum(line_crossing(action[t][0],
                                action[t][1],
@@ -80,35 +82,13 @@ class SimpleReward(MDPReward):
         ec = sum(self._gamma**i * x for i, x in enumerate(c))
         return ec
 
-    # def _affordance_disturbance(self, action):
-    #     d = []
-    #     for b in self._objects:
-    #         line = ((b[0][0], b[0][1]), (b[1][0], b[1][1]))
-    #         Ax = line[0][0]
-    #         Ay = line[0][1]
-    #         Bx = line[1][0]
-    #         By = line[1][1]
-    #         back = np.sign((Bx-Ax)*(b[2][1]-Ay)-(By-Ay)*(b[2][0]-Ax))
-    #         for wp in action:
-    #             dist, inside = distance_to_segment(wp, line[0], line[1])
-    # if inside and dist < 5:  # add check if someone
-    # - check which side wp in on
-    #                 side = np.sign((Bx-Ax)*(wp[1]-Ay)-(By-Ay)*(wp[0]-Ax))
-    #                 if side != back:
-    #                     d.append(dist)
-    #     phi = sum([k * self._gamma**i for i, k in enumerate(d)])
-    #     return phi
-
-    # def _affordance_distance(self, action):
-    #     d = []
-    #     for b in self._objects:
-    #         line = ((b[0][0], b[0][1]), (b[1][0], b[1][1]))
-    #         for wp in action:
-    #             dist, inside = distance_to_segment(wp, line[0], line[1])
-    #             if inside and dist < 1.2:
-    #                 d.append(dist)
-    #     phi = sum([k * self._gamma**i for i, k in enumerate(d)])
-    #     return phi
+    def _feature_annotation_disturbance(self, action):
+        phi = 0.0
+        for wp in action:
+            for _, person in self._persons.items():
+                for a in self._annotations:
+                    phi += a.disturbance(wp, person)
+        return phi
 
 ############################################################################
 
@@ -117,13 +97,14 @@ class ScaledSimpleReward(SimpleReward):
 
     """ Social Navigation Reward Funtion using Gaussians """
 
-    def __init__(self, persons, relations, goal, weights, discount,
-                 kind='linfa', hzone=0.45):
-        super(ScaledSimpleReward, self).__init__(persons, relations, goal,
+    def __init__(self, persons, relations, annotations, goal,
+                 weights, discount, kind='linfa', hzone=0.45):
+        super(ScaledSimpleReward, self).__init__(persons, relations,
+                                                 annotations, goal,
                                                  weights, discount, hzone)
     # --- override key functions
 
-    def __feature_social_disturbance(self, action):
+    def _feature_social_disturbance(self, action):
         """ social disturbance based on a circle around persons
         that is scaled by the person's speed. Assuming 1m/s = ``_hzone``
         """
@@ -149,7 +130,7 @@ class AnisotropicReward(SimpleReward):
         super(AnisotropicReward, self).__init__(persons, relations, goal,
                                                 weights, discount, hzone)
 
-    def __feature_social_disturbance(self, action):
+    def _feature_social_disturbance(self, action):
         phi = 0
         for _, p in self._persons.items():
             # speed = np.hypot(p[2], p[3])

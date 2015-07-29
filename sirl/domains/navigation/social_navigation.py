@@ -5,7 +5,7 @@ from copy import copy
 
 import numpy as np
 
-from matplotlib.patches import Circle, Ellipse
+from matplotlib.patches import Circle, Ellipse, Polygon
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib as mpl
@@ -72,7 +72,7 @@ class SocialNavMDP(GraphMDP):
             return True
         return False
 
-    def visualize(self, persons, relations, fsize=(12, 9)):
+    def visualize(self, persons, relations, annotations, fsize=(12, 9)):
         """ Visualize the social navigation world
 
         Allows recording of demonstrations and also display of final
@@ -99,6 +99,10 @@ class SocialNavMDP(GraphMDP):
             x1, y1 = persons[i][0], persons[i][1]
             x2, y2 = persons[j][0], persons[j][1]
             self.ax.plot((x1, x2), (y1, y2), ls='-', c='r', lw=2.0, zorder=2)
+
+        for a in annotations:
+            self.ax.add_artist(Polygon(a.geometry, hatch='x'))
+            self.ax.add_artist(Polygon(a.influence_zone, alpha=0.3))
 
         self._plot_graph_in_world()
 

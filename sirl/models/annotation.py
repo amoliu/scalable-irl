@@ -73,14 +73,21 @@ class Annotation(object):
         """ Get the polygon representing the influence area """
         return list(self._poly.exterior.coords)
 
+    @property
+    def geometry(self):
+        return self._geom
+
     def _point_in_zone(self, point):
         """ Check if a waypoint is in the influence zone"""
         return self._poly.contains(Point(point[0], point[1]))
 
     def _compute_influence_area(self):
         a, b = self._face[0], self._face[1]
-        h = np.hypot(edist(a, b), self._zone)
-        theta_a = np.arctan2(edist(a, b), self._zone)
-        aprime = (b[0] + h*np.cos(theta_a), b[1] + h*np.sin(theta_a))
-        bprime = (a[0] + h*np.cos(theta_a), a[1] + h*np.sin(theta_a))
+        r = self._zone
+        # theta_a = np.arctan2(edist(a, b), self._zone)
+        theta_a = np.arctan2(b[1]-a[1], b[0]-a[0]) - np.pi/2.0
+        # aprime = (b[0] + h*np.cos(theta_a), b[1] + h*np.sin(theta_a))
+        # bprime = (a[0] + h*np.cos(theta_a), a[1] + h*np.sin(theta_a))
+        aprime = (a[0] + r*np.cos(theta_a), a[1] + r*np.sin(theta_a))
+        bprime = (b[0] + r*np.cos(theta_a), b[1] + r*np.sin(theta_a))
         self._poly = Polygon([a, b, bprime, aprime])
