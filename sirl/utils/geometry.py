@@ -18,6 +18,7 @@ __all__ = [
            'trajectory_length',
            'goal_bearing',
            'relative_heading',
+           'ray_segment_intersection',
            ]
 
 
@@ -376,3 +377,22 @@ def perp_from_point(line, distance, start=True):
         transform = vec * distance
         new_point = np.array((Bx, By)) + transform
         return new_point
+
+
+def ray_segment_intersection(ray_origin, ray_direction, point1, point2):
+    """ Compute if a ray intersects with a line segment
+    Adpated from https://gist.github.com/danieljfarrell/faf7c4cafd683db13cbc
+    """
+    ray_origin = np.array(ray_origin, dtype=np.float)
+    ray_direction = normalize_vector(ray_direction)
+    point1 = np.array(point1, dtype=np.float)
+    point2 = np.array(point2, dtype=np.float)
+
+    v1 = ray_origin - point1
+    v2 = point2 - point1
+    v3 = np.array([-ray_direction[1], ray_direction[0]])
+    t1 = np.cross(v2, v1) / np.dot(v2, v3)
+    t2 = np.dot(v1, v3) / np.dot(v2, v3)
+    if t1 >= 0.0 and 0.0 <= t2 <= 1.0:
+        return True
+    return False
