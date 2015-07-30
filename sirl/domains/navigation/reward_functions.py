@@ -38,7 +38,8 @@ class SimpleReward(MDPReward):
         phi = [self._feature_relation_disturbance(action),
                self._feature_social_disturbance(action),
                self._feature_goal_deviation_count(action),
-               self._feature_annotation_disturbance(action)]
+               # self._feature_annotation_disturbance(action)
+               ]
         reward = np.dot(phi, self._weights)
         return reward, phi
 
