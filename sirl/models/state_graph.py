@@ -1,13 +1,22 @@
-
+from __future__ import division
 
 import warnings
+import json
 
 import networkx as nx
+
+from networkx.readwrite import json_graph
 from math import sqrt
 
 
 class StateGraph(object):
-    """ State Graph """
+    """ State Graph
+
+    The state graph encapsulates a flexible representation for an MDP which
+    affords use of task specific constraints as well as temporally extended
+    actions (in the sense of hierachical reinforcement learning, options)
+
+    """
 
     _node_attrs = ('data', 'cost', 'priority', 'Q', 'V', 'pi', 'type')
     _edge_attrs = ('source', 'target', 'duration', 'reward', 'phi', 'traj')
@@ -149,6 +158,23 @@ class StateGraph(object):
             return 1000
         path = nx.astar_path(self.G, source, target, heuristic=metric)
         return path
+
+    def get_signal(self, signal):
+        """ Retrieve a graph signal from the nodes """
+        assert signal in ('cost', 'policy', 'priority', 'V')
+        return [self.gna(n, signal) for n in self.nodes]
+
+    def save_graph(self, filename):
+        """ Save the graph to file """
+        json_data = json_graph.adjacency_data(self.G)
+        with open(filename, 'w') as f:
+            json.dump(json_data, f)
+
+    def loal_graph(self, filename):
+        """ Load a graph from file (networkx json format) """
+        with open(filename, 'r') as f:
+            jdata = json.load(f)
+            self._graph = json_graph.adjacency_graph(jdata)
 
     def plot_graph(self, ax=None, path=[]):
         """
