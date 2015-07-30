@@ -1,11 +1,10 @@
 from __future__ import division
 
 import warnings
-import json
+import pickle
 
 import networkx as nx
 
-from networkx.readwrite import json_graph
 from math import sqrt
 
 
@@ -166,15 +165,13 @@ class StateGraph(object):
 
     def save_graph(self, filename):
         """ Save the graph to file """
-        json_data = json_graph.adjacency_data(self.G)
-        with open(filename, 'w') as f:
-            json.dump(json_data, f)
+        with open(filename, 'wb') as f:
+            pickle.dump(self._graph, f)
 
     def loal_graph(self, filename):
-        """ Load a graph from file (networkx json format) """
-        with open(filename, 'r') as f:
-            jdata = json.load(f)
-            self._graph = json_graph.adjacency_graph(jdata)
+        """ Load a graph from file (networkx yaml format) """
+        with open(filename, 'rb') as f:
+            self._graph = pickle.load(f)
 
     def plot_graph(self, ax=None, path=[]):
         """
