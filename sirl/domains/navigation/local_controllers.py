@@ -80,10 +80,6 @@ class LinearLocalController(LocalController):
 
     def trajectory(self, start, target, max_speed):
         """ Compute trajectories between two states"""
-        # theta = np.arctan2(target[1]-start[1], target[0]-start[0])
-        # start = np.array([start[0], start[1], theta])
-        # target = np.array([target[0], target[1], theta])
-
         start = np.array(start)
         target = np.array(target)
 
@@ -110,6 +106,36 @@ class POSQLocalController(LocalController):
         self._goal = goal
 
     def __call__(self, state, action, duration, max_speed):
+        """ Run a local controller from a state
+
+        Run the local controller at the given ``state`` using the ``action``
+        represented by an angle, :math:` \\alpha \in [0, \pi]` for a time limit
+        given by ``duration``
+
+        Parameters
+        -----------
+        state : array of shape (2)
+            Positional data of the state (assuming 0:2 are coordinates)
+        action : float
+            Angle representing the action taken
+        duration : float
+            Real time interval limit for executing the controller
+        max_speed : float
+            Local speed limit
+
+        Returns
+        --------
+        new_state : array of shape (2)
+            New state reached by the controller
+        trajectory : array of shape(N, 2)
+            Local trajectory result
+        Note
+        ----
+        If the local controller ends up beyond the limits of the world config,
+        then the current state is returned to avoid sampling `outside' and
+        `None` is returned as trajectory.
+
+        """
         nx = state[0] + np.cos(action) * duration
         ny = state[1] + np.sin(action) * duration
 
@@ -255,10 +281,6 @@ class POSQLocalController(LocalController):
         vm = k_rho * np.tanh(f_rho * k_v)
         vd = (k_alpha * alpha + k_beta * beta)
         eot = (rho < rho_end)
-
-        # if eot:
-        #     print('t:{}  x:{}  y:{}  theta:{}'
-        #           .format(t, xc, yc, tc * 180 / np.pi))
 
         # Convert speed to wheel speeds
         vl = vm - vd * self._base / 2
