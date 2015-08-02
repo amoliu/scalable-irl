@@ -131,7 +131,7 @@ class AnisotropicReward(SimpleReward):
             if self._scaled:
                 hz = speed * self._hzone
             for t, wp in enumerate(action):
-                ad = anisotropic_distance(p, wp, ak=2*hz)
+                ad = anisotropic_distance(p, wp, ak=hz)
                 if edist(wp, p) < ad:
                     phi += 1 * self._gamma**t
         return phi
@@ -208,12 +208,12 @@ class FlowMergeReward(MDPReward):
 
     def _feature_density(self, action):
         phi_d = []
-        for wp in action:
+        for t, wp in enumerate(action):
             density = 0
             for _, p in self._persons.items():
                 dist = edist(wp, p[0:2])
                 if dist < self._radius:
-                    density += 1
+                    density += 1 * self._gamma**t
 
             phi_d.append(density)
 
@@ -221,14 +221,14 @@ class FlowMergeReward(MDPReward):
 
     def _feature_relative_bearing(self, action):
         phi_f = []
-        for wp in action:
+        for t, wp in enumerate(action):
             density = 0
             flow = 0
             for _, p in self._persons.items():
                 dist = edist(wp, p[0:2])
                 if dist < self._radius:
                     density += 1
-                    flow += self._goal_orientation(p)
+                    flow += self._goal_orientation(p) * self._gamma**t
 
             if density > 0:
                 flow = flow / density
@@ -242,9 +242,9 @@ class FlowMergeReward(MDPReward):
         for _, p in self._persons.items():
             speed = np.hypot(p[2], p[3])
             hz = speed * self._hzone
-            for wp in action:
+            for t, wp in enumerate(action):
                 if edist(wp, p) < hz:
-                    phi += 1
+                    phi += 1 * self._gamma**t
         return phi
 
     def _feature_relation_disturbance(self, action):
