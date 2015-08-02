@@ -4,6 +4,8 @@ from __future__ import division
 import itertools
 import numpy as np
 
+from .validation import check_array
+
 
 __all__ = [
            'normangle',
@@ -38,6 +40,7 @@ def trajectory_length(traj):
         Length of the path based on Euclidean distance metric
     """
 
+    traj = check_array(traj)
     assert traj.ndim == 2, "Trajectory must be a two dimensional array"
 
     path_length = 0.0
