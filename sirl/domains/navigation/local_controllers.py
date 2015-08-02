@@ -4,6 +4,7 @@ import numpy as np
 
 from ...models.local_controller import LocalController
 from ...utils.geometry import normangle, edist
+from ...utils.validation import asarray
 from .social_navigation import WorldConfig
 
 
@@ -80,8 +81,8 @@ class LinearLocalController(LocalController):
 
     def trajectory(self, start, target, max_speed):
         """ Compute trajectories between two states"""
-        start = np.array(start)
-        target = np.array(target)
+        start = asarray(start)
+        target = asarray(target)
 
         duration = edist(start, target)
         dt = (max_speed * duration) * 1.0 / self._resolution
@@ -150,8 +151,8 @@ class POSQLocalController(LocalController):
     def trajectory(self, start, target, max_speed):
         """ Compute trajectories between two states using POSQ"""
         theta = np.arctan2(target[1]-start[1], target[0]-start[0])
-        start = np.array([start[0], start[1], start[2]])
-        target = np.array([target[0], target[1], theta])
+        start = asarray([start[0], start[1], start[2]])
+        target = asarray([target[0], target[1], theta])
 
         direction = 1
         init_t = 0

@@ -2,7 +2,6 @@ from __future__ import division
 
 from abc import abstractmethod
 from abc import ABCMeta
-from abc import abstractproperty
 
 
 from .base import ModelMixin
@@ -12,6 +11,7 @@ class MDPReward(ModelMixin):
     """ Reward  function base class """
 
     __metaclass__ = ABCMeta
+    _template = '_feature_'
 
     def __init__(self, kind='linfa'):
         self.kind = kind
@@ -25,7 +25,10 @@ class MDPReward(ModelMixin):
         """
         raise NotImplementedError('Abstract method')
 
-    @abstractproperty
+    @property
     def dim(self):
         """ Dimension of the reward function """
-        raise NotImplementedError('Abstract property')
+        # - count all class members named '_feature_{x}'
+        features = self.__class__.__dict__
+        dim = sum([f[0].startswith(self._template) for f in features])
+        return dim

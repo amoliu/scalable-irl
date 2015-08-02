@@ -366,7 +366,7 @@ class GraphMDP(ModelMixin):
         concentration = 1.0 / float(1 + len(nn))
         node_cost = state_dict['cost']
         if len(nn) < 1:
-            y = 10
+            y = self._params.goal_reward
             state_dict['V'] = y
             return concentration, node_cost+y, 1
 

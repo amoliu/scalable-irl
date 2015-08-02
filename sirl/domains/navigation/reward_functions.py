@@ -6,11 +6,11 @@ from ...models.reward import MDPReward
 
 from ...utils.geometry import edist, anisotropic_distance
 from ...utils.geometry import line_crossing
+from ...utils.validation import check_array, asarray
 
 
 __all__ = [
     'SimpleReward',
-    'ScaledSimpleReward',
     'AnisotropicReward',
     'FlowMergeReward',
 ]
@@ -24,17 +24,23 @@ class SimpleReward(MDPReward):
     """
 
     def __init__(self, persons, relations, annotations, goal,
-                 weights, discount, kind='linfa', hzone=0.45):
+                 weights, discount, kind='linfa', hzone=0.45, scaled=True):
         super(SimpleReward, self).__init__(kind)
+        assert isinstance(persons, dict), 'Expect Dict for persons'
         self._persons = persons
         self._relations = relations
         self._annotations = annotations
         self._goal = goal
-        self._weights = weights
+        self._weights = asarray(weights)
+        assert self._weights.size == self.dim, 'weight, feature dim mismatch'
         self._gamma = discount
         self._hzone = hzone
+        self._scaled = scaled
 
     def __call__(self, state, action):
+        """ Compute the reward, r(state, action) """
+        action = check_array(action)
+
         phi = [self._feature_relation_disturbance(action),
                self._feature_social_disturbance(action),
                self._feature_goal_deviation_count(action),
@@ -45,7 +51,11 @@ class SimpleReward(MDPReward):
 
     @property
     def dim(self):
-        return 4
+        """ Dimension of the reward function """
+        # - count all class members named '_feature_{x}'
+        ffs = [f for f, _ in self.__class__.__dict__.items()]
+        dim = sum([f.startswith(self._template) for f in ffs])
+        return dim
 
     # -------------------------------------------------------------
     # internals
@@ -63,10 +73,15 @@ class SimpleReward(MDPReward):
         return sum(dist)
 
     def _feature_social_disturbance(self, action):
-        pd = [min([edist(wp, person) for _, person in self._persons.items()])
-              for wp in action]
-        phi = sum(1 * self._gamma**i
-                  for i, d in enumerate(pd) if d < self._hzone)
+        phi = 0.0
+        for _, p in self._persons.items():
+            speed = np.hypot(p[2], p[3])
+            hz = self._hzone
+            if self._scaled:
+                hz = speed * self._hzone
+            for t, wp in enumerate(action):
+                if edist(wp, p) < hz:
+                    phi += 1 * self._gamma**t
         return phi
 
     def _feature_relation_disturbance(self, action):
@@ -83,39 +98,14 @@ class SimpleReward(MDPReward):
         ec = sum(self._gamma**i * x for i, x in enumerate(c))
         return ec
 
-    def _feature_annotation_disturbance(self, action):
+    def _disabled_feature_annotation_disturbance(self, action):
+        # - use 'disabled' to indicate non-activated features so that they
+        # are ignored by the automatic count in the reward dimension
         phi = 0.0
         for wp in action:
             for _, person in self._persons.items():
                 for a in self._annotations:
                     phi += a.disturbance(wp, person)
-        return phi
-
-############################################################################
-
-
-class ScaledSimpleReward(SimpleReward):
-
-    """ Social Navigation Reward Funtion using Gaussians """
-
-    def __init__(self, persons, relations, annotations, goal,
-                 weights, discount, kind='linfa', hzone=0.45):
-        super(ScaledSimpleReward, self).__init__(persons, relations,
-                                                 annotations, goal,
-                                                 weights, discount, hzone)
-    # --- override key functions
-
-    def _feature_social_disturbance(self, action):
-        """ social disturbance based on a circle around persons
-        that is scaled by the person's speed. Assuming 1m/s = ``_hzone``
-        """
-        phi = 0
-        for _, p in self._persons.items():
-            speed = np.hypot(p[2], p[3])
-            hz = speed * self._hzone
-            for wp in action:
-                if edist(wp, p) < hz:
-                    phi += 1
         return phi
 
 
@@ -126,21 +116,32 @@ class AnisotropicReward(SimpleReward):
 
     """ Simple reward using an Anisotropic circle around persons"""
 
-    def __init__(self, persons, relations, goal, weights, discount,
-                 kind='linfa', hzone=0.45):
-        super(AnisotropicReward, self).__init__(persons, relations, goal,
-                                                weights, discount, hzone)
+    def __init__(self, persons, relations, annotations, goal, weights,
+                 discount, kind='linfa', hzone=0.45, scaled=True):
+        super(AnisotropicReward, self).__init__(persons, relations,
+                                                annotations, goal,
+                                                weights, discount,
+                                                hzone, scaled)
 
     def _feature_social_disturbance(self, action):
         phi = 0
         for _, p in self._persons.items():
-            # speed = np.hypot(p[2], p[3])
-            # hz = speed * 0.5 * self._hzone
-            for wp in action:
-                ad = anisotropic_distance(p, wp, ak=2 * self._hzone)
+            speed = np.hypot(p[2], p[3])
+            hz = self._hzone
+            if self._scaled:
+                hz = speed * self._hzone
+            for t, wp in enumerate(action):
+                ad = anisotropic_distance(p, wp, ak=2*hz)
                 if edist(wp, p) < ad:
-                    phi += 1
+                    phi += 1 * self._gamma**t
         return phi
+
+    def _feature_dummy1(self):
+        # HACK - to get around feature method count temporarily
+        pass
+
+    def _feature_dummy2(self):
+        pass
 
 
 ############################################################################
@@ -163,9 +164,13 @@ class FlowMergeReward(MDPReward):
 
     def __call__(self, state, action):
         # density, speed, angle, goal-dev
-        density, heading_similarity = self._flow_feature(action)
+        density = self._feature_density(action)
+        rel_bearing = 0.0
+        if density > 0:
+            rel_bearing = self._feature_relative_bearing(action)
+
         phi = [density,
-               heading_similarity,
+               rel_bearing,
                self._feature_goal_deviation(action),
                self._feature_goal_distance(action),
                self._feature_relation_disturbance(action),
@@ -175,9 +180,11 @@ class FlowMergeReward(MDPReward):
 
     @property
     def dim(self):
-        # TODO - get an automatic way of handling this, via registers
-        # - use self dict with pre-names??
-        return 6
+        """ Dimension of the reward function """
+        # - count all class members named '_feature_{x}'
+        ffs = [f for f, _ in self.__class__.__dict__.items()]
+        dim = sum([f.startswith(self._template) for f in ffs])
+        return dim
 
     # -------------------------------------------------------------
     # internals
@@ -199,10 +206,21 @@ class FlowMergeReward(MDPReward):
 
         return phi
 
-    def _flow_feature(self, action):
+    def _feature_density(self, action):
         phi_d = []
-        phi_f = []
+        for wp in action:
+            density = 0
+            for _, p in self._persons.items():
+                dist = edist(wp, p[0:2])
+                if dist < self._radius:
+                    density += 1
 
+            phi_d.append(density)
+
+        return sum(phi_d)
+
+    def _feature_relative_bearing(self, action):
+        phi_f = []
         for wp in action:
             density = 0
             flow = 0
@@ -215,10 +233,9 @@ class FlowMergeReward(MDPReward):
             if density > 0:
                 flow = flow / density
 
-            phi_d.append(density)
             phi_f.append(flow)
 
-        return sum(phi_d), sum(phi_f)
+        return sum(phi_f)
 
     def _feature_social_disturbance(self, action):
         phi = 0

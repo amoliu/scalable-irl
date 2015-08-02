@@ -41,7 +41,7 @@ def trajectory_length(traj):
     """
 
     traj = check_array(traj)
-    assert traj.ndim == 2, "Trajectory must be a two dimensional array"
+    # assert traj.ndim == 2, "Trajectory must be a two dimensional array"
 
     path_length = 0.0
     for i, j in itertools.izip(range(traj.shape[0]), range(1, traj.shape[0])):
