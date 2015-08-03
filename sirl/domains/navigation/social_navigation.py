@@ -61,7 +61,15 @@ class SocialNavMDP(GraphMDP):
         self._g.clear()
 
         if self._params.init_type == 'random':
-            self._random_init(samples)
+            if samples is None:
+                samples = []
+                udist = np.random.uniform
+                x, dx = self._wconfig.x, self._wconfig.w
+                y, dy = self._wconfig.y, self._wconfig.h
+                for _ in range(10):
+                    samples.append([udist(x, x+dx), udist(y, y+dy)])
+
+            self._fixed_init(samples)
         elif self._params.init_type == 'trajectory':
             self._traj_init(samples)
 
@@ -112,7 +120,7 @@ class SocialNavMDP(GraphMDP):
     # internals
     # -------------------------------------------------------------
 
-    def _random_init(self, samples):
+    def _fixed_init(self, samples):
         """ Initialize from random samples """
         GR = self._params.goal_reward
         CLIMIT = self._params.max_cost
