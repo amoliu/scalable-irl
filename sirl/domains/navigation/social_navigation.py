@@ -29,11 +29,11 @@ class SocialNavMDP(GraphMDP):
     ------------
     discount : float
         MDP discount factor
-    reward : ``SocialNavReward`` object
+    reward : `SocialNavReward` object
         Reward function for social navigation task
     controller : ``SocialNavLocalController`` object
         Local controller for the task
-    params : ``GraphMDPParams`` object
+    params : `GraphMDPParams` object
         Algorithm parameters for the various steps
     world_config : ``WorldConfig`` object
         Configuration of the navigation task world
@@ -41,7 +41,7 @@ class SocialNavMDP(GraphMDP):
 
     Attributes
     -----------
-    _wconfig : ``WorldConfig``
+    _wconfig : `WorldConfig`
         Configuration of the navigation task world
 
     """
@@ -292,20 +292,19 @@ class SocialNavMDP(GraphMDP):
         for i, n in enumerate(G.nodes):
             posx, posy, _, _ = gna(n, 'data')
             if gna(n, 'type') == 'start':
-                color = ['black', 'black']
+                color = 'black'
                 nr = 1.0
             elif self.terminal(n):
-                color = ['green', 'black']
+                color = 'green'
                 nr = 1.5
             elif n in best_nodes:
-                color = ['green', 'green']
+                color = 'green'
                 nr = 0.5
             else:
-                rgcol = mv.to_rgba(gna(n, 'V'))
-                color = [rgcol, rgcol]
+                color = mv.to_rgba(gna(n, 'V'))
                 nr = 0.5
-            self.ax.add_artist(Circle((posx, posy), nr/10., fc=color[0],
-                               ec=color[1], lw=1.5, zorder=3))
+            self.ax.add_artist(Circle((posx, posy), nr/10., fc=color,
+                               ec=color, lw=1.5, zorder=3))
 
             p = gna(n, 'pi')
             for i, e in enumerate(G.out_edges(n)):

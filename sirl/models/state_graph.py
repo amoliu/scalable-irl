@@ -7,6 +7,8 @@ import networkx as nx
 
 from math import sqrt
 
+from ..utils.validation import check_array, asarray
+
 
 class StateGraph(object):
     """ State Graph
@@ -30,6 +32,7 @@ class StateGraph(object):
         """
         Add a new node to the graph
         """
+        data = asarray(data)
         assert len(data) == 4, 'Expect state vector (x, y, theta, speed)'
 
         if nid not in self.G:
@@ -43,6 +46,9 @@ class StateGraph(object):
         Add a new edge into the graph
         """
         assert duration >= 0.0, 'Duration must be positive'
+        phi = asarray(phi)
+        traj = check_array(traj)
+
         if source == target:
             warnings.warn('WARN: source and target nodes are the same')
 
