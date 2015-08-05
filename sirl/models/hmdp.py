@@ -111,7 +111,7 @@ class HomotopyMDP(ModelMixin):
 
         self._find_best_policies()
 
-    def prep_entities(self, persons, relations, annotations=[], objects=[]):
+    def prep_entities(self, persons, relations, annotations=None, objects=None):
         """ Prepare the entities for building the voronoi """
         entities = []
         for _, p in persons.items():
@@ -130,6 +130,8 @@ class HomotopyMDP(ModelMixin):
 
         entities.append([self._params.goal_state[0],
                         self._params.goal_state[1]])
+
+        # TODO - add annotations and objects
 
         return entities
 

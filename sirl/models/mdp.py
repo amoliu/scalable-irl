@@ -34,11 +34,11 @@ class GraphMDP(ModelMixin):
     ------------
     discount : float
         MDP discount factor
-    reward : ``SocialNavReward`` object
+    reward : `SocialNavReward` object
         Reward function for social navigation task
-    controller : ``SocialNavLocalController`` object
+    controller : `SocialNavLocalController` object
         Local controller for the task
-    params : ``GraphMDPParams`` object
+    params : `GraphMDPParams` object
         Algorithm parameters for the various steps
 
 
@@ -46,16 +46,16 @@ class GraphMDP(ModelMixin):
     -----------
     gamma : float
         MDP discount factor
-    _reward : ``SocialNavReward`` object
+    _reward : :class:`SocialNavReward` object
         Reward function for social navigation task
-    _controller : ``SocialNavLocalController`` object
+    _controller : :class:`SocialNavLocalController` object
         Local controller for the task
-    _g : ``StateGraph`` object
+    _g : :class:`StateGraph` object
         The underlying state graph
     _best_trajs : list of tuples, [(x, y)]
         The best trajectories representing the policies from each start pose to
         a goal pose
-    _params : ``GraphMDPParams`` object
+    _params : :class:`GraphMDPParams` object
         Algorithm parameters for the various steps
     _node_id : int
         State id (for keeping track when adding new states)
@@ -71,7 +71,9 @@ class GraphMDP(ModelMixin):
     __metaclass__ = ABCMeta
 
     def __init__(self, discount, reward, controller, params):
-        assert 0 <= discount < 1, '``discount`` must be in [0, 1)'
+        if 0.0 > discount >= 1.0:
+            raise ValueError('The `discount` must be in [0, 1)')
+
         self.gamma = discount
         self._reward = reward
         self._controller = controller

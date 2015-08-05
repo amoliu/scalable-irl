@@ -29,27 +29,25 @@ class SocialNavMDP(GraphMDP):
     ------------
     discount : float
         MDP discount factor
-    reward : `SocialNavReward` object
+    reward : :class:`SocialNavReward` object
         Reward function for social navigation task
-    controller : ``SocialNavLocalController`` object
+    controller : :class:`SocialNavLocalController` object
         Local controller for the task
-    params : `GraphMDPParams` object
+    params : :class:`GraphMDPParams` object
         Algorithm parameters for the various steps
-    world_config : ``WorldConfig`` object
+    world_config : :class:`WorldConfig` object
         Configuration of the navigation task world
 
 
     Attributes
     -----------
-    _wconfig : `WorldConfig`
+    _wconfig : :class:`WorldConfig`
         Configuration of the navigation task world
 
     """
     def __init__(self, discount, reward, controller, params, world_config):
         super(SocialNavMDP, self).__init__(discount, reward,
                                            controller, params)
-        assert isinstance(world_config, WorldConfig),\
-            'Expects a ``WorldConfig`` object'
         self._wconfig = world_config
 
         # manual demonstration recording
