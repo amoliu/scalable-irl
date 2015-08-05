@@ -50,7 +50,8 @@ class StateGraph(object):
         traj = check_array(traj)
 
         if source == target:
-            warnings.warn('WARN: source and target nodes are the same')
+            warnings.warn('source: {} and target: {} nodes are the same'.
+                          format(source, target))
 
         elif not self.G.has_edge(source, target):
             self.G.add_edge(source, target, duration=duration,
@@ -62,7 +63,8 @@ class StateGraph(object):
     def remove_edge(self, source, target):
         """ Remove an edge from the graph """
         if source == target:
-            warnings.warn('WARN: source and target nodes are the same')
+            warnings.warn('source: {} and target: {} nodes are the same'.
+                          format(source, target))
 
         self.G.remove_edge(source, target)
 
@@ -111,7 +113,7 @@ class StateGraph(object):
         self._check_edge_attributes(source, target, attribute)
         self.G.edge[source][target][attribute] = value
 
-    def find_neighbors_data(self, loc, distance):
+    def find_neighbors_from_pose(self, loc, distance):
         """ Find node neigbors within distance range
         Note
         -----
@@ -128,12 +130,16 @@ class StateGraph(object):
         Includes self in the result
         """
         cn = self.gna(nid, 'data')
-        return self.find_neighbors_data(cn, distance)
+        serch_set = set(self.G.nodes()) - {nid}
+        neighbors = filter(lambda n: eud(self.gna(n, 'data'), cn) <= distance,
+                           serch_set)
+        return neighbors
 
     def find_neighbors_k(self, nid, k):
         """ Find k nearest neighbors based on Euclidean distance """
+        serch_set = set(self.G.nodes()) - {nid}
         cn = self.gna(nid, 'data')
-        distances = {n: eud(self.gna(n, 'data'), cn) for n in self.G.nodes()}
+        distances = {n: eud(self.gna(n, 'data'), cn) for n in serch_set}
         sorted_neighbors = sorted(distances.items(), key=lambda x: x[1])
         k_neighbors = sorted_neighbors[:k]
         return list(n[0] for n in k_neighbors)

@@ -4,13 +4,14 @@ import numpy as np
 from scipy.spatial import Voronoi
 from copy import deepcopy
 
-from matplotlib.patches import Circle, Ellipse, Polygon
+from matplotlib.patches import Circle, Ellipse
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib as mpl
 
 from .base import ModelMixin
 from .state_graph import StateGraph
+from ..algorithms.mdp_solvers import graph_policy_iteration
 from ..utils.geometry import edist, trajectory_length
 from ..utils.validation import check_array
 
@@ -74,23 +75,17 @@ class HomotopyMDP(ModelMixin):
                 # - add start
                 s_id = deepcopy(self._node_id)
                 s_state = list(source) + [0, VMAX]
-                s_type = 'goal' if self._goal(source) else 'simple'
-                s_type = 'start' if self._starting(source) else 'simple'
                 self.graph.add_node(nid=s_id, data=s_state, cost=CLIMIT,
                                     priority=1, V=GR, pi=0,
-                                    Q=[], ntype=s_type)
-
+                                    Q=[], ntype='simple')
                 self._node_id += 1
 
                 # - add target
                 t_id = deepcopy(self._node_id)
                 t_state = list(target) + [0, VMAX]
-                t_type = 'goal' if self._goal(target) else 'simple'
-                t_type = 'start' if self._starting(target) else 'simple'
                 self.graph.add_node(nid=t_id, data=t_state, cost=CLIMIT,
                                     priority=1, V=GR, pi=0,
-                                    Q=[], ntype=t_type)
-
+                                    Q=[], ntype='simple')
                 self._node_id += 1
 
                 # - add conecting edges both directions
@@ -106,25 +101,45 @@ class HomotopyMDP(ModelMixin):
                 self._g.add_edge(source=t_id, target=s_id, reward=b_r,
                                  duration=b_d, phi=b_phi, traj=b_traj)
 
-                print(s_type, t_type)
+        # add starting poses and connecting actions
+        for start in self._params.start_states:
+            state = list(start) + [0, VMAX]
+            sid = deepcopy(self._node_id)
+            self.graph.add_node(nid=sid, data=state, cost=CLIMIT, V=GR,
+                                pi=0, priority=1, Q=[], ntype='start')
+            self._node_id += 1
+            neigbors = self.graph.find_neighbors_k(sid, k=3)
+            for node in neigbors:
+                ndata = self.graph.gna(node, 'data')
+                traj = self._controller.trajectory(state, ndata, VMAX)
+                d = trajectory_length(traj)
+                r, phi = self._reward(state, traj)
+                self._g.add_edge(source=sid, target=node, reward=r,
+                                 duration=d, phi=phi, traj=traj)
 
+        # add goal pose and connecting actions
+        g_id = deepcopy(self._node_id)
+        g_state = list(self._params.goal_state) + [0, VMAX]
+        self.graph.add_node(nid=g_id, data=g_state, cost=-CLIMIT, V=GR,
+                            pi=0, priority=1, Q=[], ntype='goal')
+        self._node_id += 1
+        g_neigbors = self.graph.find_neighbors_k(g_id, k=3)
+        for n in g_neigbors:
+            npose = self.graph.gna(n, 'data')
+            traj = self._controller.trajectory(npose, g_state, VMAX)
+            d = trajectory_length(traj)
+            r, phi = self._reward(npose, traj)
+            self._g.add_edge(source=n, target=g_id, reward=r,
+                             duration=d, phi=phi, traj=traj)
+
+        graph_policy_iteration(self)
         self._find_best_policies()
 
-    def prep_entities(self, persons, relations, annotations=None, objects=None):
+    def prep_entities(self, persons, relations, annotations=None):
         """ Prepare the entities for building the voronoi """
         entities = []
         for _, p in persons.items():
             entities.append([p[0], p[1]])
-
-        # add starts and goal poses
-        # TODO
-        # - undo this (starts and goals need not be centroids)
-        # - add the nodes manually, and connect to k-nn neighbors
-        for start in self._params.start_states:
-            entities.append([start[0], start[1]])
-
-        entities.append([self._params.goal_state[0],
-                        self._params.goal_state[1]])
 
         # TODO - add annotations and objects
 
@@ -169,7 +184,6 @@ class HomotopyMDP(ModelMixin):
         #         # print(self._vor.vertices[simplex, 2])
 
         return self.ax
-
 
     # -------------------------------------------------------------
     # properties
@@ -279,4 +293,3 @@ class HomotopyMDP(ModelMixin):
                         self.ax.arrow(wp[0], wp[1], 0.5*vx, 0.5*vy, fc='0.7',
                                       ec='0.7', lw=1.0, head_width=0.07,
                                       head_length=0.05, zorder=3)
-

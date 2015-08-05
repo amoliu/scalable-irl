@@ -4,10 +4,11 @@ from collections import namedtuple
 from copy import copy
 
 from scipy.spatial import Voronoi
+from copy import deepcopy
 
 import numpy as np
 
-from matplotlib.patches import Circle, Ellipse, Polygon
+from matplotlib.patches import Circle, Ellipse
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib as mpl
@@ -65,22 +66,24 @@ class SocialNavMDP(GraphMDP):
 
         if self._params.init_type == 'random':
             if samples is None:
-                samples = []
                 udist = np.random.uniform
                 x, dx = self._wconfig.x, self._wconfig.w
                 y, dy = self._wconfig.y, self._wconfig.h
-                for _ in range(10):
-                    samples.append([udist(x, x+dx), udist(y, y+dy)])
-
+                samples = [[udist(x, x+dx), udist(y, y+dy)] for _ in range(10)]
             self._fixed_init(samples)
 
         elif self._params.init_type == 'homotopy':
             samples = [[p[0], p[1]] for _, p in self._persons.items()]
-            vor = Voronoi(samples)
-            self._fixed_init(samples)
+            self._homotopy_init(samples)
 
         elif self._params.init_type == 'trajectory':
             self._traj_init(samples)
+
+        # - update graph attributes
+        self._update_state_costs()
+        graph_policy_iteration(self)
+        self._update_state_priorities()
+        self._find_best_policies()
 
     def terminal(self, state):
         """ Check if a state is terminal (goal state) """
@@ -166,11 +169,78 @@ class SocialNavMDP(GraphMDP):
                 self._g.add_edge(source=n, target=m, reward=r,
                                  duration=d, phi=phi, traj=traj)
 
-        # - update graph attributes
-        self._update_state_costs()
-        graph_policy_iteration(self)
-        self._update_state_priorities()
-        self._find_best_policies()
+    def _homotopy_init(self, entities):
+        vor = Voronoi(entities)
+        GR = self._params.goal_reward
+        CM = self._params.max_cost
+        VMAX = self._params.speed
+
+        for simplex in vor.ridge_vertices:
+            simplex = np.asarray(simplex)
+            x1x2 = vor.vertices[simplex, 0]
+            y1y2 = vor.vertices[simplex, 1]
+            source = (x1x2[0], y1y2[0])
+            target = (x1x2[1], y1y2[1])
+
+            if np.all(simplex >= 0) and self._in_world(source) and\
+                    self._in_world(target):
+                # - add start
+                s_id = deepcopy(self._node_id)
+                s_state = list(source) + [0, VMAX]
+                self.graph.add_node(nid=s_id, data=s_state, cost=CM, V=GR,
+                                    pi=0, priority=1, Q=[], ntype='simple')
+                self._node_id += 1
+
+                # - add target
+                t_id = deepcopy(self._node_id)
+                t_state = list(target) + [0, VMAX]
+                self.graph.add_node(nid=t_id, data=t_state, cost=CM, V=GR,
+                                    priority=1, pi=0, Q=[], ntype='simple')
+                self._node_id += 1
+
+                # - add conecting edges both directions
+                f_traj = self._controller.trajectory(s_state, t_state, VMAX)
+                f_d = trajectory_length(f_traj)
+                f_r, f_phi = self._reward(s_state, f_traj)
+                self._g.add_edge(source=s_id, target=t_id, reward=f_r,
+                                 duration=f_d, phi=f_phi, traj=f_traj)
+
+                b_traj = self._controller.trajectory(t_state, s_state, VMAX)
+                b_d = trajectory_length(b_traj)
+                b_r, b_phi = self._reward(t_state, b_traj)
+                self._g.add_edge(source=t_id, target=s_id, reward=b_r,
+                                 duration=b_d, phi=b_phi, traj=b_traj)
+
+        # add starting poses and connecting actions
+        for start in self._params.start_states:
+            state = list(start) + [0, VMAX]
+            sid = deepcopy(self._node_id)
+            self.graph.add_node(nid=sid, data=state, cost=CM, V=GR,
+                                pi=0, priority=1, Q=[], ntype='start')
+            self._node_id += 1
+            neigbors = self.graph.find_neighbors_k(sid, k=3)
+            for node in neigbors:
+                ndata = self.graph.gna(node, 'data')
+                traj = self._controller.trajectory(state, ndata, VMAX)
+                d = trajectory_length(traj)
+                r, phi = self._reward(state, traj)
+                self._g.add_edge(source=sid, target=node, reward=r,
+                                 duration=d, phi=phi, traj=traj)
+
+        # add goal pose and connecting actions
+        g_id = deepcopy(self._node_id)
+        g_state = list(self._params.goal_state) + [0, VMAX]
+        self.graph.add_node(nid=g_id, data=g_state, cost=-CM, V=GR,
+                            pi=0, priority=1, Q=[], ntype='goal')
+        self._node_id += 1
+        g_neigbors = self.graph.find_neighbors_k(g_id, k=3)
+        for n in g_neigbors:
+            npose = self.graph.gna(n, 'data')
+            traj = self._controller.trajectory(npose, g_state, VMAX)
+            d = trajectory_length(traj)
+            r, phi = self._reward(npose, traj)
+            self._g.add_edge(source=n, target=g_id, reward=r,
+                             duration=d, phi=phi, traj=traj)
 
     def _traj_init(self, trajs):
         """ Initialize from trajectories """
@@ -222,6 +292,10 @@ class SocialNavMDP(GraphMDP):
         graph_policy_iteration(self)
         self._update_state_priorities()
         self._find_best_policies()
+
+    def _in_world(self, pose):
+        return self._wconfig.x < pose[0] < self._wconfig.w and\
+                self._wconfig.y < pose[1] < self._wconfig.h
 
     def _setup_visuals(self, fsize=(12, 9)):
         """ Prepare figure axes for plotting """
@@ -325,7 +399,14 @@ class SocialNavMDP(GraphMDP):
                         self.ax.arrow(wp[0], wp[1], 0.5*vx, 0.5*vy, fc='g',
                                       ec='g', lw=1.0, head_width=0.1,
                                       head_length=0.08, zorder=3)
-
+                # else:
+                #     traj = gea(e[0], e[1], 'traj')
+                #     for wp in traj:
+                #         v = wp[3]
+                #         vx, vy = v*np.cos(wp[2]), v*np.sin(wp[2])
+                #         self.ax.arrow(wp[0], wp[1], 0.5*vx, 0.5*vy, fc='0.7',
+                #                       ec='0.7', lw=1.0, head_width=0.07,
+                #                       head_length=0.05, zorder=3)
 
 # -------------------------------------------------------------
 # simple utils
