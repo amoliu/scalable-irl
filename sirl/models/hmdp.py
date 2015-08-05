@@ -11,8 +11,7 @@ import matplotlib as mpl
 
 from .base import ModelMixin
 from .state_graph import StateGraph
-from .mdp import _controller_duration
-from ..utils.geometry import edist
+from ..utils.geometry import edist, trajectory_length
 from ..utils.validation import check_array
 
 
@@ -96,13 +95,13 @@ class HomotopyMDP(ModelMixin):
 
                 # - add conecting edges both directions
                 f_traj = self._controller.trajectory(s_state, t_state, VMAX)
-                f_d = _controller_duration(f_traj)
+                f_d = trajectory_length(f_traj)
                 f_r, f_phi = self._reward(s_state, f_traj)
                 self._g.add_edge(source=s_id, target=t_id, reward=f_r,
                                  duration=f_d, phi=f_phi, traj=f_traj)
 
                 b_traj = self._controller.trajectory(t_state, s_state, VMAX)
-                b_d = _controller_duration(b_traj)
+                b_d = trajectory_length(b_traj)
                 b_r, b_phi = self._reward(t_state, b_traj)
                 self._g.add_edge(source=t_id, target=s_id, reward=b_r,
                                  duration=b_d, phi=b_phi, traj=b_traj)
@@ -116,10 +115,6 @@ class HomotopyMDP(ModelMixin):
         entities = []
         for _, p in persons.items():
             entities.append([p[0], p[1]])
-
-        for [i, j] in relations:
-            entities.append([persons[i][0], persons[i][1]])
-            entities.append([persons[j][0], persons[j][1]])
 
         # add starts and goal poses
         # TODO

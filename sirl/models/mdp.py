@@ -4,7 +4,6 @@ from __future__ import division
 from abc import abstractmethod
 from abc import ABCMeta
 
-import json
 import numpy as np
 from numpy.random import uniform
 
@@ -15,6 +14,7 @@ from ..algorithms.function_approximation import gp_predict, gp_covariance
 from ..utils.common import wchoice, map_range, Timer
 from ..utils.geometry import trajectory_length
 from .base import ModelMixin
+from .parameters import GraphMDPParams
 
 
 __all__ = ['GraphMDP']
@@ -165,7 +165,7 @@ class GraphMDP(ModelMixin):
                 b_traj = self._controller.trajectory(sn['data'], sn['b_data'],
                                                      self._params.speed)
                 b_r, b_phi = self._reward(sn['data'], b_traj)
-                b_d = _controller_duration(b_traj)
+                b_d = trajectory_length(b_traj)
                 self._g.add_edge(source=nid, target=sn['b_state'], reward=b_r,
                                  duration=b_d, phi=b_phi, traj=b_traj)
 
@@ -246,7 +246,7 @@ class GraphMDP(ModelMixin):
         state_dict['f_reward'] = reward
         state_dict['f_phi'] = phi
         state_dict['f_traj'] = f_traj
-        state_dict['f_duration'] = _controller_duration(f_traj)
+        state_dict['f_duration'] = trajectory_length(f_traj)
 
         # - backwards info
         state_dict['b_state'] = state
@@ -330,7 +330,7 @@ class GraphMDP(ModelMixin):
                 if len(self._g.out_edges(s)) < self._params.max_edges:
                     if not self._g.edge_exists(s, n) and not self.terminal(s):
                         traj = self._controller.trajectory(xs, xn, vmax)
-                        d = _controller_duration(traj)
+                        d = trajectory_length(traj)
                         reward, phi = self._reward(xs, traj)
 
                         self._g.add_edge(source=s, target=n, phi=phi,
@@ -338,7 +338,7 @@ class GraphMDP(ModelMixin):
                 if len(self._g.out_edges(n)) < self._params.max_edges:
                     if not self._g.edge_exists(n, s) and not self.terminal(n):
                         traj = self._controller.trajectory(xn, xs, vmax)
-                        d = _controller_duration(traj)
+                        d = trajectory_length(traj)
                         rb, phi = self._reward(xn, traj)
                         self._g.add_edge(source=n, target=s, phi=phi,
                                          duration=d, reward=rb, traj=traj)
@@ -424,43 +424,6 @@ class GraphMDP(ModelMixin):
 
 #############################################################################
 
-class GraphMDPParams(object):
-    """ GraphMDP Algorithm parameters """
-    def __init__(self):
-        self.n_expand = 1   # No of nodes to be expanded
-        self.n_new = 20   # no of new nodes
-        self.n_add = 1   # no of nodes to be added
-        self.radius = 1.8
-        self.exp_thresh = 1.2
-        self.max_traj_len = 500
-        self.goal_reward = 30
-        self.p_best = 0.4
-        self.max_samples = 50
-        self.max_edges = 360
-        self.start_states = []
-        self.goal_state = (1, 1)
-        self.init_type = 'random'
-        self.max_cost = 1000
-        self.conc_scale = 1
-        self.speed = 1
-
-    @property
-    def _to_json(self):
-        return self.__dict__
-
-    def load(self, json_file):
-        with open(json_file, 'r') as f:
-            jdata = json.load(f)
-            for k, v in jdata.items():
-                self.__dict__[k] = v
-
-    def save(self, filename):
-        """ Save the parameters to file """
-        with open(filename, 'w') as f:
-            json.dump(self._to_json, f)
-
-#############################################################################
-
 
 def _sample_control_time(iteration, max_iter):
     """ Sample a time iterval for running a local controller
@@ -480,10 +443,3 @@ def _tmin(it, max_iter):
 def _tmax(it, max_iter):
     return 7.2 * (1 - it/float(max_iter)) + 3.6*it/float(max_iter)
 
-
-def _controller_duration(action):
-    """
-    Returns the time it takes the controller to execute an action represented
-    by a trajectory.
-    """
-    return trajectory_length(action)

@@ -3,6 +3,8 @@ from __future__ import division
 from collections import namedtuple
 from copy import copy
 
+from scipy.spatial import Voronoi
+
 import numpy as np
 
 from matplotlib.patches import Circle, Ellipse, Polygon
@@ -11,9 +13,9 @@ import matplotlib.cm as cm
 import matplotlib as mpl
 
 from ...models.mdp import GraphMDP
-from ...models.mdp import _controller_duration
 
 from ...utils.geometry import edist
+from ...utils.geometry import trajectory_length
 from ...algorithms.mdp_solvers import graph_policy_iteration
 
 
@@ -45,10 +47,13 @@ class SocialNavMDP(GraphMDP):
         Configuration of the navigation task world
 
     """
-    def __init__(self, discount, reward, controller, params, world_config):
+    def __init__(self, discount, reward, controller, params, world_config,
+                 persons, relations):
         super(SocialNavMDP, self).__init__(discount, reward,
                                            controller, params)
         self._wconfig = world_config
+        self._persons = persons
+        self._relations = relations
 
         # manual demonstration recording
         self._recording = False
@@ -68,6 +73,12 @@ class SocialNavMDP(GraphMDP):
                     samples.append([udist(x, x+dx), udist(y, y+dy)])
 
             self._fixed_init(samples)
+
+        elif self._params.init_type == 'homotopy':
+            samples = [[p[0], p[1]] for _, p in self._persons.items()]
+            vor = Voronoi(samples)
+            self._fixed_init(samples)
+
         elif self._params.init_type == 'trajectory':
             self._traj_init(samples)
 
@@ -78,7 +89,7 @@ class SocialNavMDP(GraphMDP):
             return True
         return False
 
-    def visualize(self, persons, relations, annotations=None, fsize=(12, 9)):
+    def visualize(self, annotations=None, fsize=(12, 9)):
         """ Visualize the social navigation world
 
         Allows recording of demonstrations and also display of final
@@ -86,7 +97,7 @@ class SocialNavMDP(GraphMDP):
         """
         self._setup_visuals(fsize)
 
-        for _, p in persons.items():
+        for _, p in self._persons.items():
             phead = np.degrees(np.arctan2(p[3], p[2]))
             self.ax.add_artist(Ellipse((p[0], p[1]), width=0.3, height=0.6,
                                angle=phead, color='r', fill=False, lw=1.5,
@@ -101,9 +112,9 @@ class SocialNavMDP(GraphMDP):
             self.ax.add_artist(Circle((p[0], p[1]), radius=hz, color='r',
                                ec='r', lw=1, aa=True, alpha=0.2))
 
-        for [i, j] in relations:
-            x1, y1 = persons[i][0], persons[i][1]
-            x2, y2 = persons[j][0], persons[j][1]
+        for [i, j] in self._relations:
+            x1, y1 = self._persons[i][0], self._persons[i][1]
+            x2, y2 = self._persons[j][0], self._persons[j][1]
             self.ax.plot((x1, x2), (y1, y2), ls='-', c='r', lw=2.0, zorder=2)
 
         # for a in annotations:
@@ -150,7 +161,7 @@ class SocialNavMDP(GraphMDP):
                 ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
                 traj = self._controller.trajectory(ndata, mdata,
                                                    self._params.speed)
-                d = _controller_duration(traj)
+                d = trajectory_length(traj)
                 r, phi = self._reward(ndata, traj)
                 self._g.add_edge(source=n, target=m, reward=r,
                                  duration=d, phi=phi, traj=traj)
@@ -191,7 +202,7 @@ class SocialNavMDP(GraphMDP):
                 ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
                 traj = self._controller.trajectory(ndata, mdata,
                                                    self._params.speed)
-                d = _controller_duration(traj)
+                d = trajectory_length(traj)
                 r, phi = self._reward(ndata, traj)
                 self._g.add_edge(source=n, target=m, reward=r,
                                  duration=d, phi=phi, traj=traj)
@@ -201,7 +212,7 @@ class SocialNavMDP(GraphMDP):
             fdata, tdata = self._g.gna(m, 'data'), self._g.gna(g, 'data')
             traj = self._controller.trajectory(fdata, tdata,
                                                self._params.speed)
-            d = _controller_duration(traj)
+            d = trajectory_length(traj)
             r, phi = self._reward(fdata, traj)
             self._g.add_edge(source=m, target=g, reward=r,
                              duration=d, phi=phi, traj=traj)
