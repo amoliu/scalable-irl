@@ -23,12 +23,12 @@ class SimpleReward(MDPReward):
 
     """
 
-    def __init__(self, persons, relations, annotations, goal,
+    def __init__(self, persons, groups, annotations, goal,
                  weights, discount, kind='linfa', hzone=0.45, scaled=True):
         super(SimpleReward, self).__init__(kind)
         assert isinstance(persons, dict), 'Expect Dict for persons'
         self._persons = persons
-        self._relations = relations
+        self._groups = groups
         self._annotations = annotations
         self._goal = goal
         self._weights = asarray(weights)
@@ -41,7 +41,7 @@ class SimpleReward(MDPReward):
         """ Compute the reward, r(state, action) """
         action = check_array(action)
 
-        phi = [self._feature_relation_disturbance(action),
+        phi = [self._feature_group_disturbance(action),
                self._feature_social_disturbance(action),
                self._feature_goal_deviation_count(action),
                # self._feature_annotation_disturbance(action)
@@ -84,7 +84,7 @@ class SimpleReward(MDPReward):
                     phi += 1 * self._gamma**t
         return phi
 
-    def _feature_relation_disturbance(self, action):
+    def _feature_group_disturbance(self, action):
         atime = action.shape[0]
         c = [sum(line_crossing(action[t][0],
                                action[t][1],
@@ -94,7 +94,7 @@ class SimpleReward(MDPReward):
                                self._persons[i][1],
                                self._persons[j][0],
                                self._persons[j][1])
-                 for [i, j] in self._relations) for t in range(int(atime - 1))]
+                 for [i, j] in self._groups) for t in range(int(atime - 1))]
         ec = sum(self._gamma**i * x for i, x in enumerate(c))
         return ec
 
@@ -116,9 +116,9 @@ class AnisotropicReward(SimpleReward):
 
     """ Simple reward using an Anisotropic circle around persons"""
 
-    def __init__(self, persons, relations, annotations, goal, weights,
+    def __init__(self, persons, groups, annotations, goal, weights,
                  discount, kind='linfa', hzone=0.45, scaled=True):
-        super(AnisotropicReward, self).__init__(persons, relations,
+        super(AnisotropicReward, self).__init__(persons, groups,
                                                 annotations, goal,
                                                 weights, discount,
                                                 hzone, scaled)
@@ -151,11 +151,11 @@ class FlowMergeReward(MDPReward):
 
     """Flow reward function for merging and interacting with flows """
 
-    def __init__(self, persons, relations, goal, weights,
+    def __init__(self, persons, groups, goal, weights,
                  discount, radius=1.2, kind='linfa'):
         super(FlowMergeReward, self).__init__(kind)
         self._persons = persons
-        self._relations = relations
+        self._groups = groups
         self._goal = goal
         self._weights = weights
         self._gamma = discount
@@ -173,7 +173,7 @@ class FlowMergeReward(MDPReward):
                rel_bearing,
                self._feature_goal_deviation(action),
                self._feature_goal_distance(action),
-               self._feature_relation_disturbance(action),
+               self._feature_group_disturbance(action),
                self._feature_social_disturbance(action)]
         reward = np.dot(phi, self._weights)
         return reward, phi
@@ -247,7 +247,7 @@ class FlowMergeReward(MDPReward):
                     phi += 1 * self._gamma**t
         return phi
 
-    def _feature_relation_disturbance(self, action):
+    def _feature_group_disturbance(self, action):
         atime = action.shape[0]
         c = [sum(line_crossing(action[t][0],
                                action[t][1],
@@ -257,7 +257,7 @@ class FlowMergeReward(MDPReward):
                                self._persons[i][1],
                                self._persons[j][0],
                                self._persons[j][1])
-                 for [i, j] in self._relations) for t in range(int(atime - 1))]
+                 for [i, j] in self._groups) for t in range(int(atime - 1))]
         ec = sum(self._gamma**i * x for i, x in enumerate(c))
         return ec
 
