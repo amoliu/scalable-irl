@@ -84,13 +84,10 @@ def anisotropic_distance(focal_agent, other_agent,
     return dc
 
 
-def distance_to_segment(x, xs, xe):
-    xa = xs[0]
-    ya = xs[1]
-    xb = xe[0]
-    yb = xe[1]
-    xp = x[0]
-    yp = x[1]
+def distance_to_segment(point, (line_start, line_end)):
+    xa, ya = line_start[0], line_start[1]
+    xb, yb = line_end[0], line_end[1]
+    xp, yp = point[0], point[1]
 
     # x-coordinates
     A = xb-xa
@@ -117,37 +114,16 @@ def distance_to_segment(x, xs, xe):
     y2 = (-b - np.sqrt((b*b)-4*a*c))/(2*a)
 
     # Put point candidates together
-    xfm1 = [x1, y1]
-    xfm2 = [x2, y2]
-    xfm3 = [x1, y2]
-    xfm4 = [x2, y1]
+    candidates = ((x1, y2), (x2, y2), (x1, y2), (x2, y1))
+    distances = (edist(candidates[0], point), edist(candidates[1], point),
+                 edist(candidates[2], point), edist(candidates[3], point))
+    max_index = np.argmax(distances)
+    cand = candidates[max_index]
+    dmax = distances[max_index]
 
-    dvec = list()
-    dvec.append(edist(xfm1, x))
-    dvec.append(edist(xfm2, x))
-    dvec.append(edist(xfm3, x))
-    dvec.append(edist(xfm4, x))
-
-    dmax = -1.0
-    imax = -1
-    for i in range(4):
-        if dvec[i] > dmax:
-            dmax = dvec[i]
-            imax = i
-
-    xf = xfm1
-    if imax == 0:
-        xf = xfm1
-    elif imax == 1:
-        xf = xfm2
-    elif imax == 2:
-        xf = xfm3
-    elif imax == 3:
-        xf = xfm4
-
-    xs_xf = [xs[0]-xf[0], xs[1]-xf[1]]
-    xe_xf = [xe[0]-xf[0], xe[1]-xf[1]]
-    dotp = (xs_xf[0] * xe_xf[0]) + (xs_xf[1] * xe_xf[1])
+    start_cand = (line_start[0]-cand[0], line_start[1]-cand[1])
+    end_cand = (line_end[0]-cand[0], line_end[1]-cand[1])
+    dotp = (start_cand[0] * end_cand[0]) + (start_cand[1] * end_cand[1])
 
     inside = False
     if dotp <= 0.0:
