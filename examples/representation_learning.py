@@ -29,16 +29,15 @@ DPATH = '../../experiments/social_rewards/'
 params = GraphMDPParams()
 params.load(DPATH+'graph_mdp_params.json')
 params.max_cost = 1000
-params.max_samples = 240
+params.max_samples = 140
 params.radius = 2.4
 params.speed = 1
-params.max_edges = 36
-# choices: random, homotopy, trajectory
+params.max_edges = 360
 params.init_type = 'random'
 
-params.start_states = [[0.5, 0.5], [4, 0.1], [2, 3], [8.5, 5.2],
-                       [8.9, 0.1], [0.1, 8.5], [4, 3]]
-params.goal_state = (5.5, 9)
+STARTS = ((0.5, 0.5), (4, 0.1), (2, 3), (8.5, 5.2),
+          (8.9, 0.1), (0.1, 8.5), (4, 3))
+GOAL = (5.5, 9)
 
 # weights = [-1.0, -0.6, -0.95]  # polite
 weights = [-1.0, -0.6, -0.95]  # polite
@@ -62,9 +61,9 @@ posq_controller = POSQLocalController(wconfig, gs, base=0.4, resolution=0.15)
 
 
 def show_graph_reinforcement_learning():
-    mdp = SocialNavMDP(discount=0.95, reward=sreward,
-                       params=params, world_config=wconfig,
-                       persons=persons, relations=relations)
+    mdp = SocialNavMDP(discount=0.95, reward=sreward, world_config=wconfig,
+                       persons=persons, relations=relations,
+                       goal=GOAL, starts=STARTS)
 
     cg = ControllerGraph(mdp=mdp,
                          local_controller=posq_controller,

@@ -25,7 +25,7 @@ from numpy.random import uniform
 
 from ..algorithms.mdp_solvers import graph_policy_iteration
 from ..algorithms.function_approximation import gp_predict, gp_covariance
-from ..utils.common import wchoice, map_range, Timer
+from ..utils.common import wchoice, map_range
 from ..utils.geometry import trajectory_length
 from ..models.state_graph import StateGraph
 from ..models.base import ModelMixin
@@ -103,10 +103,7 @@ class ControllerGraph(ModelMixin, Logger):
         """ Run the adaptive state-graph procedure to solve the mdp """
         p_b = self._params.p_best
         cscale = self._params.conc_scale
-        t = Timer()
         while self._node_id < self._params.max_samples:
-            t.__enter__()
-
             if self._node_id % 10 == 0:
                 self.info('Run: no.nodes = {}'.format(self._node_id))
 
@@ -122,14 +119,14 @@ class ControllerGraph(ModelMixin, Logger):
                 # - select state to expand
                 picked = False
                 while not picked:
-                    anchor_node = wchoice(e_set.keys(), e_set.values())
-                    if not self._mdp.terminal(anchor_node):
+                    xn = wchoice(e_set.keys(), e_set.values())
+                    if not self._mdp.terminal(self._g.gna(xn, 'data')):
                         picked = True
                         break
 
                 # - expand graph from chosen state(s)m
                 for _ in range(self._params.n_new):
-                    new_state = self._sample_new_state_from(anchor_node)
+                    new_state = self._sample_new_state_from(xn)
 
                     # - compute exploration score of the new state
                     conc, es, var_es = self._exploration_score(new_state)
@@ -181,10 +178,6 @@ class ControllerGraph(ModelMixin, Logger):
             self._update_state_priorities()
             self._find_best_policies()
 
-            t.__exit__()
-            delta = t.interval
-            self.data['timing'].append(delta)
-
         # return final graph and policies
         return self._g, self._best_trajs
 
@@ -219,7 +212,7 @@ class ControllerGraph(ModelMixin, Logger):
         # - add edges between each pair
         for n in self._g.nodes:
             for m in self._g.nodes:
-                if n == m or self.terminal(n):
+                if n == m or self._mdp.terminal(self._g.gna(n, 'data')):
                     continue
                 ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
                 traj = self._controller.trajectory(ndata, mdata,
@@ -392,7 +385,7 @@ class ControllerGraph(ModelMixin, Logger):
             bt = [start]
             t = 0
             while t < self._params.max_traj_len and \
-                    not self._mdp.terminal(start):
+                    not self._mdp.terminal(G.gna(start, 'data')):
                 action = G.out_edges(start)[G.gna(start, 'pi')]
                 next_node = action[1]
                 t += max(G.gea(start, next_node, 'duration'), 1.0)
@@ -411,7 +404,7 @@ class ControllerGraph(ModelMixin, Logger):
                 xn = self._g.gna(n, 'data')
                 if len(self._g.out_edges(s)) < self._params.max_edges:
                     if not self._g.edge_exists(s, n) and\
-                            not self._mdp.terminal(s):
+                            not self._mdp.terminal(self._g.gna(s, 'data')):
                         traj = self._controller.trajectory(xs, xn, vmax)
                         d = trajectory_length(traj)
                         reward, phi = self._mdp.reward(xs, traj)
@@ -420,7 +413,7 @@ class ControllerGraph(ModelMixin, Logger):
                                          duration=d, reward=reward, traj=traj)
                 if len(self._g.out_edges(n)) < self._params.max_edges:
                     if not self._g.edge_exists(n, s) and\
-                            not self._mdp.terminal(n):
+                            not self._mdp.terminal(self._g.gna(n, 'data')):
                         traj = self._controller.trajectory(xn, xs, vmax)
                         d = trajectory_length(traj)
                         rb, phi = self._mdp.reward(xn, traj)
@@ -491,10 +484,7 @@ class ControllerGraph(ModelMixin, Logger):
         """
         gna = self._g.gna
         all_nodes = set(self._g.nodes)
-        best_set = set()
-        for traj in self._best_trajs:
-            for n in traj:
-                best_set.add(n)
+        best_set = set(n for traj in self._best_trajs for n in traj)
         other_set = all_nodes.difference(best_set)
 
         sum_p_best = sum(gna(n, 'priority') for n in best_set)
@@ -505,11 +495,14 @@ class ControllerGraph(ModelMixin, Logger):
 
         return S_best, S_other
 
-    def _sample_control_time(i, imax, tmin=(0.45, 2.4), tmax=(3.6, 7.2)):
+    def _sample_control_time(self, i, imax,
+                             tmin=(0.45, 2.4),
+                             tmax=(3.6, 7.2)):
         """ Sample a time interval for running a local controller
 
         The time iterval is tempered based on the number of iterations
         """
-        max_time = tmin[1] * (1 - i/float(imax)) + tmin[0]*i/float(imax)
-        min_time = tmax[1] * (1 - i/float(imax)) + tmax[0]*i/float(imax)
+        imax = float(imax)
+        min_time = tmin[1] * (1 - i/imax) + tmin[0] * i/imax
+        max_time = tmax[1] * (1 - i/imax) + tmax[0] * i/imax
         return uniform(min_time, max_time)

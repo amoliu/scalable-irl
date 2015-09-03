@@ -28,8 +28,6 @@ class SocialNavMDP(MDP):
         MDP discount factor
     reward : :class:`SocialNavReward` object
         Reward function for social navigation task
-    params : :class:`GraphMDPParams` object
-        Algorithm parameters for the various steps
     world_config : :class:`WorldConfig` object
         Configuration of the navigation task world
 
@@ -40,33 +38,38 @@ class SocialNavMDP(MDP):
         Configuration of the navigation task world
 
     """
-    def __init__(self, discount, reward, params,
+    def __init__(self, discount, reward, goal, starts,
                  world_config, persons, relations):
         super(SocialNavMDP, self).__init__(discount, reward)
         self._wconfig = world_config
         self._persons = persons
         self._relations = relations
-        self._params = params
+        self._goal = goal
+        self._start_states = starts
 
         # manual demonstration recording
         self._recording = False
         self._demos = list()
 
     def terminal(self, state):
-        """ Check if a state is terminal (goal state) """
-        position = self._g.gna(state, 'data')
-        if edist(position, self._params.goal_state) < 0.05:
+        """ Check if a state is terminal (goal state)
+        state is a vector of information such as position
+        """
+        if edist(state, self._goal) < 0.05:
             return True
         return False
 
+    @property
     def state_dimension(self):
         return 4
 
+    @property
     def start_states(self):
-        return self._params.start_states
+        return self._start_states
 
+    @property
     def goal_state(self):
-        return self.params.goal_state
+        return self._goal
 
     def visualize(self, G, policies, fsize=(12, 9)):
         """ Visualize the social navigation world
@@ -96,7 +99,7 @@ class SocialNavMDP(MDP):
             x2, y2 = self._persons[j][0], self._persons[j][1]
             self.ax.plot((x1, x2), (y1, y2), ls='-', c='r', lw=2.0, zorder=2)
 
-        self._plot_graph_in_world()
+        self._plot_graph_in_world(G, policies)
 
         return self.ax
 
@@ -187,7 +190,7 @@ class SocialNavMDP(MDP):
             if gna(n, 'type') == 'start':
                 color = 'black'
                 nr = 1.0
-            elif self.terminal(n):
+            elif self.terminal((posx, posy)):
                 color = 'green'
                 nr = 1.5
             elif n in best_nodes:
