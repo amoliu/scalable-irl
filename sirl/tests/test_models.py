@@ -1,9 +1,8 @@
 
-from nose.tools import assert_raises
 from nose.tools import assert_equal
 
-from sirl.models.local_controller import LocalController
-from sirl.models.reward import MDPReward
+from sirl.models.base import LocalController
+from sirl.models.base import MDPReward
 from sirl.models.mdp import GraphMDP
 # from sirl.models import AlgoParams
 

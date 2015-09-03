@@ -22,8 +22,11 @@ class StateGraph(object):
     _node_attrs = ('data', 'cost', 'priority', 'Q', 'V', 'pi', 'type')
     _edge_attrs = ('source', 'target', 'duration', 'reward', 'phi', 'traj')
 
-    def __init__(self):
+    def __init__(self, state_dim=4):
         self._graph = nx.DiGraph()
+
+        assert state_dim > 0, 'State dimension must be greater than 0'
+        self._state_dim = state_dim
 
     def clear(self):
         self.G.clear()
@@ -33,7 +36,8 @@ class StateGraph(object):
         Add a new node to the graph
         """
         data = asarray(data)
-        assert len(data) == 4, 'Expect state vector (x, y, theta, speed)'
+        assert len(data) == self._state_dim,\
+            'Expecting a {}-dim state vector for node'.format(self._state_dim)
 
         if nid not in self.G:
             self.G.add_node(nid, data=data, cost=cost, priority=priority,

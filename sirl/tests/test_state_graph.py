@@ -3,11 +3,15 @@
 from nose.tools import assert_equal
 from numpy.testing import assert_array_equal
 
-from sirl.state_graph import StateGraph
+from sirl.models.state_graph import StateGraph
+
+
+def make_test_graph():
+    return StateGraph(state_dim=2)
 
 
 def test_add_node():
-    g = StateGraph()
+    g = make_test_graph()
     g.add_node(nid=0, data=(1, 1), cost=1,
                priority=1, Q=[], V=1, pi=0, ntype='simple')
     assert_equal(len(g.nodes), 1)
@@ -17,7 +21,7 @@ def test_add_node():
 
 
 def test_add_edge():
-    g = StateGraph()
+    g = make_test_graph()
     g.add_node(nid=0, data=(1, 1), cost=1,
                priority=1, Q=[], V=1, pi=0, ntype='simple')
     g.add_node(nid=1, data=(3, 3), cost=3,
@@ -34,7 +38,7 @@ def test_add_edge():
 
 
 def test_node_attributes():
-    g = StateGraph()
+    g = make_test_graph()
     g.add_node(nid=0, data=(1, 1), cost=1,
                priority=1, Q=[], V=1, pi=0, ntype='simple')
     g.sna(0, 'priority', 5)
@@ -46,7 +50,7 @@ def test_node_attributes():
 
 
 def test_edge_attributes():
-    g = StateGraph()
+    g = make_test_graph()
     g.add_node(nid=0, data=(1, 1), cost=1,
                priority=1, Q=[], V=1, pi=0, ntype='simple')
     g.add_node(nid=1, data=(3, 3), cost=3,
@@ -64,7 +68,7 @@ def test_edge_attributes():
 
 
 def test_out_edges():
-    g = StateGraph()
+    g = make_test_graph()
     g.add_node(nid=0, data=(1, 1), cost=1,
                priority=1, Q=[], V=1, pi=0, ntype='simple')
     g.add_node(nid=1, data=(3, 3), cost=3,
@@ -82,7 +86,7 @@ def test_out_edges():
 
 
 def test_filter_nodes_by_type():
-    g = StateGraph()
+    g = make_test_graph()
     g.add_node(nid=0, data=(1, 1), cost=1,
                priority=1, Q=[], V=1, pi=0, ntype='simple')
     g.add_node(nid=1, data=(3, 3), cost=3,
@@ -96,13 +100,13 @@ def test_filter_nodes_by_type():
 
 
 def test_find_neighbors_range():
-    g = StateGraph()
+    g = make_test_graph()
     g.add_node(nid=0, data=(1, 1), cost=1,
                priority=1, Q=[], V=1, pi=0, ntype='simple')
     g.add_node(nid=1, data=(3.5, 1), cost=3,
                priority=1, Q=[], V=10, pi=0, ntype='goal')
     g.add_node(nid=2, data=(6, 1), cost=3,
                priority=1, Q=[], V=10, pi=0, ntype='start')
-    assert_equal(len(g.find_neighbors_range(0, 4)), 2)
-    assert_equal(len(g.find_neighbors_range(0, 7)), 3)
-    assert_equal(len(g.find_neighbors_range(0, 2)), 1)
+    assert_equal(len(g.find_neighbors_range(0, 4)), 1)
+    assert_equal(len(g.find_neighbors_range(0, 7)), 2)
+    assert_equal(len(g.find_neighbors_range(0, 2)), 0)
