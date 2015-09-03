@@ -68,7 +68,7 @@ class SocialNavMDP(MDP):
     def goal_state(self):
         return self.params.goal_state
 
-    def visualize(self, annotations=None, fsize=(12, 9)):
+    def visualize(self, G, policies, fsize=(12, 9)):
         """ Visualize the social navigation world
 
         Allows recording of demonstrations and also display of final
@@ -95,10 +95,6 @@ class SocialNavMDP(MDP):
             x1, y1 = self._persons[i][0], self._persons[i][1]
             x2, y2 = self._persons[j][0], self._persons[j][1]
             self.ax.plot((x1, x2), (y1, y2), ls='-', c='r', lw=2.0, zorder=2)
-
-        # for a in annotations:
-        #     self.ax.add_artist(Polygon(a.geometry, hatch='x'))
-        #     self.ax.add_artist(Polygon(a.influence_zone, alpha=0.3))
 
         self._plot_graph_in_world()
 
@@ -171,10 +167,9 @@ class SocialNavMDP(MDP):
                                0.03, fc=cc, ec=cc))
             self.figure.canvas.draw()
 
-    def _plot_graph_in_world(self, show_rewards=False):
+    def _plot_graph_in_world(self, G, policies, show_rewards=False):
         """ Shows the lattest version of the world with MDP
         """
-        G = self._g
         gna = G.gna
         gea = G.gea
 
@@ -183,7 +178,7 @@ class SocialNavMDP(MDP):
         mv = cm.ScalarMappable(norm=nv, cmap=cm.jet)
 
         best_nodes = set()
-        for traj in self._best_trajs:
+        for traj in policies:
             for state in traj:
                 best_nodes.add(state)
 
