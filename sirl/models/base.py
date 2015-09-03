@@ -2,7 +2,7 @@
 # Many pieces shamelessly borrowed from scikit-learn
 # Licence: BSD
 
-from abc import abstractmethod
+from abc import abstractmethod, abstractproperty
 from abc import ABCMeta
 
 import inspect
@@ -260,3 +260,48 @@ class LocalController(ModelMixin):
 
         """
         raise NotImplementedError('Abstract method')
+
+
+########################################################################
+
+
+class MDP(ModelMixin):
+    """ Markov Decision Process Model
+
+    Parameters
+    ------------
+    discount : float
+        MDP discount factor
+    reward : `SocialNavReward` object
+        Reward function for social navigation task
+    gamma
+
+    reward
+
+    Attributes
+    -----------
+    gamma : float
+        MDP discount factor
+    _reward : :class:`SocialNavReward` object
+        Reward function for social navigation task
+
+    params :
+
+    """
+
+    def __init__(self, discount, reward, controller, params):
+        if 0.0 > discount >= 1.0:
+            raise ValueError('The `discount` must be in [0, 1)')
+
+        self.gamma = discount
+        self.reward = reward
+        self.params = params
+
+    @abstractmethod
+    def terminal(self, state):
+        """ Check if a state is terminal (goal state) """
+        raise NotImplementedError('Abstract method')
+
+    @abstractproperty
+    def state_dimension(self):
+        return 0

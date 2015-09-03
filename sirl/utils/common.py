@@ -77,7 +77,7 @@ class Logger(object):
                     fn = self.__class__.__name__ + '.' + fn
                 fn += '|'
 
-        logfn(loc + cname + fn + ': ' + message, exc_info=exc_info)
+        logfn(loc + cname + fn + ' ' + message, exc_info=exc_info)
 
     def info(self, message, exc_info=False):
         """
@@ -107,8 +107,7 @@ class Logger(object):
         """
         self._raw_log(logging.error, message, exc_info)
 
-    @staticmethod
-    def log_config(level=logging.INFO):
+    def log_config(self, level=logging.INFO):
         """
         Apply a basic logging configuration which outputs the log to the
         console (stderr). Optionally, the minimum log level can be set, one

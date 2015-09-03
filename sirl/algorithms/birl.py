@@ -175,10 +175,7 @@ class TBIRL(ModelMixin, Logger):
             trajs = self._generate_trajestories()
             g_trajs.append(trajs)
 
-            # self._mdp.visualize(persons, relations)
-            # plt.savefig('learning_{}.pdf'.format(iteration))
-
-            print('Iteration: {}'.format(iteration))
+            self.info('Iteration: {}'.format(iteration))
 
         return reward
 

@@ -1,40 +1,43 @@
+r"""
+ControllerGraph
 
+A representation learning algorithm for MDPs.
+MDP is represented using a weighted labelled directed graph,
+
+    .. math:
+        \mathcal{G} = \langle \mathcal{S}, \mathcal{A}, \mathbf{W} \rangle
+
+    where the weights :math:`w_{i,j} \in \mathbb{R}` are transition
+    probabilities from state (:math:`s_i`) to (:math:`s_j`), i.e.
+    :math:`p(s' | s, a)`
+
+Graph is initialized using a variety of procedures, while growing of the graph
+is done online my mixing exploration and expoitation guided by heuristics
+
+"""
 from __future__ import division
 
-from abc import abstractmethod
-from abc import ABCMeta
+import logging
 
 import numpy as np
 from numpy.random import uniform
 
-from .state_graph import StateGraph
 from ..algorithms.mdp_solvers import graph_policy_iteration
 from ..algorithms.function_approximation import gp_predict, gp_covariance
-
 from ..utils.common import wchoice, map_range, Timer
 from ..utils.geometry import trajectory_length
-from .base import ModelMixin
+from ..models.state_graph import StateGraph
+from ..models.base import ModelMixin
+from ..utils.common import Logger
 
 
-__all__ = ['GraphMDP']
-
-
-class GraphMDP(ModelMixin):
-    """ Adaptive State-Graph MDP
-
-    MDP is represented using a weighted adaptive state graph,
-    .. math:
-        \mathcal{G} = \langle \mathcal{S}, \mathcal{A}, w \rangle
-
-    where the weights :math:`w \in \mathbb{R}` are costs of transitioning from
-    one state to another (also intepreted as rewards)
+class ControllerGraph(ModelMixin, Logger):
+    """ A ControllerGraph
 
     Parameters
     ------------
-    discount : float
-        MDP discount factor
-    reward : `SocialNavReward` object
-        Reward function for social navigation task
+    mdp : `MDP` object
+        MDP object (describing the state, action, transitions, etc)
     controller : `SocialNavLocalController` object
         Local controller for the task
     params : `GraphMDPParams` object
@@ -43,10 +46,6 @@ class GraphMDP(ModelMixin):
 
     Attributes
     -----------
-    gamma : float
-        MDP discount factor
-    _reward : :class:`SocialNavReward` object
-        Reward function for social navigation task
     _controller : :class:`SocialNavLocalController` object
         Local controller for the task
     _g : :class:`StateGraph` object
@@ -66,38 +65,28 @@ class GraphMDP(ModelMixin):
         Minimum exploration score for a state
 
     """
-
-    __metaclass__ = ABCMeta
-
-    def __init__(self, discount, reward, controller, params):
-        if 0.0 > discount >= 1.0:
-            raise ValueError('The `discount` must be in [0, 1)')
-
-        self.gamma = discount
-        self._reward = reward
-        self._controller = controller
+    def __init__(self, mdp, local_controller, params):
+        self._mdp = mdp
+        self._controller = local_controller
         self._params = params
 
         # setup the graph structure and internal variables
-        self._g = StateGraph()
+        self._g = StateGraph(state_dim=4)
         self._best_trajs = []
         self._node_id = 0
         self._max_conc = 1.0
         self._max_es = 1.0
         self._min_es = 0.0
 
-        self.data = dict()
-        self.data['timing'] = []
+        self.log_config(logging.INFO)
 
-    @abstractmethod
+        # mdp contains; S, A, R, state-dim
+        # controller allows generation of edges
+        # CG returns a resulting graph object
+
     def initialize_state_graph(self, samples):
         """ Initialize graph using set of initial samples """
-        raise NotImplementedError('Abstract method')
-
-    @abstractmethod
-    def terminal(self, state):
-        """ Check if a state is terminal (goal state) """
-        raise NotImplementedError('Abstract method')
+        pass
 
     def run(self):
         """ Run the adaptive state-graph procedure to solve the mdp """
@@ -108,7 +97,7 @@ class GraphMDP(ModelMixin):
             t.__enter__()
 
             if self._node_id % 10 == 0:
-                print('Run: no.nodes = {}'.format(self._node_id))
+                self.info('Run: no.nodes = {}'.format(self._node_id))
 
             # - select state expansion set between S_best and S_other
             S_best, S_other = self._generate_state_sets()
@@ -123,7 +112,7 @@ class GraphMDP(ModelMixin):
                 picked = False
                 while not picked:
                     anchor_node = wchoice(e_set.keys(), e_set.values())
-                    if not self.terminal(anchor_node):
+                    if not self._mdp.terminal(anchor_node):
                         picked = True
                         break
 
@@ -163,7 +152,7 @@ class GraphMDP(ModelMixin):
                 # - compute the missing backwards phi and rewards
                 b_traj = self._controller.trajectory(sn['data'], sn['b_data'],
                                                      self._params.speed)
-                b_r, b_phi = self._reward(sn['data'], b_traj)
+                b_r, b_phi = self._mdp.reward(sn['data'], b_traj)
                 b_d = trajectory_length(b_traj)
                 self._g.add_edge(source=nid, target=sn['b_state'], reward=b_r,
                                  duration=b_d, phi=b_phi, traj=b_traj)
@@ -177,7 +166,7 @@ class GraphMDP(ModelMixin):
 
             # - update state attributes, policies
             self._update_state_costs()
-            graph_policy_iteration(self)
+            graph_policy_iteration(self._g, self._mdp.gamma)
             self._update_state_priorities()
             self._find_best_policies()
 
@@ -185,15 +174,8 @@ class GraphMDP(ModelMixin):
             delta = t.interval
             self.data['timing'].append(delta)
 
-        return self
-
-    # -------------------------------------------------------------
-    # properties
-    # -------------------------------------------------------------
-
-    @property
-    def graph(self):
-        return self._g
+        # return final graph and policies
+        return self._g, self._best_trajs
 
     # -------------------------------------------------------------
     # internals
@@ -221,7 +203,8 @@ class GraphMDP(ModelMixin):
         """
         gna = self._g.gna
         iteration = len(self._g.nodes)
-        duration = _sample_control_time(iteration, self._params.max_samples)
+        duration = self._sample_control_time(iteration,
+                                             self._params.max_samples)
 
         cs = gna(state, 'data')
         vmax = self._params.speed
@@ -235,7 +218,7 @@ class GraphMDP(ModelMixin):
                 break
 
         # - can be costly, only compute the forward case here
-        reward, phi = self._reward(state=gna(state, 'data'), action=f_traj)
+        reward, phi = self._mdp.reward(state=gna(state, 'data'), action=f_traj)
 
         state_dict = dict()
         state_dict['data'] = ns
@@ -309,7 +292,8 @@ class GraphMDP(ModelMixin):
         for start in G.filter_nodes_by_type(ntype='start'):
             bt = [start]
             t = 0
-            while t < self._params.max_traj_len and not self.terminal(start):
+            while t < self._params.max_traj_len and \
+                    not self._mdp.terminal(start):
                 action = G.out_edges(start)[G.gna(start, 'pi')]
                 next_node = action[1]
                 t += max(G.gea(start, next_node, 'duration'), 1.0)
@@ -327,18 +311,20 @@ class GraphMDP(ModelMixin):
                 xs = self._g.gna(s, 'data')
                 xn = self._g.gna(n, 'data')
                 if len(self._g.out_edges(s)) < self._params.max_edges:
-                    if not self._g.edge_exists(s, n) and not self.terminal(s):
+                    if not self._g.edge_exists(s, n) and\
+                            not self._mdp.terminal(s):
                         traj = self._controller.trajectory(xs, xn, vmax)
                         d = trajectory_length(traj)
-                        reward, phi = self._reward(xs, traj)
+                        reward, phi = self._mdp.reward(xs, traj)
 
                         self._g.add_edge(source=s, target=n, phi=phi,
                                          duration=d, reward=reward, traj=traj)
                 if len(self._g.out_edges(n)) < self._params.max_edges:
-                    if not self._g.edge_exists(n, s) and not self.terminal(n):
+                    if not self._g.edge_exists(n, s) and\
+                            not self._mdp.terminal(n):
                         traj = self._controller.trajectory(xn, xs, vmax)
                         d = trajectory_length(traj)
-                        rb, phi = self._reward(xn, traj)
+                        rb, phi = self._mdp.reward(xn, traj)
                         self._g.add_edge(source=n, target=s, phi=phi,
                                          duration=d, reward=rb, traj=traj)
 
@@ -420,25 +406,11 @@ class GraphMDP(ModelMixin):
 
         return S_best, S_other
 
+    def _sample_control_time(i, imax, tmin=(0.45, 2.4), tmax=(3.6, 7.2)):
+        """ Sample a time interval for running a local controller
 
-#############################################################################
-
-
-def _sample_control_time(iteration, max_iter):
-    """ Sample a time iterval for running a local controller
-
-    The time iterval is tempered based on the number of iterations
-    """
-    max_time = _tmax(iteration, max_iter)
-    min_time = _tmin(iteration, max_iter)
-    delta = uniform(min_time, max_time)
-    return delta
-
-
-def _tmin(it, max_iter):
-    """ Params based on proxemics """
-    return 2.4 * (1 - it/float(max_iter)) + 0.45*it/float(max_iter)
-
-
-def _tmax(it, max_iter):
-    return 7.2 * (1 - it/float(max_iter)) + 3.6*it/float(max_iter)
+        The time iterval is tempered based on the number of iterations
+        """
+        max_time = tmin[1] * (1 - i/float(imax)) + tmin[0]*i/float(imax)
+        min_time = tmax[1] * (1 - i/float(imax)) + tmax[0]*i/float(imax)
+        return uniform(min_time, max_time)
