@@ -1,7 +1,7 @@
 # Scalable inverse reinforcement learning 
 This repo contains code for scalable IRL approach that involves two key steps:
-1. Representation learning via adaptive state graphs
-2. IRL over (infinite) state and action spaces via sampled trajectories
+   1. Representation learning via adaptive state graphs
+   2. IRL over (infinite) state and action spaces via sampled trajectories
 
 
 ## Features
