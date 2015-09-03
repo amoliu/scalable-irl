@@ -284,18 +284,14 @@ class MDP(ModelMixin):
         MDP discount factor
     _reward : :class:`SocialNavReward` object
         Reward function for social navigation task
-
-    params :
-
     """
 
-    def __init__(self, discount, reward, controller, params):
+    def __init__(self, discount, reward):
         if 0.0 > discount >= 1.0:
             raise ValueError('The `discount` must be in [0, 1)')
 
         self.gamma = discount
         self.reward = reward
-        self.params = params
 
     @abstractmethod
     def terminal(self, state):
@@ -305,3 +301,11 @@ class MDP(ModelMixin):
     @abstractproperty
     def state_dimension(self):
         return 0
+
+    @abstractproperty
+    def start_states(self):
+        return None
+
+    @abstractproperty
+    def goal_state(self):
+        return None

@@ -3,7 +3,7 @@ from nose.tools import assert_equal
 
 from sirl.models.base import LocalController
 from sirl.models.base import MDPReward
-from sirl.models.mdp import GraphMDP
+from sirl.models.base import MDP
 # from sirl.models import AlgoParams
 
 

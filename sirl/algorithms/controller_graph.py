@@ -18,6 +18,7 @@ is done online my mixing exploration and expoitation guided by heuristics
 from __future__ import division
 
 import logging
+import copy
 
 import numpy as np
 from numpy.random import uniform
@@ -71,7 +72,7 @@ class ControllerGraph(ModelMixin, Logger):
         self._params = params
 
         # setup the graph structure and internal variables
-        self._g = StateGraph(state_dim=4)
+        self._g = StateGraph(state_dim=mdp.state_dimension)
         self._best_trajs = []
         self._node_id = 0
         self._max_conc = 1.0
@@ -80,13 +81,23 @@ class ControllerGraph(ModelMixin, Logger):
 
         self.log_config(logging.INFO)
 
-        # mdp contains; S, A, R, state-dim
-        # controller allows generation of edges
-        # CG returns a resulting graph object
-
     def initialize_state_graph(self, samples):
-        """ Initialize graph using set of initial samples """
-        pass
+        """ Initialize graph using set of initial samples
+
+        If random, samples are states
+        If trajectory, samples are trajectories
+
+        """
+        if self._params.init_type == 'random':
+            self._fixed_init(samples)
+        elif self._params.init_type == 'trajectory':
+            self._traj_init(samples)
+
+        # - update graph attributes
+        self._update_state_costs()
+        graph_policy_iteration(self._g, self._mdp.gamma)
+        self._update_state_priorities()
+        self._find_best_policies()
 
     def run(self):
         """ Run the adaptive state-graph procedure to solve the mdp """
@@ -180,6 +191,94 @@ class ControllerGraph(ModelMixin, Logger):
     # -------------------------------------------------------------
     # internals
     # -------------------------------------------------------------
+
+    def _fixed_init(self, samples):
+        """ Initialize from random samples """
+        GR = self._params.goal_reward
+        CLIMIT = self._params.max_cost
+        GOAL = list(self._mdp.goal_state) + [0, self._params.speed]
+
+        for start in self._mdp.start_states:
+            st = list(start) + [0, self._params.speed]
+            self._g.add_node(nid=self._node_id, data=st, cost=0,
+                             priority=1, V=GR, pi=0, Q=[], ntype='start')
+            self._node_id += 1
+
+        self._g.add_node(nid=self._node_id, data=GOAL, cost=-CLIMIT,
+                         priority=1, V=GR, pi=0, Q=[], ntype='goal')
+        self._node_id += 1
+
+        # - add the init samples
+        init_samples = list(samples)
+        for sample in init_samples:
+            smp = list(sample) + [0, self._params.speed]
+            self._g.add_node(nid=self._node_id, data=smp, cost=-CLIMIT,
+                             priority=1, V=GR, pi=0, Q=[], ntype='simple')
+            self._node_id += 1
+
+        # - add edges between each pair
+        for n in self._g.nodes:
+            for m in self._g.nodes:
+                if n == m or self.terminal(n):
+                    continue
+                ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
+                traj = self._controller.trajectory(ndata, mdata,
+                                                   self._params.speed)
+                d = trajectory_length(traj)
+                r, phi = self._mdp.reward(ndata, traj)
+                self._g.add_edge(source=n, target=m, reward=r,
+                                 duration=d, phi=phi, traj=traj)
+
+    def _traj_init(self, trajs):
+        """ Initialize from trajectories """
+        GR = self._params.goal_reward
+        CLIMIT = self._params.max_cost
+
+        # - goal state
+        self._g.add_node(nid=self._node_id, data=self._params.goal_state,
+                         cost=-CLIMIT, priority=1, V=GR, pi=0,
+                         Q=[], ntype='goal')
+        g = copy.copy(self._node_id)
+        self._node_id += 1
+
+        self._params.start_states = []
+        for traj in trajs:
+            # - add start
+            start = traj[0]
+            self._params.start_states.append(start)
+            self._g.add_node(nid=self._node_id, data=start, cost=0,
+                             priority=1, V=GR, pi=0, Q=[], ntype='start')
+            n = copy.copy(self._node_id)
+            self._node_id += 1
+
+            # - add the rest of the waypoints
+            for wp in traj[1:]:
+                self._g.add_node(nid=self._node_id, data=wp, cost=-CLIMIT,
+                                 priority=1, V=GR, pi=0, Q=[], ntype='simple')
+                m = copy.copy(self._node_id)
+                ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
+                traj = self._controller.trajectory(ndata, mdata,
+                                                   self._params.speed)
+                d = trajectory_length(traj)
+                r, phi = self._reward(ndata, traj)
+                self._g.add_edge(source=n, target=m, reward=r,
+                                 duration=d, phi=phi, traj=traj)
+                n = copy.copy(self._node_id)
+                self._node_id += 1
+
+            fdata, tdata = self._g.gna(m, 'data'), self._g.gna(g, 'data')
+            traj = self._controller.trajectory(fdata, tdata,
+                                               self._params.speed)
+            d = trajectory_length(traj)
+            r, phi = self._reward(fdata, traj)
+            self._g.add_edge(source=m, target=g, reward=r,
+                             duration=d, phi=phi, traj=traj)
+
+        # - update graph attributes
+        self._update_state_costs()
+        graph_policy_iteration(self)
+        self._update_state_priorities()
+        self._find_best_policies()
 
     def _sample_new_state_from(self, state):
         """ Sample new node in the neighborhood of a given state (node)
