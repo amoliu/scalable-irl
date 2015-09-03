@@ -436,9 +436,9 @@ def _sample_control_time(iteration, max_iter):
 
 
 def _tmin(it, max_iter):
+    """ Params based on proxemics """
     return 2.4 * (1 - it/float(max_iter)) + 0.45*it/float(max_iter)
 
 
 def _tmax(it, max_iter):
     return 7.2 * (1 - it/float(max_iter)) + 3.6*it/float(max_iter)
-
