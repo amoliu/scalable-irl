@@ -176,6 +176,7 @@ def _pprint(params, offset=0, printer=repr):
 
 ########################################################################
 
+# Reward model
 
 class MDPReward(ModelMixin):
     """ Reward  function base class """
@@ -203,6 +204,34 @@ class MDPReward(ModelMixin):
         dim = sum([f[0].startswith(self._template) for f in features])
         return dim
 
+
+# Reward Loss Functions
+
+class RewardLoss(ModelMixin):
+    """Reward loss function """
+
+    __meta__ = ABCMeta
+
+    def __init__(self, name):
+        self.name = name
+
+    @abstractmethod
+    def __call__(self, r1, r2):
+        """ Reward loss between ``r1`` and ``r2`` """
+        raise NotImplementedError('Abstract')
+
+
+class TrajQualityLoss(RewardLoss):
+    """ Trajectory quality loss :math:`||Q(s) - Q(s)||_p` """
+    def __init__(self, p=2, name='tqloss'):
+        super(TrajQualityLoss, self).__init__(name)
+        self.p = p
+
+    def __call__(self, QE, QPi):
+        ql = sum([sum((Qe - Qp)**self.p
+                 for Qe, Qp in zip(QE, Q_i))
+                 for Q_i in QPi])
+        return ql
 
 ########################################################################
 
