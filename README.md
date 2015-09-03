@@ -1,4 +1,4 @@
-# Scalable inverse reinforcement learning 
+# Scalable inverse reinforcement learning
 This repo contains code for scalable IRL approach that involves two key steps:
    1. Representation learning via adaptive state graphs
    2. IRL over (infinite) state and action spaces via sampled trajectories
@@ -11,11 +11,14 @@ This repo contains code for scalable IRL approach that involves two key steps:
    - Currently on BIRL variants available
 
 ## Installation
+
 ```bash
 git clone https://github.com/makokal/scalable-irl.git
-python setup.py build_ext -i
-python setup.py develop  # For local development without global install
-[sudo] python setup.py install  # for global install
+cd scalable-irl
+[sudo] pip install -r requirements.txt  # install dependencies
+make
+[sudo] make develop  # For local development without global install
+[sudo] make install  # for global install
 ```
 
 ## Roadmap
