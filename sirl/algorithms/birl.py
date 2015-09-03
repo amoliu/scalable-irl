@@ -27,7 +27,7 @@ import numpy as np
 from numpy.random import choice, randint, uniform
 
 from .mdp_solvers import graph_policy_iteration
-from ..base import ModelMixin
+from ..models.base import ModelMixin
 from ..utils.common import Logger
 
 

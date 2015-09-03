@@ -2,7 +2,7 @@ from __future__ import division
 
 import numpy as np
 
-from ...models.local_controller import LocalController
+from ...models.base import LocalController
 from ...utils.geometry import normangle, edist
 from ...utils.validation import asarray
 from .social_navigation import WorldConfig
