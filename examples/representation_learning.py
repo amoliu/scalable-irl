@@ -3,6 +3,7 @@ from __future__ import division
 
 import json
 import time
+import copy
 import numpy as np
 
 import matplotlib
@@ -22,6 +23,13 @@ from sirl.domains.navigation.social_navigation import SocialNavWorld
 
 from sirl.algorithms.controller_graph import ControllerGraph
 from sirl.models.parameters import GraphMDPParams
+
+# learning behavior
+from sirl.algorithms.birl import TBIRLOpt
+from sirl.algorithms.birl import UniformRewardPrior
+from sirl.models.base import TrajQualityLoss
+
+
 
 DPATH = '../../experiments/social_rewards/'
 
@@ -70,13 +78,44 @@ def show_graph_reinforcement_learning():
 
     # trajs = np.load('demos_metropolis.npy')
     cg.initialize_state_graph(samples=[(5, 5), (1, 3)])
+    cg = cg.run()
 
-    g, policies = cg.run()
+    mdp.visualize(cg.graph, cg.policies, show_edges=False)
 
-    mdp.visualize(g, policies, show_edges=False)
+    plt.show()
+
+
+def learn_reward():
+    sreward = SimpleReward(world, WEIGHTS[BEHAVIOR], scaled=False,
+                           behavior=BEHAVIOR, anisotropic=False,
+                           thresh_p=0.45, thresh_r=0.2)
+
+    mdp = SocialNavMDP(discount=0.95, reward=sreward, world=world)
+
+    cg = ControllerGraph(mdp=mdp,
+                         local_controller=lin_controller,
+                         params=params)
+    cg.initialize_state_graph(samples=[(5, 5), (1, 3)])
+    cg = cg.run()
+
+    demos = copy.deepcopy(cg.policies)
+
+    loss = TrajQualityLoss()
+    prior = UniformRewardPrior()
+
+    irl_algo = TBIRLOpt(demos, cg, prior, loss=loss, beta=0.9, max_iter=10)
+    r = irl_algo.solve(persons, relations)
+    print('Learned reward, {}'.format(r))
+
+    # use found reward to generate policies for visualization
+    cg.mdp.reward._weights = r
+    cg.initialize_state_graph(samples=[(5, 5), (1, 3)])
+    cg = cg.run()
+    mdp.visualize(cg.graph, cg.policies, show_edges=False)
 
     plt.show()
 
 
 if __name__ == '__main__':
-    show_graph_reinforcement_learning()
+    # show_graph_reinforcement_learning()
+    learn_reward()

@@ -136,8 +136,6 @@ class TBIRL(ModelMixin, Logger):
     -----------
     _demos : array-like, shape (M x d)
         Expert demonstrations as M trajectories of state action pairs
-    _mdp : ``GraphMDP`` object
-        The underlying (semi) Markov decision problem
     _prior : ``RewardPrior`` object
         Reward prior callable
     _loss : callable
@@ -151,10 +149,10 @@ class TBIRL(ModelMixin, Logger):
 
     __meta__ = ABCMeta
 
-    def __init__(self, demos, mdp, prior, loss, beta=0.7, max_iter=10):
+    def __init__(self, demos, cg, prior, loss, beta=0.7, max_iter=10):
         self._demos = demos
         self._prior = prior
-        self._mdp = mdp
+        self._rep = cg  # control graph representation
         self._loss = loss
         self._beta = beta
         self._max_iter = max_iter
@@ -195,26 +193,28 @@ class TBIRL(ModelMixin, Logger):
 
     def _generate_trajestories(self):
         """ Generate trajectories using a given policy """
-        self._mdp._find_best_policies()
-        return self._mdp._best_trajs
+        self._rep._find_best_policies()
+        return self._rep._best_trajs
 
     def _compute_policy(self, reward):
         """ Compute the policy induced by a given reward function """
         # TODO - check that reward is a weight vector
-        gea = self._mdp.graph.gea
-        sea = self._mdp.graph.sea
+        gea = self._rep.graph.gea
+        sea = self._rep.graph.sea
 
-        for e in self._mdp.graph.all_edges:
+        for e in self._rep.all_edges:
             phi = gea(e[0], e[1], 'phi')
             r = np.dot(phi, reward)
             sea(e[0], e[1], 'reward', r)
 
-        graph_policy_iteration(self._mdp)
+        graph_policy_iteration(self._rep.graph,
+                               self._rep.mdp.gamma)
 
     def _expert_trajectory_quality(self, reward):
         """ Compute the Q-function of expert trajectories """
-        G = self._mdp.graph
-        gr = self._mdp._params.goal_reward
+        G = self._rep.graph
+        gr = 100  # TODO - make configurable
+        gamma = self._rep.mdp.gamma
 
         QEs = []
         for traj in self._demos:
@@ -225,17 +225,18 @@ class TBIRL(ModelMixin, Logger):
                 if actions:
                     e = actions[G.gna(n, 'pi')]
                     r = np.dot(reward, G.gea(e[0], e[1], 'phi'))
-                    QE += (self._mdp.gamma ** time) * r
+                    QE += (gamma ** time) * r
                     time += G.gea(e[0], e[1], 'duration')
                 else:
-                    QE += (self._mdp.gamma ** time) * gr
+                    QE += (gamma ** time) * gr
             QEs.append(QE)
         return QEs
 
     def _generated_trajectory_quality(self, reward, g_trajs):
         """ Compute the Q-function of generated trajectories """
-        G = self._mdp.graph
-        gr = self._mdp._params.goal_reward
+        G = self._rep.graph
+        gr = 100
+        gamma = self._rep.mdp.gamma
 
         QPiv = []
         for g_traj in g_trajs:
@@ -248,10 +249,10 @@ class TBIRL(ModelMixin, Logger):
                     if actions:
                         e = actions[G.gna(n, 'pi')]
                         r = np.dot(reward, G.gea(e[0], e[1], 'phi'))
-                        QPi += (self._mdp.gamma ** time) * r
+                        QPi += (gamma ** time) * r
                         time += G.gea(e[0], e[1], 'duration')
                     else:
-                        QPi += (self._mdp.gamma ** time) * gr
+                        QPi += (gamma ** time) * gr
                 QPis.append(QPi)
             QPiv.append(QPis)
         return QPiv
@@ -297,7 +298,7 @@ class TBIRLOpt(TBIRL):
         self._bounds = bounds
         if self._bounds is None:
             self._bounds = tuple((-self._rmax, self._rmax)
-                                 for _ in range(self._mdp._reward.dim))
+                                 for _ in range(self._rep.mdp.reward.dim))
 
         self.data = dict()
         self.data['qloss'] = []
@@ -306,7 +307,7 @@ class TBIRLOpt(TBIRL):
         """
         Generate initial reward
         """
-        rdim = self._mdp._reward.dim
+        rdim = self._rep.mdp.reward.dim
         loc = [-self._rmax + i * delta
                for i in range(int(self._rmax / delta + 1))]
         r = [loc[randrange(int(self._rmax / delta + 1))] for _ in range(rdim)]
@@ -357,8 +358,8 @@ class TBIRLOpt(TBIRL):
     def _get_diff_feature_matrix(self, start_state):
         num_g_trajs = len(self.g_trajs)
         time = 0
-        rdim = self._mdp._reward.dim
-        G = self._mdp.graph
+        rdim = self._rep.mdp.reward.dim
+        G = self._rep.graph
 
         QEf = np.zeros(rdim + 1)
         for n in self._demos[start_state]:
@@ -369,14 +370,14 @@ class TBIRLOpt(TBIRL):
                 tmp.append(0)
                 tmp = np.array(tmp)
                 time += G.gea(e[0], e[1], 'duration')
-                tmp = (self._mdp.gamma ** time) * tmp
+                tmp = (self._rep.mdp.gamma ** time) * tmp
                 QEf += tmp
                 time += G.gea(e[0], e[1], 'duration')
             else:
                 tmp = ([0] * rdim)
                 tmp.append(1)
                 tmp = np.array(tmp)
-                tmp = (self._mdp.gamma ** time) * tmp
+                tmp = (self._rep.mdp.gamma ** time) * tmp
                 QEf += tmp
 
         Qf = np.zeros((rdim + 1) * num_g_trajs).reshape(rdim + 1, num_g_trajs)
@@ -389,21 +390,21 @@ class TBIRLOpt(TBIRL):
                     tmp = list(G.gea(e[0], e[1], 'phi'))
                     tmp.append(0)
                     tmp = np.array(tmp)
-                    tmp = (self._mdp.gamma ** time) * tmp
+                    tmp = (self._rep.mdp.gamma ** time) * tmp
                     QPif += tmp
                     time += G.gea(e[0], e[1], 'duration')
                 else:
                     tmp = ([0] * rdim)
                     tmp.append(1)
                     tmp = np.array(tmp)
-                    tmp = (self._mdp.gamma ** time) * tmp
+                    tmp = (self._rep.mdp.gamma ** time) * tmp
                     QPif += tmp
             Qf[:, i] = np.transpose(QPif - QEf)
         return Qf
 
     def _ais(self, start_state, r):
-        goal_reward = self._mdp._params.goal_reward
-        G = self._mdp.graph
+        goal_reward = 100
+        G = self._rep.graph
         time = 0
         QE = 0
         for n in self._demos[start_state]:
@@ -411,10 +412,10 @@ class TBIRLOpt(TBIRL):
             if actions:
                 e = actions[G.gna(n, 'pi')]
                 r = np.dot(r, G.gea(e[0], e[1], 'phi'))
-                QE += (self._mdp.gamma ** time) * r
+                QE += (self._rep.mdp.gamma ** time) * r
                 time += G.gea(e[0], e[1], 'duration')
             else:
-                QE += (self._mdp.gamma ** time) * goal_reward
+                QE += (self._rep.mdp.gamma ** time) * goal_reward
 
         QPis = []
         for generated_traj in self.g_trajs:
@@ -425,10 +426,10 @@ class TBIRLOpt(TBIRL):
                 if actions:
                     e = actions[G.gna(n, 'pi')]
                     r = np.dot(r, G.gea(e[0], e[1], 'phi'))
-                    QE += (self._mdp.gamma ** time) * r
+                    QE += (self._rep.mdp.gamma ** time) * r
                     time += G.gea(e[0], e[1], 'duration')
                 else:
-                    QPi += (self._mdp.gamma ** time) * goal_reward
+                    QPi += (self._rep.mdp.gamma ** time) * goal_reward
             QPis.append(QPi)
         QPis = [np.exp(Q - QE) for Q in QPis]
         tot = sum(Q for Q in QPis)
@@ -537,10 +538,10 @@ class TBIRLPolicyWalk(TBIRL):
     Using small step sizes generally implies the need for more samples
 
     """
-    def __init__(self, demos, mdp, prior, loss, step_size=0.3, burn=0.2,
+    def __init__(self, demos, cg, prior, loss, step_size=0.3, burn=0.2,
                  max_iter=10, beta=0.9, reward_max=1.0, mcmc_iter=200,
                  cooling=False):
-        super(TBIRLPolicyWalk, self).__init__(demos, mdp, prior, loss,
+        super(TBIRLPolicyWalk, self).__init__(demos, cg, prior, loss,
                                               beta, max_iter)
         self._delta = step_size
         self._rmax = reward_max
@@ -560,7 +561,7 @@ class TBIRLPolicyWalk(TBIRL):
         """
         Generate initial reward for the algorithm in $R^{|S| / \delta}$
         """
-        rdim = self._mdp._reward.dim
+        rdim = self._rep.mdp.reward.dim
         loc = [-self._rmax + i * self._delta
                for i in range(int(self._rmax / self._delta + 1))]
         r = [loc[randrange(int(self._rmax / self._delta + 1))]

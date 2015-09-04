@@ -88,6 +88,8 @@ class ControllerGraph(ModelMixin, Logger):
         If trajectory, samples are trajectories
 
         """
+        self._g.clear()
+
         if self._params.init_type == 'random':
             self._fixed_init(samples)
         elif self._params.init_type == 'trajectory':
@@ -174,12 +176,23 @@ class ControllerGraph(ModelMixin, Logger):
 
             # - update state attributes, policies
             self._update_state_costs()
-            graph_policy_iteration(self._g, self._mdp.gamma)
+            graph_policy_iteration(self.graph, self.mdp.gamma)
             self._update_state_priorities()
             self._find_best_policies()
 
-        # return final graph and policies
-        return self._g, self._best_trajs
+        return self
+
+    @property
+    def graph(self):
+        return self._g
+
+    @property
+    def policies(self):
+        return self._best_trajs
+
+    @property
+    def mdp(self):
+        return self._mdp
 
     # -------------------------------------------------------------
     # internals
