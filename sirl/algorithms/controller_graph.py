@@ -99,7 +99,7 @@ class ControllerGraph(ModelMixin, Logger):
         self._update_state_costs()
         graph_policy_iteration(self._g, self._mdp.gamma)
         self._update_state_priorities()
-        self._find_best_policies()
+        self.find_best_policies()
 
     def run(self):
         """ Run the adaptive state-graph procedure to solve the mdp """
@@ -178,7 +178,42 @@ class ControllerGraph(ModelMixin, Logger):
             self._update_state_costs()
             graph_policy_iteration(self.graph, self.mdp.gamma)
             self._update_state_priorities()
-            self._find_best_policies()
+            self.find_best_policies()
+
+        return self
+
+    def find_best_policies(self):
+        """ Find the best trajectories from starts to goal state """
+        self._best_trajs = []
+        G = self._g
+        for start in G.filter_nodes_by_type(ntype='start'):
+            bt = [start]
+            t = 0
+            while t < self._params.max_traj_len and \
+                    not self._mdp.terminal(G.gna(start, 'data')):
+                action = G.out_edges(start)[G.gna(start, 'pi')]
+                next_node = action[1]
+                t += max(G.gea(start, next_node, 'duration'), 1.0)
+                start = next_node
+                if start not in bt:
+                    bt.append(start)
+            self._best_trajs.append(bt)
+
+        return self._best_trajs
+
+    def update_rewards(self, new_reward):
+        """ Update the reward for all edges in the graph """
+        new_reward = np.asarray(new_reward)
+        assert new_reward.size == self.mdp.reward.dim,\
+            'weight vector and feature vector dimensions do not match'
+
+        gea = self.graph.gea
+        sea = self.graph.sea
+
+        for e in self.graph.all_edges:
+            phi = gea(e[0], e[1], 'phi')
+            r = np.dot(phi, new_reward)
+            sea(e[0], e[1], 'reward', r)
 
         return self
 
@@ -284,7 +319,7 @@ class ControllerGraph(ModelMixin, Logger):
         self._update_state_costs()
         graph_policy_iteration(self)
         self._update_state_priorities()
-        self._find_best_policies()
+        self.find_best_policies()
 
     def _sample_new_state_from(self, state):
         """ Sample new node in the neighborhood of a given state (node)
@@ -389,23 +424,6 @@ class ControllerGraph(ModelMixin, Logger):
         cscale = self._params.conc_scale
         for i, state in enumerate(states):
             G.sna(state, 'priority', ess[i] + cscale*cc[i])
-
-    def _find_best_policies(self):
-        """ Find the best trajectories from starts to goal state """
-        self._best_trajs = []
-        G = self._g
-        for start in G.filter_nodes_by_type(ntype='start'):
-            bt = [start]
-            t = 0
-            while t < self._params.max_traj_len and \
-                    not self._mdp.terminal(G.gna(start, 'data')):
-                action = G.out_edges(start)[G.gna(start, 'pi')]
-                next_node = action[1]
-                t += max(G.gea(start, next_node, 'duration'), 1.0)
-                start = next_node
-                if start not in bt:
-                    bt.append(start)
-            self._best_trajs.append(bt)
 
     def _improve_state(self, s):
         """ Improve a state's utility by adding connections """

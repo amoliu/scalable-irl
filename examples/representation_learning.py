@@ -30,13 +30,12 @@ from sirl.algorithms.birl import UniformRewardPrior
 from sirl.models.base import TrajQualityLoss
 
 
-
 DPATH = '../../experiments/social_rewards/'
 
 params = GraphMDPParams()
 params.load(DPATH+'graph_mdp_params.json')
 params.max_cost = 1000
-params.max_samples = 280
+params.max_samples = 180
 params.radius = 1.8
 params.speed = 1
 params.max_edges = 360
@@ -45,7 +44,7 @@ params.init_type = 'random'
 STARTS = ((0.5, 0.5), (4, 0.1), (2, 3), (8.5, 5.2),
           (8.9, 0.1), (0.1, 8.5), (4, 3))
 GOAL = (5.5, 9)
-BEHAVIOR = 'sociable'
+BEHAVIOR = 'polite'
 WEIGHTS = {
     'polite': [-1.0, -0.6, -0.95],
     'sociable': [-1.0, +0.2, -0.95]
@@ -99,7 +98,6 @@ def learn_reward():
     cg = cg.run()
 
     demos = copy.deepcopy(cg.policies)
-
     loss = TrajQualityLoss()
     prior = UniformRewardPrior()
 
@@ -108,10 +106,10 @@ def learn_reward():
     print('Learned reward, {}'.format(r))
 
     # use found reward to generate policies for visualization
-    cg.mdp.reward._weights = r
-    cg.initialize_state_graph(samples=[(5, 5), (1, 3)])
-    cg = cg.run()
-    mdp.visualize(cg.graph, cg.policies, show_edges=False)
+    cg = cg.update_rewards(r)
+    policies = cg.find_best_policies()
+
+    mdp.visualize(cg.graph, policies, show_edges=False)
 
     plt.show()
 

@@ -161,7 +161,7 @@ class TBIRL(ModelMixin, Logger):
         """ Find the true reward function """
         reward = self.initialize_reward()
         self._compute_policy(reward=reward)
-        init_g_trajs = self._generate_trajestories()
+        init_g_trajs = self._rep.find_best_policies()
         g_trajs = [init_g_trajs]
 
         for iteration in range(self._max_iter):
@@ -170,7 +170,7 @@ class TBIRL(ModelMixin, Logger):
 
             # - generate trajectories using current reward and store
             self._compute_policy(reward)
-            trajs = self._generate_trajestories()
+            trajs = self._rep.find_best_policies()
             g_trajs.append(trajs)
 
             self.info('Iteration: {}'.format(iteration))
@@ -191,22 +191,9 @@ class TBIRL(ModelMixin, Logger):
     # internals
     # -------------------------------------------------------------
 
-    def _generate_trajestories(self):
-        """ Generate trajectories using a given policy """
-        self._rep._find_best_policies()
-        return self._rep._best_trajs
-
     def _compute_policy(self, reward):
         """ Compute the policy induced by a given reward function """
-        # TODO - check that reward is a weight vector
-        gea = self._rep.graph.gea
-        sea = self._rep.graph.sea
-
-        for e in self._rep.all_edges:
-            phi = gea(e[0], e[1], 'phi')
-            r = np.dot(phi, reward)
-            sea(e[0], e[1], 'reward', r)
-
+        self._rep = self._rep.update_rewards(reward)
         graph_policy_iteration(self._rep.graph,
                                self._rep.mdp.gamma)
 
