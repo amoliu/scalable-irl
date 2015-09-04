@@ -28,7 +28,7 @@ DPATH = '../../experiments/social_rewards/'
 params = GraphMDPParams()
 params.load(DPATH+'graph_mdp_params.json')
 params.max_cost = 1000
-params.max_samples = 180
+params.max_samples = 280
 params.radius = 1.8
 params.speed = 1
 params.max_edges = 360
@@ -73,7 +73,7 @@ def show_graph_reinforcement_learning():
 
     g, policies = cg.run()
 
-    mdp.visualize(g, policies)
+    mdp.visualize(g, policies, show_edges=True)
 
     plt.show()
 

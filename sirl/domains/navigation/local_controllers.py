@@ -80,16 +80,13 @@ class LinearLocalController(LocalController):
         """ Compute trajectories between two states"""
         start = asarray(start)
         target = asarray(target)
-
         duration = edist(start, target)
         dt = (max_speed * duration) * 1.0 / self._resolution
         theta = np.arctan2(target[1]-start[1], target[0]-start[0])
 
-        # traj = [target * t / dt + start * (1 - t / dt)
-        # for t in range(int(dt))]
         traj = [target[0:2] * t / dt + start[0:2] * (1 - t / dt)
                 for t in range(int(dt))]
-        traj = [t+[theta, max_speed] for t in traj]
+        traj = [t.tolist()+[theta, max_speed] for t in traj]
         traj = np.array(traj)
         return traj
 

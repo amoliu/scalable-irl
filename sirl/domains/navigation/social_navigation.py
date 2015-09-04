@@ -90,7 +90,7 @@ class SocialNavMDP(MDP):
     def goal_state(self):
         return self._world.goal
 
-    def visualize(self, G, policies, fsize=(12, 9)):
+    def visualize(self, G, policies, fsize=(12, 9), show_edges=False):
         """ Visualize the social navigation world
 
         Allows recording of demonstrations and also display of final
@@ -118,7 +118,7 @@ class SocialNavMDP(MDP):
             x2, y2 = self._world.persons[j][0], self._world.persons[j][1]
             self.ax.plot((x1, x2), (y1, y2), ls='-', c='r', lw=2.0, zorder=2)
 
-        self._plot_graph_in_world(G, policies)
+        self._plot_graph_in_world(G, policies, show_edges)
 
         return self.ax
 
@@ -185,7 +185,7 @@ class SocialNavMDP(MDP):
                                0.03, fc=cc, ec=cc))
             self.figure.canvas.draw()
 
-    def _plot_graph_in_world(self, G, policies, show_rewards=False):
+    def _plot_graph_in_world(self, G, policies, show_edges):
         """ Shows the lattest version of the world with MDP
         """
         gna = G.gna
@@ -224,17 +224,20 @@ class SocialNavMDP(MDP):
                     for wp in traj:
                         v = wp[3]
                         vx, vy = v*np.cos(wp[2]), v*np.sin(wp[2])
-                        self.ax.arrow(wp[0], wp[1], 0.5*vx, 0.5*vy, fc='g',
-                                      ec='g', lw=1.0, head_width=0.1,
-                                      head_length=0.08, zorder=3)
-                # else:
-                #     traj = gea(e[0], e[1], 'traj')
-                #     for wp in traj:
-                #         v = wp[3]
-                #         vx, vy = v*np.cos(wp[2]), v*np.sin(wp[2])
-                #         self.ax.arrow(wp[0], wp[1], 0.5*vx, 0.5*vy, fc='0.7',
-                #                       ec='0.7', lw=1.0, head_width=0.07,
-                #                       head_length=0.05, zorder=3)
+                        self.ax.arrow(wp[0], wp[1], 0.2*vx, 0.2*vy, fc='g',
+                                      ec='g', lw=1.0, head_width=0.08,
+                                      head_length=0.05, zorder=3)
+                else:
+                    if show_edges:
+                        traj = gea(e[0], e[1], 'traj')
+                        for wp in traj:
+                            v = wp[3]
+                            vx, vy = v*np.cos(wp[2]), v*np.sin(wp[2])
+                            self.ax.arrow(wp[0], wp[1], 0.1*vx, 0.1*vy,
+                                          fc='0.7', ec='0.7', lw=0.7,
+                                          head_width=0.06, head_length=0.05,
+                                          zorder=1)
+
 
 # -------------------------------------------------------------
 # simple utils
