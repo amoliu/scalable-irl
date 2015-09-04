@@ -39,7 +39,7 @@ class SimpleReward(MDPReward):
         self._anisotropic = anisotropic
         self._thresh_r = thresh_r
         self._thresh_p = thresh_p
-        self._szone = self._thresh_p - 0.9  # sociable space
+        self._szone = 0.3  # sociable space
         self._behavior = behavior
 
     def __call__(self, state, action):
