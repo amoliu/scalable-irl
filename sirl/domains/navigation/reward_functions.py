@@ -14,8 +14,6 @@ __all__ = [
     'FlowMergeReward',
 ]
 
-SCALE = 1000.0
-
 
 class SimpleReward(MDPReward):
 
@@ -33,7 +31,7 @@ class SimpleReward(MDPReward):
                  scaled=True, anisotropic=False, thresh_p=1.8, thresh_r=1.2):
         super(SimpleReward, self).__init__(world, kind)
 
-        self._weights = asarray(list(weights) + [0])
+        self._weights = asarray(weights)
         assert self._weights.size == self.dim, \
             'weight vector and feature vector dimensions do not match'
 
@@ -51,8 +49,7 @@ class SimpleReward(MDPReward):
         # features including default
         phi = [self._feature_relation_disturbance(action),
                self._feature_social_disturbance(action),
-               self._feature_goal_deviation(action),
-               1.0]
+               self._feature_goal_deviation(action)]
         reward = np.dot(phi, self._weights)
         return reward, phi
 
@@ -64,7 +61,7 @@ class SimpleReward(MDPReward):
 
         """
         ffs = [f for f, _ in self.__class__.__dict__.items()]
-        dim = sum([f.startswith(self._template) for f in ffs]) + 1
+        dim = sum([f.startswith(self._template) for f in ffs])
         return dim
 
     # -------------------------------------------------------------
@@ -115,24 +112,24 @@ class SimpleReward(MDPReward):
                 if self._anisotropic:
                     ad = anisotropic_distance(closest_person, waypoint, ak=3.0)
                     if cdist < ad and cdist < self._szone and cdist < boundary:
-                        f += SCALE * (boundary - cdist)
+                        f += (boundary - cdist)
 
                     if cdist < ad and cdist > self._szone and cdist < boundary:
-                        f += SCALE * (cdist - boundary)
+                        f += (cdist - boundary)
                 else:
                     if cdist < self._szone and cdist < boundary:
-                        f += SCALE * (boundary - cdist)
+                        f += (boundary - cdist)
 
                     if cdist > self._szone and cdist < boundary:
-                        f += SCALE * (cdist - boundary)
+                        f += (cdist - boundary)
             else:
                 if self._anisotropic:
                     ad = anisotropic_distance(closest_person, waypoint, ak=3.0)
                     if cdist < ad and cdist < boundary:
-                        f += SCALE * (boundary - cdist)
+                        f += (boundary - cdist)
                 else:
                     if cdist < boundary:
-                        f += SCALE * (boundary - cdist)
+                        f += (boundary - cdist)
         return f
 
     def _feature_relation_disturbance(self, action):
@@ -151,7 +148,7 @@ class SimpleReward(MDPReward):
 
                 dist, inside = distance_to_segment(waypoint, (la, le))
                 if inside and dist < self._thresh_r:
-                    f += SCALE * (self._thresh_r - dist)
+                    f += (self._thresh_r - dist)
 
         return f
 

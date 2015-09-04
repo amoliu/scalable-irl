@@ -16,6 +16,7 @@ sns.set_context("poster")
 
 from sirl.domains.navigation.social_navigation import SocialNavMDP
 from sirl.domains.navigation.local_controllers import POSQLocalController
+from sirl.domains.navigation.local_controllers import LinearLocalController
 from sirl.domains.navigation.reward_functions import SimpleReward
 from sirl.domains.navigation.social_navigation import SocialNavWorld
 
@@ -27,7 +28,7 @@ DPATH = '../../experiments/social_rewards/'
 params = GraphMDPParams()
 params.load(DPATH+'graph_mdp_params.json')
 params.max_cost = 1000
-params.max_samples = 140
+params.max_samples = 180
 params.radius = 1.8
 params.speed = 1
 params.max_edges = 360
@@ -53,6 +54,7 @@ relations = scene['relations']
 world = SocialNavWorld((0, 0, 10, 10), persons, relations, GOAL, STARTS)
 
 posq_controller = POSQLocalController(world, base=0.4, resolution=0.15)
+lin_controller = LinearLocalController(world, resolution=0.1)
 
 
 def show_graph_reinforcement_learning():
@@ -63,7 +65,7 @@ def show_graph_reinforcement_learning():
     mdp = SocialNavMDP(discount=0.95, reward=sreward, world=world)
 
     cg = ControllerGraph(mdp=mdp,
-                         local_controller=posq_controller,
+                         local_controller=lin_controller,
                          params=params)
 
     # trajs = np.load('demos_metropolis.npy')
