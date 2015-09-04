@@ -3,44 +3,56 @@ from __future__ import division
 import numpy as np
 
 from ...models.base import MDPReward
-
 from ...utils.geometry import edist, anisotropic_distance
+from ...utils.geometry import distance_to_segment
 from ...utils.geometry import line_crossing
 from ...utils.validation import check_array, asarray
 
 
 __all__ = [
     'SimpleReward',
-    'AnisotropicReward',
     'FlowMergeReward',
 ]
+
+SCALE = 1000.0
 
 
 class SimpleReward(MDPReward):
 
     """ Social Navigation Reward Funtion
-    based on intrusion counts (histogram)
+
+    Reward is a function of features of semantic entities in the world such
+    as persons, relations between the persons, obstacles, etc
+
+    Reward is represented as a linear combination of these features using
+    a set of weights.
 
     """
 
-    def __init__(self, world, weights, kind='linfa', hzone=0.25, scaled=True):
+    def __init__(self, world, weights, kind='linfa', behavior='polite',
+                 scaled=True, anisotropic=False, thresh_p=1.8, thresh_r=1.2):
         super(SimpleReward, self).__init__(world, kind)
 
-        self._weights = asarray(weights)
-        assert self._weights.size == self.dim, 'weight, feature dim mismatch'
-        self._hzone = hzone
+        self._weights = asarray(list(weights) + [0])
+        assert self._weights.size == self.dim, \
+            'weight vector and feature vector dimensions do not match'
+
         self._scaled = scaled
-        self._gamma = 0.9
+        self._anisotropic = anisotropic
+        self._thresh_r = thresh_r
+        self._thresh_p = thresh_p
+        self._szone = self._thresh_p - 0.9  # sociable space
+        self._behavior = behavior
 
     def __call__(self, state, action):
         """ Compute the reward, r(state, action) """
         action = check_array(action)
 
-        phi = [self._feature_group_disturbance(action),
+        # features including default
+        phi = [self._feature_relation_disturbance(action),
                self._feature_social_disturbance(action),
-               self._feature_goal_deviation_count(action),
-               # self._feature_annotation_disturbance(action)
-               ]
+               self._feature_goal_deviation(action),
+               1.0]
         reward = np.dot(phi, self._weights)
         return reward, phi
 
@@ -52,84 +64,96 @@ class SimpleReward(MDPReward):
 
         """
         ffs = [f for f, _ in self.__class__.__dict__.items()]
-        dim = sum([f.startswith(self._template) for f in ffs])
+        dim = sum([f.startswith(self._template) for f in ffs]) + 1
         return dim
 
     # -------------------------------------------------------------
     # internals
     # -------------------------------------------------------------
 
-    def _feature_goal_deviation_count(self, action):
-        """ Goal deviation measured by counts for every time
+    def _feature_goal_deviation(self, action):
+        """ Action goal deviation
+
+        Goal deviation measured by counts for every time
         a waypoint in the action trajectory recedes away from the goal
+
         """
         dist = []
         for i in range(action.shape[0] - 1):
             dnow = edist(self._world.goal, action[i])
             dnext = edist(self._world.goal, action[i + 1])
-            dist.append(max((dnext - dnow) * self._gamma ** i, 0))
+            dist.append(max((dnext - dnow), 0))
         return sum(dist)
 
     def _feature_social_disturbance(self, action):
-        phi = 0.0
-        for _, p in self._world.persons.items():
-            speed = np.hypot(p[2], p[3])
-            hz = self._hzone
+        """ Instrusions into personal spaces
+
+        Count the number of waypoints of an action trajectory that intrude
+        into a specified personal space of a person
+
+        """
+        people = [v for k, v in self._world.persons.items()]
+        f = 0.0
+
+        for waypoint in action:
+            closest_person = people[0]
+            cdist = edist(closest_person, waypoint)
+
+            for p in people[1:]:
+                dist = edist(p, waypoint)
+                if dist < cdist:
+                    cdist = dist
+                    closest_person = p
+
+            boundary = self._thresh_p
             if self._scaled:
-                hz = speed * self._hzone
-            for t, wp in enumerate(action):
-                if edist(wp, p) < hz:
-                    phi += 1 * self._gamma**t
-        return phi
+                speed = np.hypot(closest_person[2], closest_person[3])
+                boundary *= speed
+                self._szone *= speed
 
-    def _feature_group_disturbance(self, action):
-        t = action.shape[0]
-        c = [sum(line_crossing(action[t][0],
-                               action[t][1],
-                               action[t + 1][0],
-                               action[t + 1][1],
-                               self._world.persons[i][0],
-                               self._world.persons[i][1],
-                               self._world.persons[j][0],
-                               self._world.persons[j][1])
-                 for [i, j] in self._world.relations) for t in range(int(t-1))]
-        ec = sum(self._gamma**i * x for i, x in enumerate(c))
-        return ec
+            if self._behavior == 'sociable':
+                if self._anisotropic:
+                    ad = anisotropic_distance(closest_person, waypoint, ak=3.0)
+                    if cdist < ad and cdist < self._szone and cdist < boundary:
+                        f += SCALE * (boundary - cdist)
 
+                    if cdist < ad and cdist > self._szone and cdist < boundary:
+                        f += SCALE * (cdist - boundary)
+                else:
+                    if cdist < self._szone and cdist < boundary:
+                        f += SCALE * (boundary - cdist)
 
-############################################################################
+                    if cdist > self._szone and cdist < boundary:
+                        f += SCALE * (cdist - boundary)
+            else:
+                if self._anisotropic:
+                    ad = anisotropic_distance(closest_person, waypoint, ak=3.0)
+                    if cdist < ad and cdist < boundary:
+                        f += SCALE * (boundary - cdist)
+                else:
+                    if cdist < boundary:
+                        f += SCALE * (boundary - cdist)
+        return f
 
+    def _feature_relation_disturbance(self, action):
+        """ Intrusions into pair-wise relations
 
-class AnisotropicReward(SimpleReward):
+        Count the number of waypoints that intrude in the space induced by
+        pair-wise relation between persons. The space induced is modelled
+        by a rectangle
 
-    """ Simple reward using an Anisotropic circle around persons"""
+        """
+        f = 0.0
+        for waypoint in action:
+            for [i, j] in self._world.relations:
+                la = (self._world.persons[i][0], self._world.persons[i][1])
+                le = (self._world.persons[j][0], self._world.persons[j][1])
 
-    def __init__(self, persons, groups, annotations, goal, weights,
-                 discount, kind='linfa', hzone=0.45, scaled=True):
-        super(AnisotropicReward, self).__init__(persons, groups,
-                                                annotations, goal,
-                                                weights, discount,
-                                                hzone, scaled)
+                dist, inside = distance_to_segment(waypoint, (la, le))
+                if inside and dist < self._thresh_r:
+                    f += SCALE * (self._thresh_r - dist)
 
-    def _feature_social_disturbance(self, action):
-        phi = 0
-        for _, p in self._persons.items():
-            speed = np.hypot(p[2], p[3])
-            hz = self._hzone
-            if self._scaled:
-                hz = speed * self._hzone
-            for t, wp in enumerate(action):
-                ad = anisotropic_distance(p, wp, ak=hz)
-                if edist(wp, p) < ad:
-                    phi += 1 * self._gamma**t
-        return phi
-
-    def _feature_dummy1(self):
-        # HACK - to get around feature method count temporarily
-        pass
-
-    def _feature_dummy2(self):
-        pass
+        return f
 
 
 ############################################################################

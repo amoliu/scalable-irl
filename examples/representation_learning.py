@@ -27,7 +27,7 @@ DPATH = '../../experiments/social_rewards/'
 params = GraphMDPParams()
 params.load(DPATH+'graph_mdp_params.json')
 params.max_cost = 1000
-params.max_samples = 240
+params.max_samples = 140
 params.radius = 1.8
 params.speed = 1
 params.max_edges = 360
@@ -36,7 +36,11 @@ params.init_type = 'random'
 STARTS = ((0.5, 0.5), (4, 0.1), (2, 3), (8.5, 5.2),
           (8.9, 0.1), (0.1, 8.5), (4, 3))
 GOAL = (5.5, 9)
-weights = [-1.0, -0.6, -0.95]  # polite
+BEHAVIOR = 'polite'
+WEIGHTS = {
+    'polite': [-1.0, -0.6, -0.95],
+    'sociable': [-1.0, +0.2, -0.95]
+}
 
 # load world elements
 f = open(DPATH+'scenes/metropolis.json', 'r')
@@ -52,7 +56,9 @@ posq_controller = POSQLocalController(world, base=0.4, resolution=0.15)
 
 
 def show_graph_reinforcement_learning():
-    sreward = SimpleReward(world, weights, hzone=0.24, scaled=False)
+    sreward = SimpleReward(world, WEIGHTS[BEHAVIOR], scaled=False,
+                           behavior=BEHAVIOR, anisotropic=False,
+                           thresh_p=0.45, thresh_r=0.2)
 
     mdp = SocialNavMDP(discount=0.95, reward=sreward, world=world)
 

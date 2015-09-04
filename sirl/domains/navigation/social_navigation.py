@@ -51,13 +51,13 @@ class SocialNavMDP(MDP):
         MDP discount factor
     reward : :class:`SocialNavReward` object
         Reward function for social navigation task
-    world_config : :class:`WorldConfig` object
+    world : :class:`SocialNavWorld` object
         Configuration of the navigation task world
 
 
     Attributes
     -----------
-    _wconfig : :class:`WorldConfig`
+    _world : :class:`SocialNavWorld`
         Configuration of the navigation task world
 
     """
@@ -131,8 +131,8 @@ class SocialNavMDP(MDP):
         self.figure = plt.figure(figsize=fsize)
         self.ax = plt.axes([0, 0, 0.8, 1])
         self.figure.add_axes(self.ax)
-        self.ax.set_xlim([self._wconfig.x, self._wconfig.w])
-        self.ax.set_ylim([self._wconfig.y, self._wconfig.h])
+        self.ax.set_xlim([self._world.x, self._world.w])
+        self.ax.set_ylim([self._world.y, self._world.h])
 
         self.record_status = self.figure.text(0.825, 0.3, 'Recording [OFF]',
                                               fontsize=14, color='blue')

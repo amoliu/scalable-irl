@@ -56,8 +56,7 @@ def edist(v1, v2):
     return np.hypot(v1[0] - v2[0], v1[1] - v2[1])
 
 
-def anisotropic_distance(focal_agent, other_agent,
-                         phi_ij=None, ak=2.48, bk=1.0,
+def anisotropic_distance(focal_agent, other_agent, ak=2.48, bk=1.0,
                          lambda_=0.4, rij=0.9):
     """
     Anisotropic distance based on the Social Force Model (SFM)
@@ -66,11 +65,8 @@ def anisotropic_distance(focal_agent, other_agent,
     ei = np.array([-focal_agent[2], -focal_agent[3]])
     ei = normalize_vector(ei)
 
-    if phi_ij is None:
-        phi = np.arctan2(other_agent[1] - focal_agent[1],
-                         other_agent[0] - focal_agent[0])
-    else:
-        phi = phi_ij
+    phi = np.arctan2(other_agent[1] - focal_agent[1],
+                     other_agent[0] - focal_agent[0])
 
     dij = edist(focal_agent, other_agent)
     nij = np.array([np.cos(phi), np.sin(phi)])
