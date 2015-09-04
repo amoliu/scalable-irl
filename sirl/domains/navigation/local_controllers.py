@@ -5,7 +5,6 @@ import numpy as np
 from ...models.base import LocalController
 from ...utils.geometry import normangle, edist
 from ...utils.validation import asarray
-from .social_navigation import WorldConfig
 
 
 __all__ = ['LinearLocalController', 'POSQLocalController']
@@ -32,10 +31,9 @@ class LinearLocalController(LocalController):
 
     """
 
-    def __init__(self, world_config, resolution=0.2, kind='linear'):
+    def __init__(self, world, resolution=0.2, kind='linear'):
         super(LinearLocalController, self).__init__(kind)
-        assert isinstance(world_config, WorldConfig), 'Expect WorldConfig'
-        self._wconfig = world_config
+        self._world = world
         self._resolution = resolution
 
     def __call__(self, state, action, duration, max_speed):
@@ -71,8 +69,7 @@ class LinearLocalController(LocalController):
         nx = state[0] + np.cos(action) * duration
         ny = state[1] + np.sin(action) * duration
 
-        if self._wconfig.x < nx < self._wconfig.w and\
-                self._wconfig.y < ny < self._wconfig.h:
+        if self._world.in_world((nx, ny)):
             target = [nx, ny, action, max_speed]
             traj = self.trajectory(state, target, max_speed)
             return target, traj
@@ -98,13 +95,12 @@ class POSQLocalController(LocalController):
 
     """ Local controller based on Two-point boundary value problem solver"""
 
-    def __init__(self, world_config, goal, resolution=0.1,
+    def __init__(self, world, resolution=0.1,
                  base=0.4, kind='linear'):
         super(POSQLocalController, self).__init__(kind)
-        self._wconfig = world_config
+        self._world = world
         self._resolution = resolution  # deltaT
         self._base = base
-        self._goal = goal
 
     def __call__(self, state, action, duration, max_speed):
         """ Run a local controller from a state
@@ -140,8 +136,7 @@ class POSQLocalController(LocalController):
         nx = state[0] + np.cos(action) * duration
         ny = state[1] + np.sin(action) * duration
 
-        if self._wconfig.x < nx < self._wconfig.w and\
-                self._wconfig.y < ny < self._wconfig.h:
+        if self._world.in_world((nx, ny)):
             target = [nx, ny, action, max_speed]
             traj = self.trajectory(state, target, max_speed)
             return target, traj

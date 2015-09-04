@@ -1,8 +1,6 @@
 
 from __future__ import division
 
-from collections import namedtuple
-
 import numpy as np
 
 from matplotlib.patches import Circle, Ellipse
@@ -11,10 +9,35 @@ import matplotlib.cm as cm
 import matplotlib as mpl
 
 from ...models.base import MDP
+from ...models.base import World
 from ...utils.geometry import edist
 
 
-WorldConfig = namedtuple('WorldConfig', ['x', 'y', 'w', 'h'])
+__all__ = ['SocialNavWorld', 'SocialNavMDP']
+
+
+########################################################################
+
+class SocialNavWorld(World):
+    """ Social Navigation World """
+    def __init__(self, (x, y, w, h), persons, relations,
+                 goal, starts, **kwargs):
+        super(SocialNavWorld, self).__init__()
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.persons = persons
+        self.relations = relations
+        self.goal = goal
+        self.start_states = starts
+
+    def in_world(self, state):
+        return self.x < state[0] < self.w and\
+                self.y < state[1] < self.h
+
+
+########################################################################
 
 
 class SocialNavMDP(MDP):
@@ -38,14 +61,10 @@ class SocialNavMDP(MDP):
         Configuration of the navigation task world
 
     """
-    def __init__(self, discount, reward, goal, starts,
-                 world_config, persons, relations):
+    def __init__(self, discount, reward, world):
         super(SocialNavMDP, self).__init__(discount, reward)
-        self._wconfig = world_config
-        self._persons = persons
-        self._relations = relations
-        self._goal = goal
-        self._start_states = starts
+
+        self._world = world
 
         # manual demonstration recording
         self._recording = False
@@ -55,7 +74,7 @@ class SocialNavMDP(MDP):
         """ Check if a state is terminal (goal state)
         state is a vector of information such as position
         """
-        if edist(state, self._goal) < 0.05:
+        if edist(state, self._world.goal) < 0.05:
             return True
         return False
 
@@ -65,11 +84,11 @@ class SocialNavMDP(MDP):
 
     @property
     def start_states(self):
-        return self._start_states
+        return self._world.start_states
 
     @property
     def goal_state(self):
-        return self._goal
+        return self._world.goal
 
     def visualize(self, G, policies, fsize=(12, 9)):
         """ Visualize the social navigation world
@@ -79,7 +98,7 @@ class SocialNavMDP(MDP):
         """
         self._setup_visuals(fsize)
 
-        for _, p in self._persons.items():
+        for _, p in self._world.persons.items():
             phead = np.degrees(np.arctan2(p[3], p[2]))
             self.ax.add_artist(Ellipse((p[0], p[1]), width=0.3, height=0.6,
                                angle=phead, color='r', fill=False, lw=1.5,
@@ -94,9 +113,9 @@ class SocialNavMDP(MDP):
             self.ax.add_artist(Circle((p[0], p[1]), radius=hz, color='r',
                                ec='r', lw=1, aa=True, alpha=0.2))
 
-        for [i, j] in self._relations:
-            x1, y1 = self._persons[i][0], self._persons[i][1]
-            x2, y2 = self._persons[j][0], self._persons[j][1]
+        for [i, j] in self._world.relations:
+            x1, y1 = self._world.persons[i][0], self._world.persons[i][1]
+            x2, y2 = self._world.persons[j][0], self._world.persons[j][1]
             self.ax.plot((x1, x2), (y1, y2), ls='-', c='r', lw=2.0, zorder=2)
 
         self._plot_graph_in_world(G, policies)
@@ -106,10 +125,6 @@ class SocialNavMDP(MDP):
     # -------------------------------------------------------------
     # internals
     # -------------------------------------------------------------
-
-    def _in_world(self, pose):
-        return self._wconfig.x < pose[0] < self._wconfig.w and\
-                self._wconfig.y < pose[1] < self._wconfig.h
 
     def _setup_visuals(self, fsize=(12, 9)):
         """ Prepare figure axes for plotting """

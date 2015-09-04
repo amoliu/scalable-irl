@@ -23,19 +23,14 @@ class SimpleReward(MDPReward):
 
     """
 
-    def __init__(self, persons, groups, annotations, goal,
-                 weights, discount, kind='linfa', hzone=0.45, scaled=True):
-        super(SimpleReward, self).__init__(kind)
-        assert isinstance(persons, dict), 'Expect Dict for persons'
-        self._persons = persons
-        self._groups = groups
-        self._annotations = annotations
-        self._goal = goal
+    def __init__(self, world, weights, kind='linfa', hzone=0.25, scaled=True):
+        super(SimpleReward, self).__init__(world, kind)
+
         self._weights = asarray(weights)
         assert self._weights.size == self.dim, 'weight, feature dim mismatch'
-        self._gamma = discount
         self._hzone = hzone
         self._scaled = scaled
+        self._gamma = 0.9
 
     def __call__(self, state, action):
         """ Compute the reward, r(state, action) """
@@ -51,8 +46,11 @@ class SimpleReward(MDPReward):
 
     @property
     def dim(self):
-        """ Dimension of the reward function """
-        # - count all class members named '_feature_{x}'
+        """ Dimension of the reward function
+
+        count all class members named '_feature_{x}'
+
+        """
         ffs = [f for f, _ in self.__class__.__dict__.items()]
         dim = sum([f.startswith(self._template) for f in ffs])
         return dim
@@ -67,14 +65,14 @@ class SimpleReward(MDPReward):
         """
         dist = []
         for i in range(action.shape[0] - 1):
-            dnow = edist(self._goal, action[i])
-            dnext = edist(self._goal, action[i + 1])
+            dnow = edist(self._world.goal, action[i])
+            dnext = edist(self._world.goal, action[i + 1])
             dist.append(max((dnext - dnow) * self._gamma ** i, 0))
         return sum(dist)
 
     def _feature_social_disturbance(self, action):
         phi = 0.0
-        for _, p in self._persons.items():
+        for _, p in self._world.persons.items():
             speed = np.hypot(p[2], p[3])
             hz = self._hzone
             if self._scaled:
@@ -85,28 +83,18 @@ class SimpleReward(MDPReward):
         return phi
 
     def _feature_group_disturbance(self, action):
-        atime = action.shape[0]
+        t = action.shape[0]
         c = [sum(line_crossing(action[t][0],
                                action[t][1],
                                action[t + 1][0],
                                action[t + 1][1],
-                               self._persons[i][0],
-                               self._persons[i][1],
-                               self._persons[j][0],
-                               self._persons[j][1])
-                 for [i, j] in self._groups) for t in range(int(atime - 1))]
+                               self._world.persons[i][0],
+                               self._world.persons[i][1],
+                               self._world.persons[j][0],
+                               self._world.persons[j][1])
+                 for [i, j] in self._world.relations) for t in range(int(t-1))]
         ec = sum(self._gamma**i * x for i, x in enumerate(c))
         return ec
-
-    def _disabled_feature_annotation_disturbance(self, action):
-        # - use 'disabled' to indicate non-activated features so that they
-        # are ignored by the automatic count in the reward dimension
-        phi = 0.0
-        for wp in action:
-            for _, person in self._persons.items():
-                for a in self._annotations:
-                    phi += a.disturbance(wp, person)
-        return phi
 
 
 ############################################################################

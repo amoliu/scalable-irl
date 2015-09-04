@@ -184,7 +184,9 @@ class MDPReward(ModelMixin):
     __metaclass__ = ABCMeta
     _template = '_feature_'
 
-    def __init__(self, kind='linfa'):
+    def __init__(self, world, kind='linfa'):
+        # keep a reference to parent MDP to get access to S, A
+        self._world = world
         self.kind = kind
 
     @abstractmethod
@@ -309,3 +311,23 @@ class MDP(ModelMixin):
     @abstractproperty
     def goal_state(self):
         return None
+
+
+########################################################################
+
+class World(object):
+    """ The environment that the MDP is defined on
+
+    This is largely a data container for all the things in the environment
+    that the MDP should care about, for use in computing reward functions
+    etc
+
+    Also contains limits of the environment
+
+    """
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def in_world(self, state):
+        raise NotImplementedError('Abstract')

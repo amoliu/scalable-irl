@@ -12,16 +12,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set_context("poster")
 
-np.random.seed(42)
+# np.random.seed(42)
 
 from sirl.domains.navigation.social_navigation import SocialNavMDP
 from sirl.domains.navigation.local_controllers import POSQLocalController
-
 from sirl.domains.navigation.reward_functions import SimpleReward
-from sirl.domains.navigation.social_navigation import WorldConfig
+from sirl.domains.navigation.social_navigation import SocialNavWorld
 
 from sirl.algorithms.controller_graph import ControllerGraph
-
 from sirl.models.parameters import GraphMDPParams
 
 DPATH = '../../experiments/social_rewards/'
@@ -29,8 +27,8 @@ DPATH = '../../experiments/social_rewards/'
 params = GraphMDPParams()
 params.load(DPATH+'graph_mdp_params.json')
 params.max_cost = 1000
-params.max_samples = 140
-params.radius = 2.4
+params.max_samples = 240
+params.radius = 1.8
 params.speed = 1
 params.max_edges = 360
 params.init_type = 'random'
@@ -38,32 +36,25 @@ params.init_type = 'random'
 STARTS = ((0.5, 0.5), (4, 0.1), (2, 3), (8.5, 5.2),
           (8.9, 0.1), (0.1, 8.5), (4, 3))
 GOAL = (5.5, 9)
-
-# weights = [-1.0, -0.6, -0.95]  # polite
 weights = [-1.0, -0.6, -0.95]  # polite
 
+# load world elements
 f = open(DPATH+'scenes/metropolis.json', 'r')
 scene = json.load(f)
 f.close()
-
 persons = scene['persons']
 persons = {int(k): v for k, v in persons.items()}
 relations = scene['relations']
 
-# wconfig = WorldConfig(0, 0, 15, 15)
-wconfig = WorldConfig(0, 0, 10, 10)
+world = SocialNavWorld((0, 0, 10, 10), persons, relations, GOAL, STARTS)
 
-gs = params.goal_state
-sreward = SimpleReward(persons, relations, None, gs, weights,
-                       discount=1, hzone=0.24, scaled=False)
-
-posq_controller = POSQLocalController(wconfig, gs, base=0.4, resolution=0.15)
+posq_controller = POSQLocalController(world, base=0.4, resolution=0.15)
 
 
 def show_graph_reinforcement_learning():
-    mdp = SocialNavMDP(discount=0.95, reward=sreward, world_config=wconfig,
-                       persons=persons, relations=relations,
-                       goal=GOAL, starts=STARTS)
+    sreward = SimpleReward(world, weights, hzone=0.24, scaled=False)
+
+    mdp = SocialNavMDP(discount=0.95, reward=sreward, world=world)
 
     cg = ControllerGraph(mdp=mdp,
                          local_controller=posq_controller,
