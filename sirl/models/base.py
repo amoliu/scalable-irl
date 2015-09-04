@@ -243,7 +243,8 @@ class LocalController(ModelMixin):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, kind='linear'):
+    def __init__(self, world, kind='linear'):
+        self._world = world
         self.kind = kind
 
     @abstractmethod

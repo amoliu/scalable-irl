@@ -96,8 +96,8 @@ def learn_reward():
                          params=params)
     cg.initialize_state_graph(samples=[(5, 5), (1, 3)])
     cg = cg.run()
-    mdp.visualize(cg.graph, cg.policies, show_edges=False)
-    plt.show()
+    # mdp.visualize(cg.graph, cg.policies, show_edges=False)
+    # plt.show()
 
     demos = copy.deepcopy(cg.policies)
     loss = TrajQualityLoss()

@@ -9,7 +9,7 @@ if os.path.exists('MANIFEST'):
 
 setup(name="sirl",
       version="0.0.1",
-      install_requires=["numpy", "networkx"],
+      install_requires=["networkx"],
       packages=['sirl',
                 'sirl.algorithms',
                 'sirl.domains',

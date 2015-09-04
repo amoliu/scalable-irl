@@ -32,8 +32,7 @@ class LinearLocalController(LocalController):
     """
 
     def __init__(self, world, resolution=0.2, kind='linear'):
-        super(LinearLocalController, self).__init__(kind)
-        self._world = world
+        super(LinearLocalController, self).__init__(world, kind)
         self._resolution = resolution
 
     def __call__(self, state, action, duration, max_speed):
@@ -100,8 +99,7 @@ class POSQLocalController(LocalController):
 
     def __init__(self, world, resolution=0.1,
                  base=0.4, kind='linear'):
-        super(POSQLocalController, self).__init__(kind)
-        self._world = world
+        super(POSQLocalController, self).__init__(world, kind)
         self._resolution = resolution  # deltaT
         self._base = base
 
