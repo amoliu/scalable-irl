@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set_context("poster")
 
-np.random.seed(42)
+# np.random.seed(42)
 
 from sirl.domains.navigation.social_navigation import SocialNavMDP
 from sirl.domains.navigation.local_controllers import POSQLocalController
@@ -26,7 +26,7 @@ from sirl.models.parameters import GraphMDPParams
 
 # learning behavior
 from sirl.algorithms.birl import TBIRLOpt
-from sirl.algorithms.birl import UniformRewardPrior
+from sirl.algorithms.birl import UniformRewardPrior, GaussianRewardPrior
 from sirl.models.base import TrajQualityLoss
 
 
@@ -96,10 +96,13 @@ def learn_reward():
                          params=params)
     cg.initialize_state_graph(samples=[(5, 5), (1, 3)])
     cg = cg.run()
+    mdp.visualize(cg.graph, cg.policies, show_edges=False)
+    plt.show()
 
     demos = copy.deepcopy(cg.policies)
     loss = TrajQualityLoss()
-    prior = UniformRewardPrior()
+    # prior = UniformRewardPrior()
+    prior = GaussianRewardPrior(sigma=0.7)
 
     irl_algo = TBIRLOpt(demos, cg, prior, loss=loss, beta=0.9, max_iter=10)
     r = irl_algo.solve(persons, relations)

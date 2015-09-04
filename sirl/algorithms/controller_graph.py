@@ -79,7 +79,7 @@ class ControllerGraph(ModelMixin, Logger):
         self._max_es = 1.0
         self._min_es = 0.0
 
-        self.log_config(logging.INFO)
+        self.log_config(logging.DEBUG)
 
     def initialize_state_graph(self, samples):
         """ Initialize graph using set of initial samples

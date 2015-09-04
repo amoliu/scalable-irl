@@ -18,7 +18,6 @@ from __future__ import division
 
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
-from random import randrange
 
 from scipy.misc import logsumexp
 import scipy as sp
@@ -160,9 +159,10 @@ class TBIRL(ModelMixin, Logger):
     def solve(self, persons, relations):
         """ Find the true reward function """
         reward = self.initialize_reward()
-        self._compute_policy(reward=reward)
-        init_g_trajs = self._rep.find_best_policies()
-        g_trajs = [init_g_trajs]
+        # self._compute_policy(reward=reward)
+        # init_g_trajs = self._rep.find_best_policies()
+
+        g_trajs = [deepcopy(self._demos)]
 
         for iteration in range(self._max_iter):
             # - Compute reward likelihood, find the new reward
@@ -172,6 +172,8 @@ class TBIRL(ModelMixin, Logger):
             self._compute_policy(reward)
             trajs = self._rep.find_best_policies()
             g_trajs.append(trajs)
+
+            # g_trajs = [trajs]
 
             self.info('Iteration: {}'.format(iteration))
 
@@ -295,10 +297,8 @@ class TBIRLOpt(TBIRL):
         Generate initial reward
         """
         rdim = self._rep.mdp.reward.dim
-        loc = [-self._rmax + i * delta
-               for i in range(int(self._rmax / delta + 1))]
-        r = [loc[randrange(int(self._rmax / delta + 1))] for _ in range(rdim)]
-        reward = np.array(r)
+        reward = np.array([np.random.uniform(-self._rmax, self._rmax)
+                           for _ in range(rdim)])
         return reward
 
     def find_next_reward(self, g_trajs):
@@ -314,7 +314,7 @@ class TBIRLOpt(TBIRL):
         res = sp.optimize.fmin_l_bfgs_b(objective, r_init, approx_grad=1,
                                         bounds=self._bounds)
 
-        print(res)
+        self.debug('Solver result: {}'.format(res))
         reward = res[0]
 
         return reward
@@ -549,11 +549,8 @@ class TBIRLPolicyWalk(TBIRL):
         Generate initial reward for the algorithm in $R^{|S| / \delta}$
         """
         rdim = self._rep.mdp.reward.dim
-        loc = [-self._rmax + i * self._delta
-               for i in range(int(self._rmax / self._delta + 1))]
-        r = [loc[randrange(int(self._rmax / self._delta + 1))]
-             for _ in range(rdim)]
-        reward = np.array(r)
+        reward = np.array([np.random.uniform(-self._rmax, self._rmax)
+                           for _ in range(rdim)])
         if self._tempered:
             # initialize to the maximum of prior
             prior = self._prior(reward)

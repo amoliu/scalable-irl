@@ -107,7 +107,7 @@ class Logger(object):
         """
         self._raw_log(logging.error, message, exc_info)
 
-    def log_config(self, level=logging.INFO):
+    def log_config(self, level=logging.DEBUG):
         """
         Apply a basic logging configuration which outputs the log to the
         console (stderr). Optionally, the minimum log level can be set, one
