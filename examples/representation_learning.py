@@ -104,9 +104,13 @@ def learn_reward():
     # prior = UniformRewardPrior()
     prior = GaussianRewardPrior(sigma=0.7)
 
-    irl_algo = GTBIRLOptim(demos, cg, prior, loss=loss, beta=0.9, max_iter=10)
+    irl_algo = GTBIRLOptim(demos, cg, prior, loss=loss, beta=0.9, max_iter=30)
     r = irl_algo.solve()
     print('Learned reward, {}'.format(r))
+
+    np.save('qloss', irl_algo.data['qloss'])
+    np.save('QE', irl_algo.data['QE'])
+    np.save('QPi', irl_algo.data['QPi'])
 
     # use found reward to generate policies for visualization
     cg = cg.update_rewards(r)

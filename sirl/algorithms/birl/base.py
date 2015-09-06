@@ -187,6 +187,17 @@ class BIRL(ModelMixin, Logger):
         """ Initialize reward function based on sovler """
         raise NotImplementedError('Abstract')
 
+    def _compute_policy(self, reward):
+        """ Compute the policy induced by a given reward function """
+        if self._rep.kind == 'graph':
+            self._rep = self._rep.update_rewards(reward)
+            graph_policy_iteration(self._rep.graph,
+                                   self._rep.mdp.gamma)
+            trajs = self._rep.find_best_policies()
+            return trajs
+        else:
+            raise ValueError('Unsupported representation *kind*')
+
 
 ########################################################################
 # Generative type Iterative BIRL Algorithm
@@ -228,15 +239,11 @@ class GeneratingTrajectoryBIRL(BIRL):
         g_trajs = [deepcopy(self._demos)]
 
         for iteration in range(self._max_iter):
-            # - Compute reward likelihood, find the new reward
             reward = self.find_next_reward(g_trajs)
 
-            # - generate trajectories using current reward and store
-            self._compute_policy(reward)
-            trajs = self._rep.find_best_policies()
+            # - generate trajectories using current reward
+            trajs = self._compute_policy(reward)
             g_trajs.append(trajs)
-
-            # g_trajs = [trajs]
 
             self.info('Iteration: {}'.format(iteration))
 
@@ -251,60 +258,3 @@ class GeneratingTrajectoryBIRL(BIRL):
     def initialize_reward(self):
         """ Initialize reward function based on sovler """
         raise NotImplementedError('Abstract')
-
-    # -------------------------------------------------------------
-    # internals
-    # -------------------------------------------------------------
-
-    def _compute_policy(self, reward):
-        """ Compute the policy induced by a given reward function """
-        self._rep = self._rep.update_rewards(reward)
-        graph_policy_iteration(self._rep.graph,
-                               self._rep.mdp.gamma)
-
-    def _expert_trajectory_quality(self, reward):
-        """ Compute the Q-function of expert trajectories """
-        G = self._rep.graph
-        gr = 100  # TODO - make configurable
-        gamma = self._rep.mdp.gamma
-
-        QEs = []
-        for traj in self._demos:
-            time = 0
-            QE = 0
-            for n in traj:
-                actions = G.out_edges(n)
-                if actions:
-                    e = actions[G.gna(n, 'pi')]
-                    r = np.dot(reward, G.gea(e[0], e[1], 'phi'))
-                    QE += (gamma ** time) * r
-                    time += G.gea(e[0], e[1], 'duration')
-                else:
-                    QE += (gamma ** time) * gr
-            QEs.append(QE)
-        return QEs
-
-    def _generated_trajectory_quality(self, reward, g_trajs):
-        """ Compute the Q-function of generated trajectories """
-        G = self._rep.graph
-        gr = 100
-        gamma = self._rep.mdp.gamma
-
-        QPiv = []
-        for g_traj in g_trajs:
-            QPis = []
-            for traj in g_traj:
-                QPi = 0
-                time = 0
-                for n in traj:
-                    actions = G.out_edges(n)
-                    if actions:
-                        e = actions[G.gna(n, 'pi')]
-                        r = np.dot(reward, G.gea(e[0], e[1], 'phi'))
-                        QPi += (gamma ** time) * r
-                        time += G.gea(e[0], e[1], 'duration')
-                    else:
-                        QPi += (gamma ** time) * gr
-                QPis.append(QPi)
-            QPiv.append(QPis)
-        return QPiv

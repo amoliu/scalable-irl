@@ -22,7 +22,7 @@ from .base import PolicyWalkProposal
 
 
 ########################################################################
-# Sample based TBIRL Algorithms
+# Sampling Trajectory type BIRL Algorithms
 #########################################################################
 
 
@@ -41,7 +41,7 @@ from .base import PolicyWalkProposal
 
 
 ########################################################################
-# Generative TBIRL Algorithms
+# Generating Trajectory type BIRL Algorithms
 #########################################################################
 
 
@@ -92,6 +92,8 @@ class GTBIRLOptim(GeneratingTrajectoryBIRL):
 
         self.data = dict()
         self.data['qloss'] = []
+        self.data['QE'] = []
+        self.data['QPi'] = []
 
     def initialize_reward(self, delta=0.2):
         """
@@ -129,9 +131,13 @@ class GTBIRLOptim(GeneratingTrajectoryBIRL):
         reward and generated trajectories.
         """
         # - prepare the trajectory quality scores
-        QE = self._expert_trajectory_quality(r)
-        QPi = self._generated_trajectory_quality(r, self.g_trajs)
+        QE = self._rep.trajectory_quality(r, self._demos)
+        QPi = [self._rep.trajectory_quality(r, gtrajs_i)
+               for gtrajs_i in self.g_trajs]
         self.data['qloss'].append(self._loss(QE,  QPi))
+
+        self.data['QE'].append(QE)
+        self.data['QPi'].append(QPi)
 
         # - the negative log likelihood
         z = []
@@ -245,16 +251,18 @@ class GTBIRLPolicyWalk(GeneratingTrajectoryBIRL):
         r_mean = deepcopy(r)
         p_dist = PolicyWalkProposal(r.shape[0], self._delta, bounded=True)
 
-        QE = self._expert_trajectory_quality(r)
-        QPi = self._generated_trajectory_quality(r, g_trajs)
+        QE = self._rep.trajectory_quality(r, self._demos)
+        QPi = [self._rep.trajectory_quality(r, gtrajs_i)
+               for gtrajs_i in self.g_trajs]
         ql = sum([sum(Qe - Qp for Qe, Qp in zip(QE, Q_i)) for Q_i in QPi])
         self.data['qloss'].append(ql)
         burn_point = int(self._mcmc_iter * self._burn / 100)
 
         for step in range(1, self._mcmc_iter+1):
             r_new = p_dist(loc=r_mean)
-            QE_new = self._expert_trajectory_quality(r_new)
-            QPi_new = self._generated_trajectory_quality(r_new, g_trajs)
+            QE_new = self._rep.trajectory_quality(r_new, self._demos)
+            QPi_new = [self._rep.trajectory_quality(r_new, gtrajs_i)
+                       for gtrajs_i in self.g_trajs]
 
             mh_ratio = self._mh_ratio(r_mean, r_new, QE, QE_new, QPi, QPi_new)
             accept_probability = min(1, mh_ratio)

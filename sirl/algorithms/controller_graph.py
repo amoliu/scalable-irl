@@ -218,6 +218,33 @@ class ControllerGraph(MDPRepresentation, Logger):
 
         return self
 
+    def trajectory_quality(self, reward, trajs):
+        """ Compute the Q-function of a set of trajectories
+
+        Compute the action-value function of a set of trajectories using the
+        specified reward function, on the MDP representation
+
+        """
+        G = self.graph
+        gr = 100  # TODO - make configurable
+        gamma = self._mdp.gamma
+
+        q_trajs = []
+        for traj in trajs:
+            duration = 0
+            q_traj = 0
+            for n in traj:
+                actions = G.out_edges(n)
+                if actions:  # if no edges, use goal reward???
+                    e = actions[G.gna(n, 'pi')]
+                    r = np.dot(reward, G.gea(e[0], e[1], 'phi'))
+                    q_traj += (gamma ** duration) * r
+                    duration += G.gea(e[0], e[1], 'duration')
+                else:
+                    q_traj += (gamma ** duration) * gr
+            q_trajs.append(q_traj)
+        return q_trajs
+
     # -------------------------------------------------------------
     # properties
     # -------------------------------------------------------------
