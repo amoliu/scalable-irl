@@ -90,11 +90,6 @@ class GTBIRLOptim(GeneratingTrajectoryBIRL):
             self._bounds = tuple((-self._rmax, self._rmax)
                                  for _ in range(self._rep.mdp.reward.dim))
 
-        self.data = dict()
-        self.data['qloss'] = []
-        self.data['QE'] = []
-        self.data['QPi'] = []
-
     def initialize_reward(self, delta=0.2):
         """
         Generate initial reward
@@ -104,17 +99,15 @@ class GTBIRLOptim(GeneratingTrajectoryBIRL):
                            for _ in range(rdim)])
         return reward
 
-    def find_next_reward(self, g_trajs):
+    def find_next_reward(self):
         """ Compute a new reward based on current generated trajectories """
-        # initialize the reward
+        # initialize the reward TODO - why???
         r_init = self.initialize_reward()
 
-        # hack - put the g_trajs a member to avoid passing it to the objective
-        self.g_trajs = g_trajs
-
         # run optimization to minimize N_llk
-        objective = self._neg_loglk
-        res = sp.optimize.fmin_l_bfgs_b(objective, r_init, approx_grad=1,
+        res = sp.optimize.fmin_l_bfgs_b(self._neg_loglk,
+                                        r_init,
+                                        approx_grad=1,
                                         bounds=self._bounds)
 
         self.debug('Solver result: {}'.format(res))
@@ -132,12 +125,8 @@ class GTBIRLOptim(GeneratingTrajectoryBIRL):
         """
         # - prepare the trajectory quality scores
         QE = self._rep.trajectory_quality(r, self._demos)
-        QPi = [self._rep.trajectory_quality(r, gtrajs_i)
-               for gtrajs_i in self.g_trajs]
-        self.data['qloss'].append(self._loss(QE,  QPi))
-
-        self.data['QE'].append(QE)
-        self.data['QPi'].append(QPi)
+        QPi = [self._rep.trajectory_quality(r, self._g_trajs[i])
+               for i in range(self._iteration)]
 
         # - the negative log likelihood
         z = []
@@ -216,8 +205,6 @@ class GTBIRLPolicyWalk(GeneratingTrajectoryBIRL):
         self._tempered = cooling
 
         # some data for diagnosis
-        self.data = dict()
-        self.data['qloss'] = []
         self.data['trace'] = []
         self.data['walk'] = []
         self.data['accept_ratios'] = []
@@ -237,32 +224,31 @@ class GTBIRLPolicyWalk(GeneratingTrajectoryBIRL):
 
         return reward
 
-    def find_next_reward(self, g_trajs):
+    def find_next_reward(self):
         """ Compute a new reward based on current generated trajectories """
-        return self._policy_walk(g_trajs)
+        return self._policy_walk()
 
     # -------------------------------------------------------------
     # internals
     # -------------------------------------------------------------
 
-    def _policy_walk(self, g_trajs):
+    def _policy_walk(self):
         """ Policy Walk MCMC reward posterior computation """
         r = self.initialize_reward()
         r_mean = deepcopy(r)
         p_dist = PolicyWalkProposal(r.shape[0], self._delta, bounded=True)
 
         QE = self._rep.trajectory_quality(r, self._demos)
-        QPi = [self._rep.trajectory_quality(r, gtrajs_i)
-               for gtrajs_i in self.g_trajs]
-        ql = sum([sum(Qe - Qp for Qe, Qp in zip(QE, Q_i)) for Q_i in QPi])
-        self.data['qloss'].append(ql)
+        QPi = [self._rep.trajectory_quality(r, self._g_trajs[i])
+               for i in range(self._iteration)]
+
         burn_point = int(self._mcmc_iter * self._burn / 100)
 
         for step in range(1, self._mcmc_iter+1):
             r_new = p_dist(loc=r_mean)
             QE_new = self._rep.trajectory_quality(r_new, self._demos)
-            QPi_new = [self._rep.trajectory_quality(r_new, gtrajs_i)
-                       for gtrajs_i in self.g_trajs]
+            QPi_new = [self._rep.trajectory_quality(r_new, self._g_trajs[i])
+                       for i in range(self._iteration)]
 
             mh_ratio = self._mh_ratio(r_mean, r_new, QE, QE_new, QPi, QPi_new)
             accept_probability = min(1, mh_ratio)

@@ -225,6 +225,14 @@ class GeneratingTrajectoryBIRL(BIRL):
             warnings.warn('*max_iter* set to high value: {}'.format(max_iter))
         self._max_iter = max_iter
 
+        # generated trajectories
+        self._g_trajs = []
+
+        self.data = dict()
+        self.data['qloss'] = []
+        self.data['QE'] = []
+        self.data['QPi'] = []
+
     def solve(self):
         """ Find the true reward function
 
@@ -236,18 +244,30 @@ class GeneratingTrajectoryBIRL(BIRL):
         # self._compute_policy(reward=reward)
         # init_g_trajs = self._rep.find_best_policies()
 
-        g_trajs = [deepcopy(self._demos)]
+        self._g_trajs.append(self._demos)  # initialize with demos???
+        self._rewards = [reward]
+        self._iteration = 1
 
-        for iteration in range(self._max_iter):
-            reward = self.find_next_reward(g_trajs)
+        while self._iteration < self._max_iter:
+            reward = self.find_next_reward()
 
             # - generate trajectories using current reward
             trajs = self._compute_policy(reward)
-            g_trajs.append(trajs)
+            self._g_trajs.append(trajs)
 
-            self.info('Iteration: {}'.format(iteration))
+            self.info('Iteration: {}'.format(self._iteration))
 
-        return reward
+            # - diagnosis data
+            QE = self._rep.trajectory_quality(reward, self._demos)
+            QPi = [self._rep.trajectory_quality(reward, self._g_trajs[i])
+                   for i in range(self._iteration)]
+            self.data['qloss'].append(self._loss(QE,  QPi))
+            self.data['QE'].append(QE)
+            self.data['QPi'].append(QPi)
+
+            self._rewards.append(reward)
+
+        return self._rewards
 
     @abstractmethod
     def find_next_reward(self, g_trajs):
