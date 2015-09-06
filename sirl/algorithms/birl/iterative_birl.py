@@ -16,33 +16,59 @@ import scipy as sp
 import numpy as np
 from numpy.random import uniform
 
-from .base import TBIRL
+from .base import GeneratingTrajectoryBIRL
+# from .base import SamplingTrajectoryBIRL
 from .base import PolicyWalkProposal
 
 
 ########################################################################
-# Algorithms
+# Sample based TBIRL Algorithms
+#########################################################################
 
 
-class TBIRLOpt(TBIRL):
-    """TBIRL algorithm using direct optimization on the likelihood
+# class LPSampledBIRL(SampledBIRL):
+#     """ LP based SampledBIRL """
+#     def __init__(self, arg):
+#         super(LPSampledBIRL, self).__init__()
+#         self.arg = arg
+
+
+# class MAPSampledBIRL(SampledBIRL):
+#     """ LP based SampledBIRL """
+#     def __init__(self, arg):
+#         super(MAPSampledBIRL, self).__init__()
+#         self.arg = arg
+
+
+########################################################################
+# Generative TBIRL Algorithms
+#########################################################################
+
+
+class GTBIRLOptim(GeneratingTrajectoryBIRL):
+    """ Generating Trajectory BIRL algorithm using direct optimization
+
 
     Parameters
     ----------
-    demos : array-like, shape (M x d)
-        Expert demonstrations as M trajectories of state action pairs
-    mdp : ``GraphMDP`` object
-        The underlying (semi) Markov decision problem
-    prior : ``RewardPrior`` object
-        Reward prior callable
-    loss : callable
-        Reward loss callable
+    demos : array-like
+        Expert demonstrations as set of M trajectories of state action pairs.
+        Trajectories can be of different lengths.
+    rep : A representation object
+        The underlying representation of the MDP for the task, can be a
+        :class:`ControllerGraph`, or any derivative of the representation
+        interface :class:`MDPRepresentation`
+    prior : :class:``RewardPrior`` or derivative object
+        Reward prior callable object
+    loss : A callable object, derivative of :class:`RewardLoss`
+        Reward loss callable, for evaluating progress in reward search
     max_iter : int, optional (default=10)
-        Number of iterations of the TBIRL algorithm
+        Number of iterations of the GenerativeBIRL algorithm
     beta : float, optional (default=0.9)
         Expert optimality parameter for softmax Boltzman temperature
     reward_max : float, optional (default=1.0)
         Maximum value of the reward signal (for a single dimension)
+
 
     Attributes
     -----------
@@ -52,11 +78,12 @@ class TBIRLOpt(TBIRL):
         Box bounds for L-BFGS optimization of the negative log-likelihood,
         specified for each dimension of the reward function vector, e.g.
         ((-1, 1), (-1, 0)) for a 2D reward vector
+
     """
-    def __init__(self, demos, mdp, prior, loss, max_iter=10, beta=0.9,
+    def __init__(self, demos, rep, prior, loss, max_iter=10, beta=0.9,
                  reward_max=1.0, bounds=None):
-        super(TBIRLOpt, self).__init__(demos, mdp, prior, loss,
-                                       beta, max_iter)
+        super(GTBIRLOptim, self).__init__(demos, rep, prior, loss,
+                                          beta, max_iter)
         self._rmax = reward_max
         self._bounds = bounds
         if self._bounds is None:
@@ -116,119 +143,29 @@ class TBIRLOpt(TBIRL):
 
         return lk
 
-    def _get_diff_feature_matrix(self, start_state):
-        num_g_trajs = len(self.g_trajs)
-        time = 0
-        rdim = self._rep.mdp.reward.dim
-        G = self._rep.graph
-
-        QEf = np.zeros(rdim + 1)
-        for n in self._demos[start_state]:
-            actions = G.out_edges(n)
-            if actions:
-                e = actions[G.gna(n, 'pi')]
-                tmp = list(G.gea(e[0], e[1], 'phi'))
-                tmp.append(0)
-                tmp = np.array(tmp)
-                time += G.gea(e[0], e[1], 'duration')
-                tmp = (self._rep.mdp.gamma ** time) * tmp
-                QEf += tmp
-                time += G.gea(e[0], e[1], 'duration')
-            else:
-                tmp = ([0] * rdim)
-                tmp.append(1)
-                tmp = np.array(tmp)
-                tmp = (self._rep.mdp.gamma ** time) * tmp
-                QEf += tmp
-
-        Qf = np.zeros((rdim + 1) * num_g_trajs).reshape(rdim + 1, num_g_trajs)
-        for i, generated_traj in enumerate(self.g_trajs):
-            QPif = np.zeros(rdim + 1)
-            time = 0
-            for n in generated_traj[start_state]:
-                if n.get_edges() != []:
-                    e = actions[G.gna(n, 'pi')]
-                    tmp = list(G.gea(e[0], e[1], 'phi'))
-                    tmp.append(0)
-                    tmp = np.array(tmp)
-                    tmp = (self._rep.mdp.gamma ** time) * tmp
-                    QPif += tmp
-                    time += G.gea(e[0], e[1], 'duration')
-                else:
-                    tmp = ([0] * rdim)
-                    tmp.append(1)
-                    tmp = np.array(tmp)
-                    tmp = (self._rep.mdp.gamma ** time) * tmp
-                    QPif += tmp
-            Qf[:, i] = np.transpose(QPif - QEf)
-        return Qf
-
-    def _ais(self, start_state, r):
-        goal_reward = 100
-        G = self._rep.graph
-        time = 0
-        QE = 0
-        for n in self._demos[start_state]:
-            actions = G.out_edges(n)
-            if actions:
-                e = actions[G.gna(n, 'pi')]
-                r = np.dot(r, G.gea(e[0], e[1], 'phi'))
-                QE += (self._rep.mdp.gamma ** time) * r
-                time += G.gea(e[0], e[1], 'duration')
-            else:
-                QE += (self._rep.mdp.gamma ** time) * goal_reward
-
-        QPis = []
-        for generated_traj in self.g_trajs:
-            QPi = 0
-            time = 0
-            for n in generated_traj[start_state]:
-                actions = G.out_edges(n)
-                if actions:
-                    e = actions[G.gna(n, 'pi')]
-                    r = np.dot(r, G.gea(e[0], e[1], 'phi'))
-                    QE += (self._rep.mdp.gamma ** time) * r
-                    time += G.gea(e[0], e[1], 'duration')
-                else:
-                    QPi += (self._rep.mdp.gamma ** time) * goal_reward
-            QPis.append(QPi)
-        QPis = [np.exp(Q - QE) for Q in QPis]
-        tot = sum(Q for Q in QPis)
-        QPis = [Q / float(1 + tot) for Q in QPis]
-        QPis = np.array(QPis)
-        return QPis
-
-    def _grad_nloglk(self, r):
-        """ Gradient of the negative log likelihood
-        """
-        num_starts = len(self._demos)
-        grad = sum(np.mat(self._get_diff_feature_matrix(i)) *
-                   np.transpose(np.mat(self._ais(i, r)))
-                   for i in range(num_starts))
-        return grad
-
 
 ########################################################################
 # PolicyWalk
 
 
-class TBIRLPolicyWalk(TBIRL):
-    """GraphBIRL algorithm using PolicyWalk MCMC
-
-    Bayesian Inverse Reinforcement Learning on Adaptive State-Graphs using
-    PolicyWalk (TBIRL-PW)
+class GTBIRLPolicyWalk(GeneratingTrajectoryBIRL):
+    """ Generating Trajectory BIRL algorithm using PolicyWalk MCMC
 
     Reward posterior disctribution is computed using MCMC samples via a
     grid walk on the space of rewards.
 
+
     Parameters
     ----------
-    demos : array-like, shape (M x d)
-        Expert demonstrations as M trajectories of state action pairs
-    mdp : ``GraphMDP`` object
-        The underlying (semi) Markov decision problem
-    prior : ``RewardPrior`` object
-        Reward prior callable
+    demos : array-like
+        Expert demonstrations as set of M trajectories of state action pairs.
+        Trajectories can be of different lengths.
+    rep : A representation object
+        The underlying representation of the MDP for the task, can be a
+        :class:`ControllerGraph`, or any derivative of the representation
+        interface :class:`MDPRepresentation`
+    prior : :class:``RewardPrior`` or derivative object
+        Reward prior callable object
     loss : callable
         Reward loss callable
     step_size : float, optional (default=0.2)
@@ -236,13 +173,14 @@ class TBIRLPolicyWalk(TBIRL):
     burn : float, optional (default=0.2)
         Fraction of MCMC samples to throw away before the chain stabilizes
     max_iter : int, optional (default=10)
-        Number of iterations of the TBIRL algorithm
+        Number of iterations of the GenerativeBIRL algorithm
     beta : float, optional (default=0.9)
         Expert optimality parameter for softmax Boltzman temperature
     reward_max : float, optional (default=1.0)
         Maximum value of the reward signal (for a single dimension)
     mcmc_iter : int, optional (default=200)
         Number of MCMC samples to use in the PolicyWalk algorithm
+
 
     Attributes
     -----------
@@ -260,11 +198,11 @@ class TBIRLPolicyWalk(TBIRL):
     Using small step sizes generally implies the need for more samples
 
     """
-    def __init__(self, demos, cg, prior, loss, step_size=0.3, burn=0.2,
+    def __init__(self, demos, rep, prior, loss, step_size=0.3, burn=0.2,
                  max_iter=10, beta=0.9, reward_max=1.0, mcmc_iter=200,
                  cooling=False):
-        super(TBIRLPolicyWalk, self).__init__(demos, cg, prior, loss,
-                                              beta, max_iter)
+        super(GTBIRLPolicyWalk, self).__init__(demos, rep, prior,
+                                               loss, beta, max_iter)
         self._delta = step_size
         self._rmax = reward_max
         self._mcmc_iter = mcmc_iter
@@ -364,6 +302,7 @@ class TBIRLPolicyWalk(TBIRL):
         --------
         mh_ratio : float
             The ratio corresponding to :math:`P(r_n|O) / P(r|O) x P(r_n)/P(r)`
+
         """
         # - initialize reward posterior distribution to log priors
         p_new = np.sum(self._prior.log_p(r_new))
@@ -392,6 +331,7 @@ class TBIRLPolicyWalk(TBIRL):
 
         Compute the iterative mean of the reward using the running mean
         and a new reward sample
+
         """
         r_mean = [((step - 1) / float(step)) * m_r + 1.0 / step * r
                   for m_r, r in zip(r_mean, r_new)]

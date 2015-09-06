@@ -277,9 +277,6 @@ class MDP(ModelMixin):
         MDP discount factor
     reward : `SocialNavReward` object
         Reward function for social navigation task
-    gamma
-
-    reward
 
     Attributes
     -----------
@@ -287,6 +284,7 @@ class MDP(ModelMixin):
         MDP discount factor
     _reward : :class:`SocialNavReward` object
         Reward function for social navigation task
+
     """
 
     def __init__(self, discount, reward):

@@ -105,7 +105,7 @@ def learn_reward():
     prior = GaussianRewardPrior(sigma=0.7)
 
     irl_algo = TBIRLOpt(demos, cg, prior, loss=loss, beta=0.9, max_iter=10)
-    r = irl_algo.solve(persons, relations)
+    r = irl_algo.solve()
     print('Learned reward, {}'.format(r))
 
     # use found reward to generate policies for visualization

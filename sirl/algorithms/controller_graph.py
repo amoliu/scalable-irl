@@ -217,6 +217,10 @@ class ControllerGraph(ModelMixin, Logger):
 
         return self
 
+    # -------------------------------------------------------------
+    # properties
+    # -------------------------------------------------------------
+
     @property
     def graph(self):
         return self._g
@@ -228,6 +232,10 @@ class ControllerGraph(ModelMixin, Logger):
     @property
     def mdp(self):
         return self._mdp
+
+    @property
+    def kind(self):
+        return 'graph'
 
     # -------------------------------------------------------------
     # internals
