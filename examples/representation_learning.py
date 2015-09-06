@@ -35,7 +35,7 @@ DPATH = '../../experiments/social_rewards/'
 params = GraphMDPParams()
 params.load(DPATH+'graph_mdp_params.json')
 params.max_cost = 1000
-params.max_samples = 180
+params.max_samples = 280
 params.radius = 1.8
 params.speed = 1
 params.max_edges = 360
@@ -46,7 +46,7 @@ STARTS = ((0.5, 0.5), (4, 0.1), (2, 3), (8.5, 5.2),
 GOAL = (5.5, 9)
 BEHAVIOR = 'polite'
 WEIGHTS = {
-    'polite': [-1.0, -0.6, -0.95],
+    'polite': [-1.0, -0.8, -0.85],
     'sociable': [-1.0, +0.2, -0.95]
 }
 
@@ -113,7 +113,7 @@ def learn_reward():
     np.save('QPi', irl_algo.data['QPi'])
 
     # use found reward to generate policies for visualization
-    cg = cg.update_rewards(r)
+    cg = cg.update_rewards(r[-1])
     policies = cg.find_best_policies()
 
     mdp.visualize(cg.graph, policies, show_edges=False)

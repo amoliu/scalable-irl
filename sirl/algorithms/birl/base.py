@@ -248,7 +248,7 @@ class GeneratingTrajectoryBIRL(BIRL):
         self._rewards = [reward]
         self._iteration = 1
 
-        while self._iteration < self._max_iter:
+        while self._iteration < self._max_iter + 1:
             reward = self.find_next_reward()
 
             # - generate trajectories using current reward
@@ -266,6 +266,8 @@ class GeneratingTrajectoryBIRL(BIRL):
             self.data['QPi'].append(QPi)
 
             self._rewards.append(reward)
+
+            self._iteration += 1
 
         return self._rewards
 

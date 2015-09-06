@@ -102,7 +102,8 @@ class GTBIRLOptim(GeneratingTrajectoryBIRL):
     def find_next_reward(self):
         """ Compute a new reward based on current generated trajectories """
         # initialize the reward TODO - why???
-        r_init = self.initialize_reward()
+        # r_init = self.initialize_reward()
+        r_init = self._rewards[self._iteration-1]
 
         # run optimization to minimize N_llk
         res = sp.optimize.fmin_l_bfgs_b(self._neg_loglk,
