@@ -28,11 +28,11 @@ from ..algorithms.function_approximation import gp_predict, gp_covariance
 from ..utils.common import wchoice, map_range
 from ..utils.geometry import trajectory_length
 from ..models.state_graph import StateGraph
-from ..models.base import ModelMixin
+from ..models.base import MDPRepresentation
 from ..utils.common import Logger
 
 
-class ControllerGraph(ModelMixin, Logger):
+class ControllerGraph(MDPRepresentation, Logger):
     """ A ControllerGraph
 
     Parameters
@@ -67,7 +67,8 @@ class ControllerGraph(ModelMixin, Logger):
 
     """
     def __init__(self, mdp, local_controller, params):
-        self._mdp = mdp
+        super(ControllerGraph, self).__init__(mdp)
+
         self._controller = local_controller
         self._params = params
 

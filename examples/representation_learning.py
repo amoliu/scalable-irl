@@ -25,7 +25,7 @@ from sirl.algorithms.controller_graph import ControllerGraph
 from sirl.models.parameters import GraphMDPParams
 
 # learning behavior
-from sirl.algorithms.birl import TBIRLOpt
+from sirl.algorithms.birl import GTBIRLOptim
 from sirl.algorithms.birl import UniformRewardPrior, GaussianRewardPrior
 from sirl.models.base import TrajQualityLoss
 
@@ -104,7 +104,7 @@ def learn_reward():
     # prior = UniformRewardPrior()
     prior = GaussianRewardPrior(sigma=0.7)
 
-    irl_algo = TBIRLOpt(demos, cg, prior, loss=loss, beta=0.9, max_iter=10)
+    irl_algo = GTBIRLOptim(demos, cg, prior, loss=loss, beta=0.9, max_iter=10)
     r = irl_algo.solve()
     print('Learned reward, {}'.format(r))
 

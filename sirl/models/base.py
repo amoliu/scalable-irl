@@ -312,9 +312,22 @@ class MDP(ModelMixin):
         return None
 
 
+# An interface for MDP representation
+
+class MDPRepresentation(ModelMixin):
+    """ MDP Representation """
+
+    def __init__(self, mdp):
+        self._mdp = mdp
+
+    @abstractproperty
+    def kind(self):
+        raise NotImplementedError('Abstract property')
+
+
 ########################################################################
 
-class World(object):
+class World(ModelMixin):
     """ The environment that the MDP is defined on
 
     This is largely a data container for all the things in the environment
