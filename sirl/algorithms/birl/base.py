@@ -200,7 +200,101 @@ class BIRL(ModelMixin, Logger):
 
 
 ########################################################################
+# Sampling Trajectory type BIRL Algorithms
+
+class SamplingTrajectoryBIRL(BIRL):
+    """ Sampling Trajectory based BIRL (STBIRL)
+
+    Bayesian Inverse Reinforcement Learning on Adaptive State Graph using
+    sampled trajectories, see Ng and Russel (Algs for infinite spaces)
+
+    """
+
+    __meta__ = ABCMeta
+
+    def __init__(self, demos, rep, prior, loss,
+                 beta=0.7, eps=0.2, max_iter=10):
+        super(SamplingTrajectoryBIRL, self).__init__(demos, rep, prior,
+                                                     loss, beta)
+        max_iter = int(max_iter)
+        assert 0 < max_iter, '*max_iter* must be > 0'
+        if max_iter > 1000:
+            warnings.warn('*max_iter* set to high value: {}'.format(max_iter))
+        self._max_iter = max_iter
+
+        self._eps = eps
+
+        self.data = dict()
+        self.data['loss'] = []
+
+    def solve(self):
+        """ Find the true reward function
+        """
+        reward = self.initialize_reward()
+
+        self._rewards = [reward]
+
+        self._iteration = 1
+        while self._iteration < self._max_iter + 1:
+            reward = self.find_next_reward()
+
+            # - check for termination
+            if self._terminate(reward):
+                break
+
+            # - diagnosis data
+            self.info('Iteration: {}'.format(self._iteration))
+
+            self._rewards.append(reward)
+            self._iteration += 1
+
+        return self._rewards
+
+    @abstractmethod
+    def find_next_reward(self, g_trajs):
+        """ Compute a new reward based on current iteration """
+        raise NotImplementedError('Abstract')
+
+    def initialize_reward(self, delta=0.2):
+        """
+        Generate initial reward
+        """
+        rdim = self._rep.mdp.reward.dim
+        reward = np.array([np.random.uniform(-self._rmax, self._rmax)
+                           for _ in range(rdim)])
+        return reward
+
+    def _terminate(self, reward):
+        """ Check for termination
+
+        Check if how close the value of the new reward is wrt to value of
+        the expert. Values can be estimated via Monte Carlo or exactly via
+        Bellman equations
+
+        """
+        starts = [demo[0] for demo in self._demos]
+
+        # estimate value of current policy (wrt to the starting states)
+        self._rep = self._rep.update_rewards(reward)
+        graph_policy_iteration(self._rep.graph,
+                               self._rep.mdp.gamma)
+        value_function = self._rep.graph.get_signal('V')
+        pi_value = np.array([value_function[s] for s in starts])
+
+        # estimate expert value
+        expert_value = self._rep.trajectory_quality(reward, self._demos)
+        expert_value = np.array(expert_value)
+
+        # check termination
+        if np.linalg.norm(pi_value - expert_value, ord=2) < self._eps:
+            return True
+
+        return False
+
+
+########################################################################
 # Generative type Iterative BIRL Algorithm
+
 
 class GeneratingTrajectoryBIRL(BIRL):
     """ Generating Trajectory based BIRL (GTBIRL)

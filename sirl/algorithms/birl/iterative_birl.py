@@ -17,7 +17,7 @@ import numpy as np
 from numpy.random import uniform
 
 from .base import GeneratingTrajectoryBIRL
-# from .base import SamplingTrajectoryBIRL
+from .base import SamplingTrajectoryBIRL
 from .base import PolicyWalkProposal
 
 
@@ -26,18 +26,42 @@ from .base import PolicyWalkProposal
 #########################################################################
 
 
-# class LPSampledBIRL(SampledBIRL):
-#     """ LP based SampledBIRL """
-#     def __init__(self, arg):
-#         super(LPSampledBIRL, self).__init__()
-#         self.arg = arg
+class STBIRLMap(SamplingTrajectoryBIRL):
+    """ MAP based STBIRL """
+    def __init__(self, demos, rep, prior, loss, eta=0.5,
+                 beta=0.7, eps=0.2, max_iter=10):
+        super(STBIRLLinearProg, self).__init__(demos, rep, prior, loss, beta,
+                                               eps, max_iter)
+        assert 0.0 < eta <= 1.0, 'Learning rate *eta* must be in (0, 1]'
+        self._eta = eta
+
+    def find_next_reward(self):
+        """ Compute a new reward by gradient descent """
+        # initialize the reward TODO - why???
+        # r_init = self.initialize_reward()
+        r_init = self._rewards[self._iteration-1]
+        # maybe initialize to prior(custom prior)
+
+        return r_init
 
 
-# class MAPSampledBIRL(SampledBIRL):
-#     """ LP based SampledBIRL """
-#     def __init__(self, arg):
-#         super(MAPSampledBIRL, self).__init__()
-#         self.arg = arg
+class STBIRLLinearProg(SamplingTrajectoryBIRL):
+    """ LP based STBIRL """
+    def __init__(self, demos, rep, prior, loss,
+                 beta=0.7, eps=0.2, max_iter=10):
+        super(STBIRLLinearProg, self).__init__(demos, rep, prior, loss, beta,
+                                               eps, max_iter)
+
+    def find_next_reward(self):
+        """ Compute a new reward """
+        # initialize the reward TODO - why???
+        # r_init = self.initialize_reward()
+        r_init = self._rewards[self._iteration-1]
+        # maybe initialize to prior(custom prior)
+
+        # Solve LP problem
+
+        return r_init
 
 
 ########################################################################
