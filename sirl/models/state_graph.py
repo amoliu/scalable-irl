@@ -174,10 +174,26 @@ class StateGraph(object):
         path = nx.astar_path(self.G, source, target, heuristic=metric)
         return path
 
-    def get_signal(self, signal):
-        """ Retrieve a graph signal from the nodes """
-        assert signal in ('cost', 'policy', 'priority', 'V')
-        return [self.gna(n, signal) for n in self.nodes]
+    def get_signal(self, name):
+        """ Retrieve a graph signal from the nodes
+
+        The signals correspond to the node attributes in the graph. For Q
+        values, the signal is a list of lists, each of varying lengths since
+        the number of edges vary per node.
+
+        Parameters
+        -----------
+        name : str
+            Name of signal to retrieve
+
+        Returns
+        -------
+        signal : array-like
+            1D array for Cost, V, and policy; and a list of lists for Q
+
+        """
+        assert name in ('cost', 'policy', 'priority', 'V', 'Q')
+        return [self.gna(n, name) for n in self.nodes]
 
     def save_graph(self, filename):
         """ Save the graph to file """
@@ -255,9 +271,13 @@ class StateGraph(object):
         return self.G.edges()
 
     @property
-    def policy(self):
-        """ Return the policy function for the whole graph  """
-        return [self.gna(n, 'pi') for n in self.nodes]
+    def transition_matrix(self):
+        """ Get the transition matrix T(s, a, s')
+
+        Obtained from the adjacency matrix of the underlying graph
+
+        """
+        return nx.adjacency_matrix(self.G).todense()
 
 
 def eud(data1, data2):
