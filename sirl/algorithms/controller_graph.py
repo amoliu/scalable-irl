@@ -25,11 +25,14 @@ from numpy.random import uniform
 
 from ..algorithms.mdp_solvers import graph_policy_iteration
 from ..algorithms.function_approximation import gp_predict, gp_covariance
+
 from ..utils.common import wchoice, map_range
+from ..utils.common import Logger
+
 from ..utils.geometry import trajectory_length
+
 from ..models.state_graph import StateGraph
 from ..models.base import MDPRepresentation
-from ..utils.common import Logger
 
 
 class ControllerGraph(MDPRepresentation, Logger):
@@ -226,7 +229,7 @@ class ControllerGraph(MDPRepresentation, Logger):
 
         """
         G = self.graph
-        gr = 1  # TODO - make configurable
+        gr = self._params.goal_reward
         gamma = self._mdp.gamma
 
         q_trajs = []

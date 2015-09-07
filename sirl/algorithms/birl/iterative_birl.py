@@ -142,10 +142,10 @@ class STBIRLMap(SamplingTrajectoryBIRL):
     def find_next_reward(self):
         """ Compute a new reward by gradient descent """
         # initialize the reward TODO - why???
-        # r_init = self.initialize_reward()
-        r_init = self._rewards[self._iteration-1]
+        r_init = self.initialize_reward()
+        # r_init = self._rewards[self._iteration-1]
 
-        bounds = tuple((-self._rmax, self._rmax)
+        bounds = tuple((-3.0*self._rmax, 3.0*self._rmax)
                        for _ in range(self._rep.mdp.reward.dim))
 
         # run optimization to minimize N_llk
@@ -228,7 +228,7 @@ class GeneratingTrajectoryBIRL(BIRL):
         self._g_trajs = []
 
         self.data = dict()
-        self.data['qloss'] = []
+        self.data['loss'] = []
         self.data['QE'] = []
         self.data['QPi'] = []
 
@@ -242,9 +242,9 @@ class GeneratingTrajectoryBIRL(BIRL):
         reward = self.initialize_reward()
         self._rewards = [reward]
 
-        self._g_trajs.append(self._demos)  # initialize with demos???
-        # trajs = self._compute_policy(reward=reward)
-        # self._g_trajs.append(trajs)
+        # self._g_trajs.append(self._demos)  # initialize with demos???
+        trajs = self._compute_policy(reward=reward)
+        self._g_trajs.append(trajs)
 
         self._iteration = 1
 
@@ -261,9 +261,15 @@ class GeneratingTrajectoryBIRL(BIRL):
             QE = self._rep.trajectory_quality(reward, self._demos)
             QPi = [self._rep.trajectory_quality(reward, self._g_trajs[i])
                    for i in range(self._iteration)]
-            self.data['qloss'].append(self._loss(QE,  QPi))
+            qloss = self._loss(QE,  QPi)
+
+            self.data['loss'].append(qloss)
             self.data['QE'].append(QE)
             self.data['QPi'].append(QPi)
+
+            if qloss < 0.5:
+                self.info('Terminating: Loss={}'.format(qloss))
+                break
 
             self._rewards.append(reward)
 
@@ -432,7 +438,7 @@ class GTBIRLPolicyWalk(GeneratingTrajectoryBIRL):
 
     """
     def __init__(self, demos, rep, prior, loss, step_size=0.3, burn=0.2,
-                 max_iter=10, beta=0.9, reward_max=1.0, mcmc_iter=200,
+                 max_iter=10, beta=0.9, reward_max=1.0, mcmc_iter=1000,
                  cooling=False):
         super(GTBIRLPolicyWalk, self).__init__(demos, rep, prior,
                                                loss, beta, max_iter)

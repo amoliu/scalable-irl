@@ -225,7 +225,7 @@ class RewardLoss(ModelMixin):
 
 class TrajQualityLoss(RewardLoss):
     """ Trajectory quality loss :math:`||Q(s) - Q(s)||_p` """
-    def __init__(self, p=2, name='tqloss'):
+    def __init__(self, p=1, name='tqloss'):
         super(TrajQualityLoss, self).__init__(name)
         self.p = p
 
@@ -243,7 +243,7 @@ class LocalController(ModelMixin):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, world, kind='linear'):
+    def __init__(self, world, kind='abstract'):
         self._world = world
         self.kind = kind
 
