@@ -26,7 +26,7 @@ from sirl.models.parameters import GraphMDPParams
 
 # learning behavior
 from sirl.algorithms.birl import GTBIRLOptim
-from sirl.algorithms.birl import UniformRewardPrior, GaussianRewardPrior
+from sirl.algorithms.birl import DirectionalRewardPrior
 from sirl.models.base import TrajQualityLoss
 
 
@@ -102,7 +102,7 @@ def learn_reward():
     demos = copy.deepcopy(cg.policies)
     loss = TrajQualityLoss()
     # prior = UniformRewardPrior()
-    prior = GaussianRewardPrior(sigma=0.7)
+    prior = DirectionalRewardPrior(dim=sreward.dim, directions=[-1, -1, -1])
 
     irl_algo = GTBIRLOptim(demos, cg, prior, loss=loss, beta=0.9, max_iter=30)
     r = irl_algo.solve()

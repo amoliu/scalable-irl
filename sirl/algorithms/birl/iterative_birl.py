@@ -330,14 +330,18 @@ class GTBIRLOptim(GeneratingTrajectoryBIRL):
                for i in range(self._iteration)]
 
         # - the negative log likelihood
+        # data term
         z = []
         for q_e in QE:
             for QP_i in QPi:
                 for q_i in QP_i:
                     z.append(self._beta*(q_i - q_e))
-        lk = logsumexp(z)
+        lk = -logsumexp(z)
 
-        return lk
+        # prior term
+        prior = np.sum(self._prior.log_p(r))
+
+        return lk + prior
 
 
 class GTBIRLPolicyWalk(GeneratingTrajectoryBIRL):

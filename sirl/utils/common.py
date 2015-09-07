@@ -75,7 +75,7 @@ class Logger(object):
             if fn != '<module>':
                 if self.__class__.__name__ != Logger.__name__:
                     fn = self.__class__.__name__ + '.' + fn
-                fn += '|'
+                fn += ' >>>'
 
         logfn(loc + cname + fn + ' ' + message, exc_info=exc_info)
 

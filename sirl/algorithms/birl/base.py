@@ -19,8 +19,10 @@ class RewardPrior(ModelMixin):
     """ Reward prior interface """
     __meta__ = ABCMeta
 
-    def __init__(self, name):
+    def __init__(self, dim, name):
         self.name = name
+        assert 0 < dim, 'Reward dimension must be > 0'
+        self.dim = dim
 
     @abstractmethod
     def __call__(self, r):
@@ -33,8 +35,8 @@ class RewardPrior(ModelMixin):
 
 class UniformRewardPrior(RewardPrior):
     """ Uniform/flat prior"""
-    def __init__(self, name='uniform'):
-        super(UniformRewardPrior, self).__init__(name)
+    def __init__(self, dim, name='uniform'):
+        super(UniformRewardPrior, self).__init__(dim, name)
 
     def __call__(self, r):
         rp = np.ones(r.shape[0])
@@ -47,8 +49,8 @@ class UniformRewardPrior(RewardPrior):
 
 class GaussianRewardPrior(RewardPrior):
     """Gaussian reward prior"""
-    def __init__(self, name='gaussian', sigma=0.5):
-        super(GaussianRewardPrior, self).__init__(name)
+    def __init__(self, dim, name='gaussian', sigma=0.5):
+        super(GaussianRewardPrior, self).__init__(dim, name)
         self._sigma = sigma
 
     def __call__(self, r):
@@ -63,8 +65,8 @@ class GaussianRewardPrior(RewardPrior):
 
 class LaplacianRewardPrior(RewardPrior):
     """Laplacian reward prior"""
-    def __init__(self, name='laplace', sigma=0.5):
-        super(LaplacianRewardPrior, self).__init__(name)
+    def __init__(self, dim, name='laplace', sigma=0.5):
+        super(LaplacianRewardPrior, self).__init__(dim, name)
         self._sigma = sigma
 
     def __call__(self, r):
@@ -73,6 +75,28 @@ class LaplacianRewardPrior(RewardPrior):
 
     def log_p(self, r):
         # TODO - make analytical
+        return np.log(self.__call__(r))
+
+
+class DirectionalRewardPrior(RewardPrior):
+    """ Prior that injects direction information
+
+    Useful for cases in which we know the direction of influence of a feature
+    as either a penalty or a reward. Defaults to all rewarding fetures
+
+    """
+    def __init__(self, dim, name='directional', directions=None):
+        super(DirectionalRewardPrior, self).__init__(dim, name)
+        self.directions = directions
+        if self.directions is None:
+            self.directions = [1 for _ in self.dim]
+
+    def __call__(self, r):
+        rp = np.array([r[i] * self.directions[i] for i in range(self.dim)])
+        # NOTE - unnormalized
+        return rp
+
+    def log_p(self, r):
         return np.log(self.__call__(r))
 
 
