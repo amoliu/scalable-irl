@@ -121,7 +121,10 @@ class SamplingTrajectoryBIRL(BIRL):
         expert_value = np.array(expert_value)
 
         # check termination
-        if np.linalg.norm(pi_value - expert_value, ord=2) < self._eps:
+        reward_loss = np.linalg.norm(pi_value - expert_value, ord=2)
+        self.data['loss'].append(reward_loss)
+
+        if reward_loss < self._eps:
             return True
 
         return False
@@ -142,12 +145,15 @@ class STBIRLMap(SamplingTrajectoryBIRL):
         # r_init = self.initialize_reward()
         r_init = self._rewards[self._iteration-1]
 
+        bounds = tuple((-self._rmax, self._rmax)
+                       for _ in range(self._rep.mdp.reward.dim))
+
         # run optimization to minimize N_llk
         res = sp.optimize.minimize(fun=self._objective,
                                    x0=r_init,
                                    method='L-BFGS-B',
                                    jac=False,
-                                   bounds=self._bounds)
+                                   bounds=bounds)
 
         self.debug('Solver result: {}'.format(res))
         reward = res.x
@@ -175,6 +181,8 @@ class STBIRLLinearProg(SamplingTrajectoryBIRL):
         super(STBIRLLinearProg, self).__init__(demos, rep, prior, loss,
                                                reward_max, beta,
                                                eps, max_iter)
+
+        raise NotImplementedError('Implementation not complete')
 
     def find_next_reward(self):
         """ Compute a new reward """
