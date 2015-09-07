@@ -108,9 +108,9 @@ def learn_reward():
     r = irl_algo.solve()
     print('Learned reward, {}'.format(r))
 
-    np.save('qloss', irl_algo.data['qloss'])
-    np.save('QE', irl_algo.data['QE'])
-    np.save('QPi', irl_algo.data['QPi'])
+    # np.save('qloss', irl_algo.data['qloss'])
+    # np.save('QE', irl_algo.data['QE'])
+    # np.save('QPi', irl_algo.data['QPi'])
 
     # use found reward to generate policies for visualization
     cg = cg.update_rewards(r[-1])
