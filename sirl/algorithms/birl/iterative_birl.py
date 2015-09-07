@@ -46,7 +46,7 @@ class SamplingTrajectoryBIRL(BIRL):
 
     __meta__ = ABCMeta
 
-    def __init__(self, demos, rep, prior, loss,
+    def __init__(self, demos, rep, prior, loss, reward_max=1.0,
                  beta=0.7, eps=0.2, max_iter=10):
         super(SamplingTrajectoryBIRL, self).__init__(demos, rep, prior,
                                                      loss, beta)
@@ -57,6 +57,7 @@ class SamplingTrajectoryBIRL(BIRL):
         self._max_iter = max_iter
 
         self._eps = eps
+        self._rmax = reward_max
 
         self.data = dict()
         self.data['loss'] = []
@@ -128,10 +129,10 @@ class SamplingTrajectoryBIRL(BIRL):
 
 class STBIRLMap(SamplingTrajectoryBIRL):
     """ MAP based STBIRL """
-    def __init__(self, demos, rep, prior, loss, eta=0.5,
+    def __init__(self, demos, rep, prior, loss, eta=0.5, reward_max=1.0,
                  beta=0.7, eps=0.2, max_iter=10):
-        super(STBIRLLinearProg, self).__init__(demos, rep, prior, loss, beta,
-                                               eps, max_iter)
+        super(STBIRLMap, self).__init__(demos, rep, prior, loss, reward_max,
+                                        beta, eps, max_iter)
         assert 0.0 < eta <= 1.0, 'Learning rate *eta* must be in (0, 1]'
         self._eta = eta
 
@@ -169,9 +170,10 @@ class STBIRLMap(SamplingTrajectoryBIRL):
 
 class STBIRLLinearProg(SamplingTrajectoryBIRL):
     """ LP based STBIRL """
-    def __init__(self, demos, rep, prior, loss,
+    def __init__(self, demos, rep, prior, loss, reward_max=1.0,
                  beta=0.7, eps=0.2, max_iter=10):
-        super(STBIRLLinearProg, self).__init__(demos, rep, prior, loss, beta,
+        super(STBIRLLinearProg, self).__init__(demos, rep, prior, loss,
+                                               reward_max, beta,
                                                eps, max_iter)
 
     def find_next_reward(self):
