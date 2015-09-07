@@ -140,9 +140,31 @@ class STBIRLMap(SamplingTrajectoryBIRL):
         # initialize the reward TODO - why???
         # r_init = self.initialize_reward()
         r_init = self._rewards[self._iteration-1]
-        # maybe initialize to prior(custom prior)
 
-        return r_init
+        # run optimization to minimize N_llk
+        res = sp.optimize.minimize(fun=self._objective,
+                                   x0=r_init,
+                                   method='L-BFGS-B',
+                                   jac=False,
+                                   bounds=self._bounds)
+
+        self.debug('Solver result: {}'.format(res))
+        reward = res.x
+
+        return reward
+
+    def _objective(self, r):
+        """ Objevtive function for gradient descent to find MAP
+
+        The negative log likelihood of the reward using standard BIRL
+        likelihood model, p(r|D) = 1/Z p(D|r) p(r)
+
+        """
+        QE = self._rep.trajectory_quality(r, self._demos)
+        lk = -np.sum(QE)
+        prior = np.sum(self._prior.log_p(r))
+
+        return lk - prior
 
 
 class STBIRLLinearProg(SamplingTrajectoryBIRL):
@@ -346,7 +368,7 @@ class GTBIRLOptim(GeneratingTrajectoryBIRL):
         # prior term
         prior = np.sum(self._prior.log_p(r))
 
-        return lk + prior
+        return lk - prior
 
 
 class GTBIRLPolicyWalk(GeneratingTrajectoryBIRL):
