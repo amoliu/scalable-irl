@@ -226,7 +226,7 @@ class ControllerGraph(MDPRepresentation, Logger):
 
         """
         G = self.graph
-        gr = 100  # TODO - make configurable
+        gr = 1  # TODO - make configurable
         gamma = self._mdp.gamma
 
         q_trajs = []

@@ -46,7 +46,8 @@ STARTS = ((0.5, 0.5), (4, 0.1), (2, 3), (8.5, 5.2),
 GOAL = (5.5, 9)
 BEHAVIOR = 'polite'
 WEIGHTS = {
-    'polite': [-1.0, -0.8, -0.85],
+    # 'polite': [-0.75996794, -0.06025078, -0.99495333],
+    'polite': [-1.0, -0.7, -0.85],
     'sociable': [-1.0, +0.2, -0.95]
 }
 
@@ -104,7 +105,8 @@ def learn_reward():
     # prior = UniformRewardPrior()
     prior = DirectionalRewardPrior(dim=sreward.dim, directions=[-1, -1, -1])
 
-    irl_algo = GTBIRLOptim(demos, cg, prior, loss=loss, beta=0.9, max_iter=30)
+    irl_algo = GTBIRLOptim(demos, cg, prior, loss=loss,
+                           beta=0.9, max_iter=30, reward_max=1.0)
     r = irl_algo.solve()
     print('Learned reward, {}'.format(r))
 
@@ -117,6 +119,9 @@ def learn_reward():
     policies = cg.find_best_policies()
 
     mdp.visualize(cg.graph, policies, show_edges=False)
+
+    plt.figure(figsize=(9, 6))
+    plt.plot(irl_algo.data['qloss'])
 
     plt.show()
 

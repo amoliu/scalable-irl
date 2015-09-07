@@ -208,11 +208,12 @@ class GeneratingTrajectoryBIRL(BIRL):
 
         """
         reward = self.initialize_reward()
-        # self._compute_policy(reward=reward)
-        # init_g_trajs = self._rep.find_best_policies()
+        self._rewards = [reward]
 
         self._g_trajs.append(self._demos)  # initialize with demos???
-        self._rewards = [reward]
+        # trajs = self._compute_policy(reward=reward)
+        # self._g_trajs.append(trajs)
+
         self._iteration = 1
 
         while self._iteration < self._max_iter + 1:
@@ -310,19 +311,23 @@ class GTBIRLOptim(GeneratingTrajectoryBIRL):
         r_init = self._rewards[self._iteration-1]
 
         # run optimization to minimize N_llk
-        res = sp.optimize.fmin_l_bfgs_b(self._neg_loglk,
-                                        r_init,
-                                        approx_grad=1,
-                                        bounds=self._bounds)
+        res = sp.optimize.minimize(fun=self._neg_loglk,
+                                   x0=r_init,
+                                   method='L-BFGS-B',
+                                   jac=False,
+                                   bounds=self._bounds)
 
         self.debug('Solver result: {}'.format(res))
-        reward = res[0]
+        reward = res.x
 
         return reward
 
     def _neg_loglk(self, r):
-        """ Compute the negative log likelihood with respect to the given
-        reward and generated trajectories.
+        """ Compute the negative log likelihood for r
+
+        Compute :math:`\log p(\Xi | r) p(r)` with respect to the given
+        reward
+
         """
         # - prepare the trajectory quality scores
         QE = self._rep.trajectory_quality(r, self._demos)
