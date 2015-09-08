@@ -24,7 +24,6 @@ from ..mdp_solvers import graph_policy_iteration
 
 
 __all__ = [
-    'STBIRLMap',
     'STBIRLLinearProg',
     'GTBIRLOptim',
     'GTBIRLPolicyWalk',
@@ -67,26 +66,31 @@ class SamplingTrajectoryBIRL(BIRL):
         """
         reward = self.initialize_reward()
 
-        self._rewards = [reward]
-
+        self._policies = []
         self._iteration = 1
         while self._iteration < self._max_iter + 1:
+            v_e = self._expert_policy_value(reward)
+            v_r, pi_r = self._test_policy_value(reward)
+            reward_loss = np.linalg.norm(v_e - v_r, ord=2)
+
+            self._policies.append(pi_r)
+            self.data['loss'].append(reward_loss)
+
+            # - find the next best reward
             reward = self.find_next_reward()
 
             # - check for termination
-            if self._terminate(reward):
+            if reward_loss < self._eps:
                 break
 
-            # - diagnosis data
             self.info('Iteration: {}'.format(self._iteration))
 
-            self._rewards.append(reward)
             self._iteration += 1
 
-        return self._rewards
+        return reward
 
     @abstractmethod
-    def find_next_reward(self, g_trajs):
+    def find_next_reward(self):
         """ Compute a new reward based on current iteration """
         raise NotImplementedError('Abstract')
 
@@ -99,7 +103,12 @@ class SamplingTrajectoryBIRL(BIRL):
                            for _ in range(rdim)])
         return reward
 
-    def _terminate(self, reward):
+    def _expert_policy_value(self, reward):
+        expert_value = self._rep.trajectory_quality(reward, self._demos)
+        expert_value = np.array(expert_value)
+        return expert_value
+
+    def _test_policy_value(self, reward):
         """ Check for termination
 
         Check if how close the value of the new reward is wrt to value of
@@ -114,64 +123,10 @@ class SamplingTrajectoryBIRL(BIRL):
         graph_policy_iteration(self._rep.graph,
                                self._rep.mdp.gamma)
         value_function = self._rep.graph.get_signal('V')
-        pi_value = np.array([value_function[s] for s in starts])
+        policy = self._rep.graph.get_signal('pi')
+        v_pi = np.array([value_function[s] for s in starts])
 
-        # estimate expert value
-        expert_value = self._rep.trajectory_quality(reward, self._demos)
-        expert_value = np.array(expert_value)
-
-        # check termination
-        reward_loss = np.linalg.norm(pi_value - expert_value, ord=2)
-        self.data['loss'].append(reward_loss)
-
-        if reward_loss < self._eps:
-            return True
-
-        return False
-
-
-class STBIRLMap(SamplingTrajectoryBIRL):
-    """ MAP based STBIRL """
-    def __init__(self, demos, rep, prior, loss, eta=0.5, reward_max=1.0,
-                 beta=0.7, eps=0.2, max_iter=10):
-        super(STBIRLMap, self).__init__(demos, rep, prior, loss, reward_max,
-                                        beta, eps, max_iter)
-        assert 0.0 < eta <= 1.0, 'Learning rate *eta* must be in (0, 1]'
-        self._eta = eta
-
-    def find_next_reward(self):
-        """ Compute a new reward by gradient descent """
-        # initialize the reward TODO - why???
-        r_init = self.initialize_reward()
-        # r_init = self._rewards[self._iteration-1]
-
-        bounds = tuple((-3.0*self._rmax, 3.0*self._rmax)
-                       for _ in range(self._rep.mdp.reward.dim))
-
-        # run optimization to minimize N_llk
-        res = sp.optimize.minimize(fun=self._objective,
-                                   x0=r_init,
-                                   method='L-BFGS-B',
-                                   jac=False,
-                                   bounds=bounds)
-
-        self.debug('Solver result: {}'.format(res))
-        reward = res.x
-
-        return reward
-
-    def _objective(self, r):
-        """ Objevtive function for gradient descent to find MAP
-
-        The negative log likelihood of the reward using standard BIRL
-        likelihood model, p(r|D) = 1/Z p(D|r) p(r)
-
-        """
-        QE = self._rep.trajectory_quality(r, self._demos)
-        lk = -np.sum(QE)
-        prior = np.sum(self._prior.log_p(r))
-
-        return lk - prior
+        return v_pi, policy
 
 
 class STBIRLLinearProg(SamplingTrajectoryBIRL):
@@ -185,15 +140,9 @@ class STBIRLLinearProg(SamplingTrajectoryBIRL):
         raise NotImplementedError('Implementation not complete')
 
     def find_next_reward(self):
-        """ Compute a new reward """
-        # initialize the reward TODO - why???
-        # r_init = self.initialize_reward()
-        r_init = self._rewards[self._iteration-1]
-        # maybe initialize to prior(custom prior)
-
+        """ Compute a new reward based on accumulated policies """
         # Solve LP problem
-
-        return r_init
+        return None
 
 
 ########################################################################
