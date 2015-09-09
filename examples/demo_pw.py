@@ -35,10 +35,10 @@ def demo_rep_learning():
                          local_controller=lin_controller,
                          params=params)
 
-    cg.initialize_state_graph(samples=[(0.5, 0.5), (0.1, 0.3)])
+    cg.initialize_state_graph(samples=[(0.5, 0.5)])
     cg = cg.run()
 
-    mdp.visualize(cg.graph, cg.policies, show_edges=False)
+    mdp.visualize(cg.graph, cg.policies, show_edges=True)
     plt.show()
 
 if __name__ == '__main__':

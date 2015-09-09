@@ -22,6 +22,7 @@ import copy
 
 import numpy as np
 from numpy.random import uniform
+from collections import Iterable
 
 from ..algorithms.mdp_solvers import graph_policy_iteration
 from ..algorithms.function_approximation import gp_predict, gp_covariance
@@ -171,8 +172,10 @@ class ControllerGraph(MDPRepresentation, Logger):
                                  duration=b_d, phi=b_phi, traj=b_traj)
 
                 # remove from queue??
-                exp_queue.remove(sn)
-                exp_probs.remove(exp_probs[index])
+                # exp_queue.remove(sn)
+                # exp_probs.remove(exp_probs[index])
+                exp_queue = exp_queue[:index] + exp_queue[index+1:]
+                exp_probs = exp_probs[:index] + exp_probs[index+1:]
 
                 self._node_id += 1
                 self._improve_state(nid)

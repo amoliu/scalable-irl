@@ -59,6 +59,7 @@ class PuddleWorldControler(LocalController):
         dt = duration * 1.0 / self._resolution
         traj = [target * t / dt + source * (1 - t / dt)
                 for t in range(int(dt))]
+        traj.append(source)
         traj = np.array(traj)
         return traj
 
@@ -72,7 +73,7 @@ class PuddleReward(MDPReward):
         super(PuddleReward, self).__init__(world, kind)
 
     def __call__(self, state, action):
-        gamma = 0.9
+        gamma = 0.98
         reward = []
         for i, wp in enumerate(action):
             reward.append(sum(p.cost(wp[0], wp[1])
