@@ -275,10 +275,13 @@ class ControllerGraph(MDPRepresentation, Logger):
         """ Initialize from random samples """
         GR = self._params.goal_reward
         CLIMIT = self._params.max_cost
-        GOAL = list(self._mdp.goal_state) + [0, self._params.speed]
+        # TODO - make these depend on state size (maybe world param?)
+        # GOAL = list(self._mdp.goal_state) + [0, self._params.speed]
+        GOAL = self._mdp.goal_state
 
         for start in self._mdp.start_states:
-            st = list(start) + [0, self._params.speed]
+            # st = list(start) + [0, self._params.speed]
+            st = start
             self._g.add_node(nid=self._node_id, data=st, cost=0,
                              priority=1, V=GR, pi=0, Q=[], ntype='start')
             self._node_id += 1
@@ -290,7 +293,8 @@ class ControllerGraph(MDPRepresentation, Logger):
         # - add the init samples
         init_samples = list(samples)
         for sample in init_samples:
-            smp = list(sample) + [0, self._params.speed]
+            # smp = list(sample) + [0, self._params.speed]
+            smp = sample
             self._g.add_node(nid=self._node_id, data=smp, cost=-CLIMIT,
                              priority=1, V=GR, pi=0, Q=[], ntype='simple')
             self._node_id += 1

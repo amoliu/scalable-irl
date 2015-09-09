@@ -248,14 +248,14 @@ class LocalController(ModelMixin):
         self.kind = kind
 
     @abstractmethod
-    def __call__(self, state, action, duration, max_speed):
-        """ Execute a local controller at ``state`` using ``action``
-        for period lasting ``duration`` and speed limit ``max_speed``
+    def __call__(self, state, action, duration):
+        """ Execute a local controller at `state` using `action`
+        for period lasting `duration`
         """
         raise NotImplementedError('Abstract method')
 
     @abstractmethod
-    def trajectory(self, start, target, max_speed):
+    def trajectory(self, source, target):
         """ Generate a trajectory by executing the local controller
 
         Execute the local controller between the given two states to generate

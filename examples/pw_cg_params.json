@@ -1,0 +1,24 @@
+{
+    "conc_scale": 1,
+    "exp_thresh": 0.95,
+    "goal_reward": 1,
+    "init_type": "random",
+    "max_cost": 1000,
+    "max_edges": 360,
+    "max_samples": 40,
+    "max_traj_len": 500,
+    "n_add": 1,
+    "n_expand": 1,
+    "n_new": 10,
+    "p_best": 0.4,
+    "radius": 0.18,
+    "speed": 1.0,
+    "tmax": [
+        0.36,
+        0.72
+    ],
+    "tmin": [
+        0.045,
+        0.24
+    ]
+}

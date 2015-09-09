@@ -75,15 +75,15 @@ class LinearLocalController(LocalController):
 
         return state, None
 
-    def trajectory(self, start, target, max_speed):
+    def trajectory(self, source, target, max_speed):
         """ Compute trajectories between two states"""
-        start = asarray(start)
+        source = asarray(source)
         target = asarray(target)
-        duration = edist(start, target)
+        duration = edist(source, target)
         dt = (max_speed * duration) * 1.0 / self._resolution
-        theta = np.arctan2(target[1]-start[1], target[0]-start[0])
+        theta = np.arctan2(target[1]-source[1], target[0]-source[0])
 
-        traj = [target[0:2] * t / dt + start[0:2] * (1 - t / dt)
+        traj = [target[0:2] * t / dt + source[0:2] * (1 - t / dt)
                 for t in range(int(dt))]
         traj = [t.tolist()+[theta, max_speed] for t in traj]
         traj = np.array(traj)
@@ -144,17 +144,17 @@ class POSQLocalController(LocalController):
 
         return state, None
 
-    def trajectory(self, start, target, max_speed):
+    def trajectory(self, source, target, max_speed):
         """ Compute trajectories between two states using POSQ"""
-        theta = np.arctan2(target[1]-start[1], target[0]-start[0])
-        # start = asarray([start[0], start[1], start[2]])
-        start = asarray([start[0], start[1], theta])
+        theta = np.arctan2(target[1]-source[1], target[0]-source[0])
+        # source = asarray([source[0], source[1], source[2]])
+        source = asarray([source[0], source[1], theta])
         target = asarray([target[0], target[1], theta])
 
         direction = 1
         init_t = 0
         traj, speedvec, vel, inct = self._posq_integrate(
-            start, target, direction, self._resolution,
+            source, target, direction, self._resolution,
             self._base, init_t, max_speed, nS=0)
 
         speeds = np.hypot(speedvec[:, 0], speedvec[:, 1])

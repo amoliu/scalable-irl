@@ -22,7 +22,7 @@ from sirl.domains.navigation.reward_functions import SimpleReward
 from sirl.domains.navigation.social_navigation import SocialNavWorld
 
 from sirl.algorithms.controller_graph import ControllerGraph
-from sirl.models.parameters import GraphMDPParams
+from sirl.models.parameters import ControllerGraphParams
 
 # learning behavior
 from sirl.algorithms.birl import GTBIRLOptim
@@ -32,7 +32,7 @@ from sirl.models.base import TrajQualityLoss
 
 DPATH = '../../experiments/social_rewards/'
 
-params = GraphMDPParams()
+params = ControllerGraphParams()
 params.load(DPATH+'graph_mdp_params.json')
 params.max_cost = 1000
 params.max_samples = 280

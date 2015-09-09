@@ -10,55 +10,73 @@ import matplotlib.cm as cm
 import matplotlib as mpl
 
 
-from ..models.base import LocalController
-from ..models.base import MDP
-from ..models.base import MDPReward
-from ..models import _controller_duration
+from ...models.base import LocalController
+from ...models.base import MDP
+from ...models.base import MDPReward
+from ...models.base import Environment
 
-from ..utils.geometry import edist, distance_to_segment
-from ..algorithms.mdp_solvers import graph_policy_iteration
+from ...utils.geometry import edist, distance_to_segment
+
+
+__all__ = [
+    'PuddleWorldControler',
+    'PuddleReward',
+    'PuddleWorldEnvironment',
+    'PuddleWorldMDP',
+    'Puddle',
+]
 
 
 ########################################################################
 
 class PuddleWorldControler(LocalController):
     """ PuddleWorldControler local controller """
-    def __init__(self, kind='linear'):
-        super(PuddleWorldControler, self).__init__(kind)
+    def __init__(self, world, kind='linear'):
+        super(PuddleWorldControler, self).__init__(world, kind)
 
-    def __call__(self, state, action, duration, max_speed):
+        # the agents moves by 0.05 at every step as per the original
+        # task definition
+        self._resolution = 0.05
+
+    def __call__(self, state, action, duration, *others):
         """ Run a local controller from a ``state`` using ``action``
         """
-        nx = state[0] + np.cos(action * 2 * np.pi) * duration * 0.1
-        ny = state[1] + np.sin(action * 2 * np.pi) * duration * 0.1
+        nx = state[0] + np.cos(action) * duration
+        ny = state[1] + np.sin(action) * duration
 
-        if 0 < nx < 1 and 0 < ny < 1:
-            return (nx, ny)
-        return state
+        if self._world.in_world((nx, ny)):
+            target = [nx, ny]
+            traj = self.trajectory(state, target)
+            return target, traj
+
+        return state, None
+
+    def trajectory(self, source, target, *others):
+        """ Compute trajectories between two states"""
+        source = np.asarray(source)
+        target = np.asarray(target)
+        duration = edist(source, target)
+        dt = duration * 1.0 / self._resolution
+        traj = [target * t / dt + source * (1 - t / dt)
+                for t in range(int(dt))]
+        traj = np.array(traj)
+        return traj
+
 
 ########################################################################
 
 
 class PuddleReward(MDPReward):
     """ Reward function for the puddle world """
-    def __init__(self, puddles, discount, kind='linfa'):
-        super(PuddleReward, self).__init__(kind)
-        self._puddles = puddles
-        self._gamma = discount
+    def __init__(self, world, kind='linfa'):
+        super(PuddleReward, self).__init__(world, kind)
 
-    def __call__(self, state_a, state_b):
-        source, target = np.array(state_a), np.array(state_b)
-        # increase resolution of action trajectory (option)
-        duration = _controller_duration(source, target)
-        action_traj = [target * t / duration + source * (1 - t / duration)
-                       for t in range(int(duration))]
-        action_traj.append(target)
-        action_traj = np.array(action_traj)
-
+    def __call__(self, state, action):
+        gamma = 0.9
         reward = []
-        for i, wp in enumerate(action_traj):
+        for i, wp in enumerate(action):
             reward.append(sum(p.cost(wp[0], wp[1])
-                          for p in self._puddles)*self._gamma**i)
+                          for p in self._world.puddles)*gamma**i)
 
         return sum(reward), reward
 
@@ -67,6 +85,25 @@ class PuddleReward(MDPReward):
         return 1
 
 ########################################################################
+
+
+class PuddleWorldEnvironment(Environment):
+    """ Social Navigation World """
+    def __init__(self, start, goal, puddles=None, **kwargs):
+        super(PuddleWorldEnvironment, self).__init__(start, goal)
+
+        if puddles is not None:
+            self.puddles = puddles
+        else:
+            self._setup_default_puddles()
+
+    def in_world(self, state):
+        return 0.0 < state[0] < 1.0 and 0.0 < state[1] < 1.0
+
+    def _setup_default_puddles(self):
+        self.puddles = list()
+        self.puddles.append(Puddle(0.1, 0.75, 0.45, 0.75, 0.1))
+        self.puddles.append(Puddle(0.45, 0.4, 0.45, 0.8, 0.1))
 
 
 class PuddleWorldMDP(MDP):
@@ -84,56 +121,30 @@ class PuddleWorldMDP(MDP):
         Algorithm parameters for the various steps
 
     """
-    def __init__(self, discount, reward, controller, params):
-        super(PuddleWorldMDP, self).__init__(discount, reward,
-                                             controller, params)
-        self._setup_puddles()
+    def __init__(self, discount, reward, world):
+        super(PuddleWorldMDP, self).__init__(discount, reward)
+
+        self._world = world
         self._recording = False
         self._demos = list()
 
-    def initialize_state_graph(self, samples):
-        GR = self._params.goal_reward
-        CLIMIT = self._params.max_cost
-        for start in self._params.start_states:
-            self._g.add_node(nid=self._node_id, data=start, cost=0,
-                             priority=1, V=GR, pi=0, Q=[], ntype='start')
-            self._node_id += 1
-
-        self._g.add_node(nid=self._node_id, data=self._params.goal_state,
-                         cost=-CLIMIT, priority=1, V=GR, pi=0,
-                         Q=[], ntype='goal')
-        self._node_id += 1
-
-        # - add the init samples
-        init_samples = list(samples)
-        for sample in init_samples:
-            self._g.add_node(nid=self._node_id, data=sample, cost=-CLIMIT,
-                             priority=1, V=GR, pi=0, Q=[], ntype='simple')
-            self._node_id += 1
-
-        # - add edges between each pair
-        for n in self._g.nodes:
-            for m in self._g.nodes:
-                if n == m or self.terminal(n):
-                    continue
-                ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
-                r, phi = self._reward(ndata, mdata)
-                d = _controller_duration(ndata, mdata)
-                self._g.add_edge(source=n, target=m, reward=r,
-                                 duration=d, phi=phi)
-
-        # - update graph attributes
-        self._update_state_costs()
-        graph_policy_iteration(self)
-        self._update_state_priorities()
-        self._find_best_policies()
-
     def terminal(self, state):
         """ Check if a state is terminal (goal state) """
-        position = self._g.gna(state, 'data')
-        if edist(position, self._params.goal_state) < 0.05:
+        if edist(state, self._world.goal) < 0.05:
             return True
         return False
+
+    @property
+    def state_dimension(self):
+        return 2
+
+    @property
+    def start_states(self):
+        return self._world.start
+
+    @property
+    def goal_state(self):
+        return self._world.goal
 
     def visualize(self):
         self._setup_visuals()
@@ -142,11 +153,6 @@ class PuddleWorldMDP(MDP):
     # -------------------------------------------------------------
     # internals
     # -------------------------------------------------------------
-
-    def _setup_puddles(self):
-        self.puddles = list()
-        self.puddles.append(Puddle(0.1, 0.75, 0.45, 0.75, 0.1))
-        self.puddles.append(Puddle(0.45, 0.4, 0.45, 0.8, 0.1))
 
     def _setup_visuals(self):
         """Setup visual elements
@@ -319,19 +325,14 @@ class Agent(object):
 
 class Puddle(object):
     """ A puddle in a continous puddle world
+
     Represented by combinations of a line and semi-circles at each end,
     i.e. (-----------)
 
     Parameters
     -----------
-    x1 : float
-        X coordinate of the start of the center line
-    x2 : float
-        X coordinate of the end of the center line
-    y1 : float
-        Y coordinate of the start of the center line
-    y2 : float
-        Y coordinate of the end of the center line
+    x1, x2, y1, y2 : float
+        Coordinates of the puddle midline
     radius : float
         Thickness/breadth of the puddle in all directions
 
@@ -343,6 +344,7 @@ class Puddle(object):
         1D numpy array with the end of the line at the puddle center line
     radius: float
         Thickness/breadth of the puddle in all directions
+
     """
     def __init__(self, x1, y1, x2, y2, radius, **kwargs):
         assert x1 >= 0 and x1 <= 1, 'Puddle coordinates must be in [0, 1]'
@@ -355,8 +357,8 @@ class Puddle(object):
         self.radius = radius
 
     def cost(self, x, y):
-        dist_puddle, inside = distance_to_segment(self.start_pose,
-                                                  self.end_pose, (x, y))
+        dist_puddle, inside = distance_to_segment((x, y), (self.start_pose,
+                                                  self.end_pose))
         if inside and dist_puddle < self.radius:
             return -400.0 * (self.radius - dist_puddle)
         return 0.0
