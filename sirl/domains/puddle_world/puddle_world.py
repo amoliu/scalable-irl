@@ -146,9 +146,9 @@ class PuddleWorldMDP(MDP):
     def goal_state(self):
         return self._world.goal
 
-    def visualize(self):
+    def visualize(self, G, policies, show_edges=False):
         self._setup_visuals()
-        self._plot_graph_in_world()
+        self._plot_graph_in_world(G, policies, show_edges)
 
     # -------------------------------------------------------------
     # internals
@@ -179,24 +179,26 @@ class PuddleWorldMDP(MDP):
         self.ax.add_patch(goal_polygon)
 
         # draw puddles
-        x1 = self.puddles[0].start_pose[0]
-        y1 = self.puddles[0].start_pose[1]-0.05
-        pd1 = Rectangle((x1, y1), height=0.1, width=self.puddles[0].length,
+        x1 = self._world.puddles[0].start[0]
+        y1 = self._world.puddles[0].start[1]-0.05
+        width = self._world.puddles[0].length
+        height = self._world.puddles[1].length
+        pd1 = Rectangle((x1, y1), height=0.1, width=width,
                         color='brown', alpha=0.7, aa=True, lw=0)
         self.ax.add_artist(pd1)
-        self.ax.add_artist(Wedge(self.puddles[0].start_pose, 0.05, 90, 270,
+        self.ax.add_artist(Wedge(self._world.puddles[0].start, 0.05, 90, 270,
                            fc='brown', alpha=0.7, aa=True, lw=0))
-        self.ax.add_artist(Wedge(self.puddles[0].end_pose, 0.05, 270, 90,
+        self.ax.add_artist(Wedge(self._world.puddles[0].end, 0.05, 270, 90,
                            fc='brown', alpha=0.7, aa=True, lw=0))
 
-        x2 = self.puddles[1].start_pose[0]-0.05
-        y2 = self.puddles[1].start_pose[1]
-        pd2 = Rectangle((x2, y2), width=0.1, height=self.puddles[1].length,
+        x2 = self._world.puddles[1].start[0]-0.05
+        y2 = self._world.puddles[1].start[1]
+        pd2 = Rectangle((x2, y2), width=0.1, height=height,
                         color='brown', alpha=0.7)
         self.ax.add_artist(pd2)
-        self.ax.add_artist(Wedge(self.puddles[1].start_pose, 0.05, 180, 360,
+        self.ax.add_artist(Wedge(self._world.puddles[1].start, 0.05, 180, 360,
                            fc='brown', alpha=0.7, aa=True, lw=0))
-        self.ax.add_artist(Wedge(self.puddles[1].end_pose, 0.05, 0, 180,
+        self.ax.add_artist(Wedge(self._world.puddles[1].end, 0.05, 0, 180,
                            fc='brown', alpha=0.7, aa=True, lw=0))
 
         # draw the agent at initial pose
@@ -250,66 +252,50 @@ class PuddleWorldMDP(MDP):
                                0.005, fc=cc, ec=cc))
             self.figure.canvas.draw()
 
-    def _plot_graph_in_world(self, show_rewards=False):
+    def _plot_graph_in_world(self, G, policies, show_edges):
         """ Shows the lattest version of the world with MDP
         """
-        G = self._g
         gna = G.gna
-        gea = G.gea
-
-        if show_rewards:
-            rewards = [gea(e[0], e[1], 'reward') for e in G.all_edges]
-            n = mpl.colors.Normalize(vmin=min(rewards), vmax=max(rewards))
-            m = cm.ScalarMappable(norm=n, cmap=cm.jet)
-
         values = [gna(n, 'V') for n in G.nodes]
         nv = mpl.colors.Normalize(vmin=min(values), vmax=max(values))
         mv = cm.ScalarMappable(norm=nv, cmap=cm.jet)
 
         best_nodes = set()
-        for traj in self._best_trajs:
+        for traj in policies:
             for state in traj:
                 best_nodes.add(state)
 
         for i, n in enumerate(G.nodes):
-            [posx, posy] = gna(n, 'data')
+            posx, posy = gna(n, 'data')
             if gna(n, 'type') == 'start':
-                color = ['black', 'black']
+                color = 'black'
                 nr = 1.0
-            elif self.terminal(n):
-                color = ['green', 'black']
+            elif self.terminal((posx, posy)):
+                color = 'green'
                 nr = 1.5
             elif n in best_nodes:
-                color = ['green', 'green']
+                color = 'green'
                 nr = 0.5
             else:
-                # rgcol = _rgb_to_hex(((0, 0, 255 * i / float(n_nodes))))
-                rgcol = mv.to_rgba(gna(n, 'V'))
-                color = [rgcol, rgcol]
+                color = mv.to_rgba(gna(n, 'V'))
                 nr = 0.5
-            self.ax.add_artist(Circle((posx, posy), nr/100., fc=color[0],
-                               ec=color[1], lw=1.5, zorder=3))
+            self.ax.add_artist(Circle((posx, posy), nr/100., fc=color,
+                               ec=color, lw=1.5, zorder=3))
 
             p = gna(n, 'pi')
             ndata = gna(n, 'data')
             for i, e in enumerate(G.out_edges(n)):
-                t = e[1]
-                tdata = gna(t, 'data')
+                tdata = gna(e[1], 'data')
                 x1, y1 = ndata[0], ndata[1]
                 x2, y2 = tdata[0], tdata[1]
+
                 if n in best_nodes and i == p:
                     self.ax.plot((x1, x2), (y1, y2), ls='-',
                                  lw=2.0, c='g', zorder=3)
                 else:
-                    if not show_rewards:
+                    if show_edges:
                         self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
                                      c='0.7', alpha=0.5)
-                    else:
-                        cost = gea(e[0], e[1], 'reward')
-                        self.ax.arrow(x1, y1, 0.97*(x2-x1), 0.97*(y2-y1),
-                                      width=0.01, head_width=0.15,
-                                      head_length=0.15,
-                                      fc=m.to_rgba(cost), ec=m.to_rgba(cost))
 
 
 ########################################################################
@@ -338,9 +324,9 @@ class Puddle(object):
 
     Attributes
     -----------
-    start_pose : array-like
+    start : array-like
         1D numpy array with the start of the line at the puddle center line
-    end_pose: array-like
+    end: array-like
         1D numpy array with the end of the line at the puddle center line
     radius: float
         Thickness/breadth of the puddle in all directions
@@ -352,22 +338,22 @@ class Puddle(object):
         assert y1 >= 0 and y1 <= 1, 'Puddle coordinates must be in [0, 1]'
         assert y2 >= 0 and y2 <= 1, 'Puddle coordinates must be in [0, 1]'
         assert radius > 0, 'Puddle radius must be > 0'
-        self.start_pose = np.array([x1, y1])
-        self.end_pose = np.array([x2, y2])
+        self.start = np.array([x1, y1])
+        self.end = np.array([x2, y2])
         self.radius = radius
 
     def cost(self, x, y):
-        dist_puddle, inside = distance_to_segment((x, y), (self.start_pose,
-                                                  self.end_pose))
+        dist_puddle, inside = distance_to_segment((x, y), (self.start,
+                                                  self.end))
         if inside and dist_puddle < self.radius:
             return -400.0 * (self.radius - dist_puddle)
         return 0.0
 
     @property
     def location(self):
-        return self.start_pose[0], self.start_pose[1],\
-            self.end_pose[0], self.end_pose[1]
+        return self.start[0], self.start[1],\
+            self.end[0], self.end[1]
 
     @property
     def length(self):
-        return edist(self.start_pose, self.end_pose)
+        return edist(self.start, self.end)
