@@ -144,7 +144,6 @@ class ControllerGraph(MDPRepresentation, Logger):
                         self._min_es = es
                     conc = conc / float(self._max_conc)
                     es = map_range(es, self._min_es, self._max_es, 0.0, 1.0)
-                    # print(conc, es, var_es, self._params.exp_thresh)
                     if var_es > self._params.exp_thresh:
                         exp_queue.append(new_state)
                         exp_probs.append(es + cscale*conc)
@@ -565,14 +564,13 @@ class ControllerGraph(MDPRepresentation, Logger):
 
         return S_best, S_other
 
-    def _sample_control_time(self, i, imax,
-                             tmin=(0.45, 2.4),
-                             tmax=(3.6, 7.2)):
+    def _sample_control_time(self, i, imax):
         """ Sample a time interval for running a local controller
 
         The time iterval is tempered based on the number of iterations
         """
         imax = float(imax)
+        tmin, tmax = self._params.tmin, self._params.tmax
         min_time = tmin[1] * (1 - i/imax) + tmin[0] * i/imax
         max_time = tmax[1] * (1 - i/imax) + tmax[0] * i/imax
         return uniform(min_time, max_time)

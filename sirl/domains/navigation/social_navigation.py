@@ -9,28 +9,26 @@ import matplotlib.cm as cm
 import matplotlib as mpl
 
 from ...models.base import MDP
-from ...models.base import World
+from ...models.base import Environment
 from ...utils.geometry import edist
 
 
-__all__ = ['SocialNavWorld', 'SocialNavMDP']
+__all__ = ['SocialNavEnvironment', 'SocialNavMDP']
 
 
 ########################################################################
 
-class SocialNavWorld(World):
+class SocialNavEnvironment(Environment):
     """ Social Navigation World """
     def __init__(self, (x, y, w, h), persons, relations,
                  goal, starts, **kwargs):
-        super(SocialNavWorld, self).__init__()
+        super(SocialNavEnvironment, self).__init__(starts, goal)
         self.x = x
         self.y = y
         self.w = w
         self.h = h
         self.persons = persons
         self.relations = relations
-        self.goal = goal
-        self.start_states = starts
 
     def in_world(self, state):
         return self.x < state[0] < self.w and\
@@ -84,7 +82,7 @@ class SocialNavMDP(MDP):
 
     @property
     def start_states(self):
-        return self._world.start_states
+        return self._world.start
 
     @property
     def goal_state(self):

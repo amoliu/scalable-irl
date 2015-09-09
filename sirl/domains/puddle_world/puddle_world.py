@@ -10,9 +10,9 @@ import matplotlib.cm as cm
 import matplotlib as mpl
 
 
-from ..models import LocalController
-from ..models import GraphMDP
-from ..models import MDPReward
+from ..models.base import LocalController
+from ..models.base import MDP
+from ..models.base import MDPReward
 from ..models import _controller_duration
 
 from ..utils.geometry import edist, distance_to_segment
@@ -32,7 +32,6 @@ class PuddleWorldControler(LocalController):
         nx = state[0] + np.cos(action * 2 * np.pi) * duration * 0.1
         ny = state[1] + np.sin(action * 2 * np.pi) * duration * 0.1
 
-        # print(nx, ny, duration)
         if 0 < nx < 1 and 0 < ny < 1:
             return (nx, ny)
         return state
@@ -70,7 +69,7 @@ class PuddleReward(MDPReward):
 ########################################################################
 
 
-class PuddleWorldMDP(GraphMDP):
+class PuddleWorldMDP(MDP):
     """ Puddle world MDP
 
     Parameters

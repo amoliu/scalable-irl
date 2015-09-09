@@ -327,7 +327,7 @@ class MDPRepresentation(ModelMixin):
 
 ########################################################################
 
-class World(ModelMixin):
+class Environment(ModelMixin):
     """ The environment that the MDP is defined on
 
     This is largely a data container for all the things in the environment
@@ -337,8 +337,9 @@ class World(ModelMixin):
     Also contains limits of the environment
 
     """
-    def __init__(self):
-        pass
+    def __init__(self, start, goal):
+        self.start = start
+        self.goal = goal
 
     @abstractmethod
     def in_world(self, state):
