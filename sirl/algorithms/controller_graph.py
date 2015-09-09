@@ -440,15 +440,13 @@ class ControllerGraph(MDPRepresentation, Logger):
             if not cost_changed:
                 converged = True
 
-    def _update_state_priorities(self, states=None):
+    def _update_state_priorities(self):
         """ Update priority values for all states
 
         Updates priority score of each node in the state graph
         """
         G = self._g
-        if states is None:
-            states = G.nodes
-
+        states = G.nodes
         cc = [self._node_concentration(state) for state in states]
         self._max_conc = max(cc)
         cc = [c / float(self._max_conc) for c in cc]
