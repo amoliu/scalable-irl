@@ -1,11 +1,11 @@
 {
     "conc_scale": 1,
-    "exp_thresh": 0.25,
+    "exp_thresh": 0.005,
     "goal_reward": 1,
     "init_type": "random",
     "max_cost": 100,
     "max_edges": 360,
-    "max_samples": 180,
+    "max_samples": 100,
     "max_traj_len": 500,
     "n_add": 1,
     "n_expand": 1,

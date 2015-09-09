@@ -36,7 +36,7 @@ class PuddleWorldControler(LocalController):
 
         # the agents moves by 0.05 at every step as per the original
         # task definition
-        self._resolution = 0.05
+        self._resolution = 0.01
 
     def __call__(self, state, action, duration, *others):
         """ Run a local controller from a ``state`` using ``action``
@@ -346,8 +346,13 @@ class Puddle(object):
     def cost(self, x, y):
         dist_puddle, inside = distance_to_segment((x, y), (self.start,
                                                   self.end))
-        if inside and dist_puddle < self.radius:
-            return -400.0 * (self.radius - dist_puddle)
+        if inside:
+            if dist_puddle < self.radius:
+                return -400.0 * (self.radius - dist_puddle)
+        else:
+            d = min(edist((x, y), self.start), edist((x, y), self.end))
+            if d < self.radius:
+                return -400.0 * (self.radius - d)
         return 0.0
 
     @property
