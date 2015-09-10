@@ -145,6 +145,8 @@ class ControllerGraph(MDPRepresentation, Logger):
                         self._min_es = es
                     conc = conc / float(self._max_conc)
                     es = map_range(es, self._min_es, self._max_es, 0.0, 1.0)
+                    # self.debug('{}, {}, {}, {}'
+                    #            .format(conc, es, var_es, len(exp_queue)))
                     if var_es > self._params.exp_thresh:
                         exp_queue.append(new_state)
                         exp_probs.append(es + cscale*conc)

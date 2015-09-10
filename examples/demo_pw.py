@@ -8,7 +8,7 @@ import seaborn as sns
 sns.set_context("poster")
 
 import numpy as np
-np.random.seed(21)
+# np.random.seed(21)
 
 from sirl.domains.puddle_world.puddle_world import PuddleWorldMDP
 from sirl.domains.puddle_world.puddle_world import PuddleWorldEnvironment
@@ -26,7 +26,7 @@ lin_controller = PuddleWorldControler(world)
 
 def demo_rep_learning():
     # reward = PuddleReward(world)
-    reward = PuddleRewardOriented(world, weights=(1.0, -0.8, -0.001))
+    reward = PuddleRewardOriented(world, weights=(1.0, -0.2, -0.001))
 
     mdp = PuddleWorldMDP(discount=0.95, reward=reward, world=world)
 
