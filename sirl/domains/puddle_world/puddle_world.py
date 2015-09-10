@@ -21,6 +21,7 @@ from ...utils.geometry import edist, distance_to_segment
 __all__ = [
     'PuddleWorldControler',
     'PuddleReward',
+    'PuddleRewardOriented',
     'PuddleWorldEnvironment',
     'PuddleWorldMDP',
     'Puddle',
@@ -84,6 +85,47 @@ class PuddleReward(MDPReward):
     @property
     def dim(self):
         return 1
+
+
+class PuddleRewardOriented(MDPReward):
+    """ Reward function for the puddle world (adding goal orientation) """
+    def __init__(self, world, weights, kind='linfa'):
+        super(PuddleRewardOriented, self).__init__(world, kind)
+        weights = np.asarray(weights)
+        assert weights.size == self.dim,\
+            'Expecting {}-dim weight vector'.format(self.dim)
+        self._weights = weights
+        self._gamma = 0.9
+
+    def __call__(self, state, action):
+        phi = [self._puddle_penalty(action),
+               self._goal_orientation(action),
+               100.0*action.shape[0]]
+        r = np.dot(phi, self._weights)
+        return r, phi
+
+    @property
+    def dim(self):
+        return 3
+
+    def _puddle_penalty(self, action):
+        pen = 0.0
+        for i, wp in enumerate(action):
+            pen += (sum(p.cost(wp[0], wp[1])
+                    for p in self._world.puddles)*self._gamma**i)
+        return pen
+
+    def _goal_orientation(self, action):
+        dist = edist(self._world.goal, action[-1]) *\
+            100.0 * self._gamma**action.shape[0]
+
+        # dist = 0.0
+        # for i in range(action.shape[0] - 1):
+        #     dnow = edist(self._world.goal, action[i])
+        #     dnext = edist(self._world.goal, action[i + 1])
+        #     dist += max((dnext - dnow), 0) * 100 * self._gamma**i
+
+        return dist
 
 ########################################################################
 
@@ -333,6 +375,8 @@ class Puddle(object):
         Thickness/breadth of the puddle in all directions
 
     """
+    PCOST = 100
+
     def __init__(self, x1, y1, x2, y2, radius, **kwargs):
         assert x1 >= 0 and x1 <= 1, 'Puddle coordinates must be in [0, 1]'
         assert x2 >= 0 and x2 <= 1, 'Puddle coordinates must be in [0, 1]'
@@ -348,11 +392,11 @@ class Puddle(object):
                                                   self.end))
         if inside:
             if dist_puddle < self.radius:
-                return -400.0 * (self.radius - dist_puddle)
+                return -self.PCOST * (self.radius - dist_puddle)
         else:
             d = min(edist((x, y), self.start), edist((x, y), self.end))
             if d < self.radius:
-                return -400.0 * (self.radius - d)
+                return -self.PCOST * (self.radius - d)
         return 0.0
 
     @property
