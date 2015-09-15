@@ -2,7 +2,7 @@
     "conc_scale": 1,
     "exp_thresh": 0.95,
     "goal_reward": 1,
-    "init_type": "random",
+    "init_type": "trajectory",
     "max_cost": 1000,
     "max_edges": 360,
     "max_samples": 140,

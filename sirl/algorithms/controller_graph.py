@@ -22,7 +22,6 @@ import copy
 
 import numpy as np
 from numpy.random import uniform
-from collections import Iterable
 
 from ..algorithms.mdp_solvers import graph_policy_iteration
 from ..algorithms.function_approximation import gp_predict, gp_covariance
@@ -281,12 +280,12 @@ class ControllerGraph(MDPRepresentation, Logger):
         GR = self._params.goal_reward
         CLIMIT = self._params.max_cost
         # TODO - make these depend on state size (maybe world param?)
-        # GOAL = list(self._mdp.goal_state) + [0, self._params.speed]
-        GOAL = self._mdp.goal_state
+        GOAL = list(self._mdp.goal_state) + [0, self._params.speed]
+        # GOAL = self._mdp.goal_state
 
         for start in self._mdp.start_states:
-            # st = list(start) + [0, self._params.speed]
-            st = start
+            st = list(start) + [0, self._params.speed]
+            # st = start
             self._g.add_node(nid=self._node_id, data=st, cost=0,
                              priority=1, V=GR, pi=0, Q=[], ntype='start')
             self._node_id += 1
@@ -298,8 +297,8 @@ class ControllerGraph(MDPRepresentation, Logger):
         # - add the init samples
         init_samples = list(samples)
         for sample in init_samples:
-            # smp = list(sample) + [0, self._params.speed]
-            smp = sample
+            smp = list(sample) + [0, self._params.speed]
+            # smp = sample
             self._g.add_node(nid=self._node_id, data=smp, cost=-CLIMIT,
                              priority=1, V=GR, pi=0, Q=[], ntype='simple')
             self._node_id += 1
@@ -323,50 +322,46 @@ class ControllerGraph(MDPRepresentation, Logger):
         CLIMIT = self._params.max_cost
 
         # - goal state
-        self._g.add_node(nid=self._node_id, data=self._params.goal_state,
+        GOAL = list(self._mdp.goal_state) + [0, self._params.speed]
+        self._g.add_node(nid=self._node_id, data=GOAL,
                          cost=-CLIMIT, priority=1, V=GR, pi=0,
                          Q=[], ntype='goal')
         g = copy.copy(self._node_id)
         self._node_id += 1
 
         self._params.start_states = []
+        vmax = self._params.speed
         for traj in trajs:
             # - add start
             start = traj[0]
+            smp = list(start) + [0, self._params.speed]
             self._params.start_states.append(start)
-            self._g.add_node(nid=self._node_id, data=start, cost=0,
+            self._g.add_node(nid=self._node_id, data=smp, cost=0,
                              priority=1, V=GR, pi=0, Q=[], ntype='start')
             n = copy.copy(self._node_id)
             self._node_id += 1
 
             # - add the rest of the waypoints
-            for wp in traj[1:]:
-                self._g.add_node(nid=self._node_id, data=wp, cost=-CLIMIT,
+            for wp in traj[1:-1]:
+                sp = list(wp) + [0, self._params.speed]
+                self._g.add_node(nid=self._node_id, data=sp, cost=-CLIMIT,
                                  priority=1, V=GR, pi=0, Q=[], ntype='simple')
                 m = copy.copy(self._node_id)
                 ndata, mdata = self._g.gna(n, 'data'), self._g.gna(m, 'data')
-                traj = self._controller.trajectory(ndata, mdata,
-                                                   self._params.speed)
+                traj = self._controller.trajectory(ndata, mdata, vmax)
                 d = trajectory_length(traj)
-                r, phi = self._reward(ndata, traj)
+                r, phi = self._mdp.reward(ndata, traj)
                 self._g.add_edge(source=n, target=m, reward=r,
                                  duration=d, phi=phi, traj=traj)
                 n = copy.copy(self._node_id)
                 self._node_id += 1
 
             fdata, tdata = self._g.gna(m, 'data'), self._g.gna(g, 'data')
-            traj = self._controller.trajectory(fdata, tdata,
-                                               self._params.speed)
+            traj = self._controller.trajectory(fdata, tdata, vmax)
             d = trajectory_length(traj)
-            r, phi = self._reward(fdata, traj)
+            r, phi = self._mdp.reward(fdata, traj)
             self._g.add_edge(source=m, target=g, reward=r,
                              duration=d, phi=phi, traj=traj)
-
-        # - update graph attributes
-        self._update_state_costs()
-        graph_policy_iteration(self)
-        self._update_state_priorities()
-        self.find_best_policies()
 
     def _sample_new_state_from(self, state):
         """ Sample new node in the neighborhood of a given state (node)

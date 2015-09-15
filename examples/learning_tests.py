@@ -11,7 +11,8 @@ matplotlib.use('Qt4Agg')
 
 import matplotlib.pyplot as plt
 import seaborn as sns
-sns.set_context("poster")
+sns.set_context("paper")
+sns.set_style("ticks")
 
 # np.random.seed(42)
 
@@ -71,10 +72,16 @@ def learn_reward():
     cg = ControllerGraph(mdp=mdp,
                          local_controller=lin_controller,
                          params=params)
-    cg.initialize_state_graph(samples=[(5, 5), (1, 3)])
-    cg = cg.run()
-    # mdp.visualize(cg.graph, cg.policies, show_edges=False)
+    # mdp.visualize(cg, cg.policies, show_edges=True, recording=True)
     # plt.show()
+
+    trajs = np.load('demos_metropolis.npy')
+    cg.initialize_state_graph(samples=trajs)
+    # cg.initialize_state_graph(samples=[(5, 5), (1, 3)])
+    cg = cg.run()
+    mdp.visualize(cg.graph, cg.policies, show_edges=True)
+    plt.savefig('state_graph_traj.pdf')
+    plt.show()
 
     demos = copy.deepcopy(cg.policies)
     loss = TrajQualityLoss(p=2)

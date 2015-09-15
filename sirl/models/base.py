@@ -324,6 +324,10 @@ class MDPRepresentation(ModelMixin):
     def kind(self):
         raise NotImplementedError('Abstract property')
 
+    @property
+    def mdp(self):
+        return self._mdp
+
 
 ########################################################################
 

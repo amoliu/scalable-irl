@@ -88,7 +88,8 @@ class SocialNavMDP(MDP):
     def goal_state(self):
         return self._world.goal
 
-    def visualize(self, G, policies, fsize=(12, 9), show_edges=False):
+    def visualize(self, G, policies, fsize=(12, 9),
+                  show_edges=False, recording=False):
         """ Visualize the social navigation world
 
         Allows recording of demonstrations and also display of final
@@ -106,15 +107,27 @@ class SocialNavMDP(MDP):
             self.ax.arrow(p[0], p[1], p[2]/5., p[3]/5., fc='r', ec='r', lw=1.5,
                           head_width=0.14, head_length=0.1, zorder=3)
 
-            speed = np.hypot(p[2], p[3])
-            hz = speed * 0.55
-            self.ax.add_artist(Circle((p[0], p[1]), radius=hz, color='r',
-                               ec='r', lw=1, aa=True, alpha=0.2))
+            # speed = np.hypot(p[2], p[3])
+            # hz = speed * 0.55
+            # self.ax.add_artist(Circle((p[0], p[1]), radius=hz, color='r',
+            #                    ec='r', lw=1, aa=True, alpha=0.2))
 
         for [i, j] in self._world.relations:
             x1, y1 = self._world.persons[i][0], self._world.persons[i][1]
             x2, y2 = self._world.persons[j][0], self._world.persons[j][1]
             self.ax.plot((x1, x2), (y1, y2), ls='-', c='r', lw=2.0, zorder=2)
+
+        if recording:
+            g = G.mdp.goal_state
+            starts = G.mdp.start_states
+            self.ax.add_artist(Circle((g[0], g[1]), 1.5/10., fc='g',
+                               ec='g', lw=1.5, zorder=3))
+
+            for s in starts:
+                self.ax.add_artist(Circle((s[0], s[1]), 1.5/10., fc='k',
+                                   ec='k', lw=1.5, zorder=3))
+
+            return self.ax
 
         self._plot_graph_in_world(G, policies, show_edges)
 
@@ -128,6 +141,7 @@ class SocialNavMDP(MDP):
         """ Prepare figure axes for plotting """
         self.figure = plt.figure(figsize=fsize)
         self.ax = plt.axes([0, 0, 0.8, 1])
+        # self.ax = plt.axes([0, 0, 1, 1])
         self.figure.add_axes(self.ax)
         self.ax.set_xlim([self._world.x, self._world.w])
         self.ax.set_ylim([self._world.y, self._world.h])
@@ -145,7 +159,7 @@ class SocialNavMDP(MDP):
         Used for demonstration recording and experiment handling
         """
         if event.key == 'R':
-            print('Starting recordning demos')
+            print('Starting recording demos')
             if self._recording is False:
                 print('Recording new demonstration')
                 self.record_status.set_text("Recording [ON]")
@@ -170,7 +184,7 @@ class SocialNavMDP(MDP):
             else:
                 print('Saving demos as: demos.npy')
                 d = np.array(self._demos)
-                fname = 'demos_metropolis.npy'
+                fname = 'demos_metropolis2.npy'
                 print(d, fname)
                 np.save(fname, d)
         self.figure.canvas.draw()
@@ -184,7 +198,7 @@ class SocialNavMDP(MDP):
             self.figure.canvas.draw()
 
     def _plot_graph_in_world(self, G, policies, show_edges):
-        """ Shows the lattest version of the world with MDP
+        """ Shows the latest version of the world with MDP
         """
         gna = G.gna
         gea = G.gea
@@ -216,25 +230,37 @@ class SocialNavMDP(MDP):
                                ec=color, lw=1.5, zorder=3))
 
             p = gna(n, 'pi')
+            ndata = gna(n, 'data')
             for i, e in enumerate(G.out_edges(n)):
+                tdata = gna(e[1], 'data')
+                x1, y1 = ndata[0], ndata[1]
+                x2, y2 = tdata[0], tdata[1]
+
                 if n in best_nodes and i == p:
-                    traj = gea(e[0], e[1], 'traj')
-                    for wp in traj:
-                        v = wp[3]
-                        vx, vy = v*np.cos(wp[2]), v*np.sin(wp[2])
-                        self.ax.arrow(wp[0], wp[1], 0.2*vx, 0.2*vy, fc='g',
-                                      ec='g', lw=1.0, head_width=0.08,
-                                      head_length=0.05, zorder=3)
+                    self.ax.plot((x1, x2), (y1, y2), ls='-',
+                                 lw=2.0, c='g', zorder=3)
                 else:
                     if show_edges:
-                        traj = gea(e[0], e[1], 'traj')
-                        for wp in traj:
-                            v = wp[3]
-                            vx, vy = v*np.cos(wp[2]), v*np.sin(wp[2])
-                            self.ax.arrow(wp[0], wp[1], 0.1*vx, 0.1*vy,
-                                          fc='0.7', ec='0.7', lw=0.7,
-                                          head_width=0.06, head_length=0.05,
-                                          zorder=1)
+                        self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
+                                     c='0.6', alpha=0.5)
+                # if n in best_nodes and i == p:
+                #     traj = gea(e[0], e[1], 'traj')
+                #     for wp in traj:
+                #         v = wp[3]
+                #         vx, vy = v*np.cos(wp[2]), v*np.sin(wp[2])
+                #         self.ax.arrow(wp[0], wp[1], 0.2*vx, 0.2*vy, fc='g',
+                #                       ec='g', lw=1.0, head_width=0.08,
+                #                       head_length=0.05, zorder=3)
+                # else:
+                #     if show_edges:
+                #         traj = gea(e[0], e[1], 'traj')
+                #         for wp in traj:
+                #             v = wp[3]
+                #             vx, vy = v*np.cos(wp[2]), v*np.sin(wp[2])
+                #             self.ax.arrow(wp[0], wp[1], 0.1*vx, 0.1*vy,
+                #                           fc='0.5', ec='0.5', lw=0.5,
+                #                           head_width=0.04, head_length=0.03,
+                #                           zorder=1)
 
 
 # -------------------------------------------------------------

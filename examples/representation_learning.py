@@ -19,7 +19,7 @@ from sirl.domains.navigation.social_navigation import SocialNavMDP
 from sirl.domains.navigation.local_controllers import POSQLocalController
 from sirl.domains.navigation.local_controllers import LinearLocalController
 from sirl.domains.navigation.reward_functions import SimpleReward
-from sirl.domains.navigation.social_navigation import SocialNavWorld
+from sirl.domains.navigation.social_navigation import SocialNavEnvironment
 
 from sirl.algorithms.controller_graph import ControllerGraph
 from sirl.models.parameters import ControllerGraphParams
@@ -35,7 +35,7 @@ DPATH = '../../experiments/social_rewards/'
 params = ControllerGraphParams()
 params.load(DPATH+'graph_mdp_params.json')
 params.max_cost = 1000
-params.max_samples = 280
+params.max_samples = 80
 params.radius = 1.8
 params.speed = 1
 params.max_edges = 360
@@ -59,7 +59,7 @@ persons = scene['persons']
 persons = {int(k): v for k, v in persons.items()}
 relations = scene['relations']
 
-world = SocialNavWorld((0, 0, 10, 10), persons, relations, GOAL, STARTS)
+world = SocialNavEnvironment((0, 0, 10, 10), persons, relations, GOAL, STARTS)
 
 posq_controller = POSQLocalController(world, base=0.4, resolution=0.15)
 lin_controller = LinearLocalController(world, resolution=0.1)
