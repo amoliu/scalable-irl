@@ -241,8 +241,8 @@ class SocialNavMDP(MDP):
                                  lw=2.0, c='g', zorder=3)
                 else:
                     if show_edges:
-                        self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
-                                     c='0.6', alpha=0.5)
+                        self.ax.plot((x1, x2), (y1, y2), ls='--', lw=1.0,
+                                     c='0.7', alpha=0.5)
                 # if n in best_nodes and i == p:
                 #     traj = gea(e[0], e[1], 'traj')
                 #     for wp in traj:
