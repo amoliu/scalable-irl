@@ -167,7 +167,7 @@ class POSQLocalController(LocalController):
     # -------------------------------------------------------------
 
     def _posq_integrate(self, xstart, xend, direction, deltaT,
-                        b, initT, vmax, nS=0):
+                        base, initT, vmax, nS=0):
         """ POSQ Integration procedure to general full trajectory """
         assert xstart.shape == xend.shape, 'Expect similar vector sizes'
         assert xstart.size == xend.size == 3, 'Expect 1D array (x, y, theta)'
@@ -188,8 +188,8 @@ class POSQLocalController(LocalController):
             # Calculate distances for both wheels
             dSl = sl - old_sl
             dSr = sr - old_sr
-            dSm = (dSl + dSr) / 2
-            dSd = (dSr - dSl) / self._base
+            dSm = (dSl + dSr) / 2.0
+            dSd = (dSr - dSl) / base
 
             # Integrate robot position
             xnow[0] = xnow[0] + dSm * np.cos(xnow[2] + dSd / 2.0)

@@ -17,7 +17,7 @@ __all__ = [
 
 class SimpleReward(MDPReward):
 
-    """ Social Navigation Reward Funtion
+    """ Social Navigation Reward Function
 
     Reward is a function of features of semantic entities in the world such
     as persons, relations between the persons, obstacles, etc
@@ -28,7 +28,8 @@ class SimpleReward(MDPReward):
     """
 
     def __init__(self, world, weights, kind='linfa', behavior='polite',
-                 scaled=True, anisotropic=False, thresh_p=1.8, thresh_r=1.2):
+                 scaled=True, anisotropic=False, thresh_p=1.8, thresh_r=1.2,
+                 discount=0.9):
         super(SimpleReward, self).__init__(world, kind)
 
         self._weights = asarray(weights)
@@ -41,6 +42,9 @@ class SimpleReward(MDPReward):
         self._thresh_p = thresh_p
         self._szone = 0.3  # sociable space
         self._behavior = behavior
+
+        assert 0.0 < discount <= 1, 'Discount must be in (0, 1]'
+        self._gamma = discount
 
     def __call__(self, state, action):
         """ Compute the reward, r(state, action) """
@@ -72,27 +76,27 @@ class SimpleReward(MDPReward):
         """ Action goal deviation
 
         Goal deviation measured by counts for every time
-        a waypoint in the action trajectory recedes away from the goal
+        a way-point in the action trajectory recedes away from the goal
 
         """
         dist = []
         for i in range(action.shape[0] - 1):
             dnow = edist(self._world.goal, action[i])
             dnext = edist(self._world.goal, action[i + 1])
-            dist.append(max((dnext - dnow), 0))
+            dist.append(max((dnext - dnow), 0)) * self._gamma**i
         return sum(dist)
 
     def _feature_social_disturbance(self, action):
-        """ Instrusions into personal spaces
+        """ Intrusions into personal spaces
 
-        Count the number of waypoints of an action trajectory that intrude
+        Count the number of way-points of an action trajectory that intrude
         into a specified personal space of a person
 
         """
         people = [v for k, v in self._world.persons.items()]
         f = 0.0
 
-        for waypoint in action:
+        for t, waypoint in enumerate(action):
             closest_person = people[0]
             cdist = edist(closest_person, waypoint)
 
@@ -112,43 +116,43 @@ class SimpleReward(MDPReward):
                 if self._anisotropic:
                     ad = anisotropic_distance(closest_person, waypoint, ak=3.0)
                     if cdist < ad and cdist < self._szone and cdist < boundary:
-                        f += (boundary - cdist)
+                        f += (boundary - cdist) * self._gamma**t
 
                     if cdist < ad and cdist > self._szone and cdist < boundary:
-                        f += (cdist - boundary)
+                        f += (cdist - boundary) * self._gamma**t
                 else:
                     if cdist < self._szone and cdist < boundary:
-                        f += (boundary - cdist)
+                        f += (boundary - cdist) * self._gamma**t
 
                     if cdist > self._szone and cdist < boundary:
-                        f += (cdist - boundary)
+                        f += (cdist - boundary) * self._gamma**t
             else:
                 if self._anisotropic:
                     ad = anisotropic_distance(closest_person, waypoint, ak=3.0)
                     if cdist < ad and cdist < boundary:
-                        f += (boundary - cdist)
+                        f += (boundary - cdist) * self._gamma**t
                 else:
                     if cdist < boundary:
-                        f += (boundary - cdist)
+                        f += (boundary - cdist) * self._gamma**t
         return f
 
     def _feature_relation_disturbance(self, action):
         """ Intrusions into pair-wise relations
 
-        Count the number of waypoints that intrude in the space induced by
-        pair-wise relation between persons. The space induced is modelled
+        Count the number of way-points that intrude in the space induced by
+        pair-wise relation between persons. The space induced is modeled
         by a rectangle
 
         """
         f = 0.0
-        for waypoint in action:
+        for t, waypoint in enumerate(action):
             for [i, j] in self._world.relations:
                 la = (self._world.persons[i][0], self._world.persons[i][1])
                 le = (self._world.persons[j][0], self._world.persons[j][1])
 
                 dist, inside = distance_to_segment(waypoint, (la, le))
                 if inside and dist < self._thresh_r:
-                    f += (self._thresh_r - dist)
+                    f += (self._thresh_r - dist) * self._gamma**t
 
         return f
 
@@ -166,8 +170,14 @@ class FlowMergeReward(MDPReward):
         self._persons = persons
         self._groups = groups
         self._goal = goal
+
         self._weights = weights
+        assert self._weights.size == self.dim, \
+            'weight vector and feature vector dimensions do not match'
+
+        assert 0.0 < discount <= 1, 'Discount must be in (0, 1]'
         self._gamma = discount
+
         self._radius = radius
         self._hzone = 0.55
 

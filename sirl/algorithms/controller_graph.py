@@ -2,7 +2,7 @@ r"""
 ControllerGraph
 
 A representation learning algorithm for MDPs.
-MDP is represented using a weighted labelled directed graph,
+MDP is represented using a weighted labeled directed graph,
 
     .. math:
         \mathcal{G} = \langle \mathcal{S}, \mathcal{A}, \mathbf{W} \rangle
@@ -12,7 +12,7 @@ MDP is represented using a weighted labelled directed graph,
     :math:`p(s' | s, a)`
 
 Graph is initialized using a variety of procedures, while growing of the graph
-is done online my mixing exploration and expoitation guided by heuristics
+is done on-line my mixing exploration and exploitation guided by heuristics
 
 """
 from __future__ import division
@@ -320,8 +320,6 @@ class ControllerGraph(MDPRepresentation, Logger):
         """ Initialize from trajectories """
         GR = self._params.goal_reward
         CLIMIT = self._params.max_cost
-
-        # - goal state
         GOAL = list(self._mdp.goal_state) + [0, self._params.speed]
         self._g.add_node(nid=self._node_id, data=GOAL,
                          cost=-CLIMIT, priority=1, V=GR, pi=0,
@@ -420,11 +418,7 @@ class ControllerGraph(MDPRepresentation, Logger):
     def _update_state_costs(self):
         """ Update the costs of all states in the graph
 
-        Given:  (n1) ---r1---- (n2) ----r2---- (n3)
-
-        cost(n1) = cost(n1)
-        cost(n2) = cost(n1) + r1
-        ...
+        Estimate the costs of all vertices in the graph in an optimistic way
 
         """
         # TODO - create a node visitor from starts to goal??
@@ -531,6 +525,7 @@ class ControllerGraph(MDPRepresentation, Logger):
 
     def _node_concentration(self, state):
         """ Node concentration within a radius
+
         Get the list of nodes within a certain radius `_beta` from the
         selected node
         Parameters
@@ -540,7 +535,8 @@ class ControllerGraph(MDPRepresentation, Logger):
         Returns
         --------
         concentration : float
-            Concentation of the node
+            Concentration of the node
+
         """
         neighbors = self._g.find_neighbors_range(state, self._params.radius)
         concentration = 1.0 / float(1 + len(neighbors))
@@ -569,7 +565,8 @@ class ControllerGraph(MDPRepresentation, Logger):
     def _sample_control_time(self, i, imax):
         """ Sample a time interval for running a local controller
 
-        The time iterval is tempered based on the number of iterations
+        The time interval is tempered based on the number of iterations
+
         """
         imax = float(imax)
         tmin, tmax = self._params.tmin, self._params.tmax

@@ -24,12 +24,6 @@ from sirl.domains.navigation.social_navigation import SocialNavEnvironment
 from sirl.algorithms.controller_graph import ControllerGraph
 from sirl.models.parameters import ControllerGraphParams
 
-# learning behavior
-from sirl.algorithms.birl import GTBIRLOptim
-from sirl.algorithms.birl import DirectionalRewardPrior
-from sirl.models.base import TrajQualityLoss
-
-
 DPATH = '../../experiments/social_rewards/'
 
 params = ControllerGraphParams()
@@ -85,47 +79,6 @@ def show_graph_reinforcement_learning():
     plt.show()
 
 
-def learn_reward():
-    sreward = SimpleReward(world, WEIGHTS[BEHAVIOR], scaled=False,
-                           behavior=BEHAVIOR, anisotropic=False,
-                           thresh_p=0.45, thresh_r=0.2)
-
-    mdp = SocialNavMDP(discount=0.95, reward=sreward, world=world)
-
-    cg = ControllerGraph(mdp=mdp,
-                         local_controller=lin_controller,
-                         params=params)
-    cg.initialize_state_graph(samples=[(5, 5), (1, 3)])
-    cg = cg.run()
-    # mdp.visualize(cg.graph, cg.policies, show_edges=False)
-    # plt.show()
-
-    demos = copy.deepcopy(cg.policies)
-    loss = TrajQualityLoss()
-    # prior = UniformRewardPrior()
-    prior = DirectionalRewardPrior(dim=sreward.dim, directions=[-1, -1, -1])
-
-    irl_algo = GTBIRLOptim(demos, cg, prior, loss=loss,
-                           beta=0.9, max_iter=30, reward_max=1.0)
-    r = irl_algo.solve()
-    print('Learned reward, {}'.format(r))
-
-    # np.save('qloss', irl_algo.data['qloss'])
-    # np.save('QE', irl_algo.data['QE'])
-    # np.save('QPi', irl_algo.data['QPi'])
-
-    # use found reward to generate policies for visualization
-    cg = cg.update_rewards(r[-1])
-    policies = cg.find_best_policies()
-
-    mdp.visualize(cg.graph, policies, show_edges=False)
-
-    plt.figure(figsize=(9, 6))
-    plt.plot(irl_algo.data['qloss'])
-
-    plt.show()
-
-
 if __name__ == '__main__':
-    # show_graph_reinforcement_learning()
-    learn_reward()
+    show_graph_reinforcement_learning()
+    # learn_reward()
