@@ -29,7 +29,7 @@ DPATH = '../../experiments/social_rewards/'
 params = ControllerGraphParams()
 params.load(DPATH+'graph_mdp_params.json')
 params.max_cost = 1000
-params.max_samples = 80
+params.max_samples = 180
 params.radius = 1.8
 params.speed = 1
 params.max_edges = 360
@@ -53,7 +53,7 @@ persons = scene['persons']
 persons = {int(k): v for k, v in persons.items()}
 relations = scene['relations']
 
-world = SocialNavEnvironment((0, 0, 10, 10), persons, relations, GOAL, STARTS)
+world = SocialNavEnvironment(0, 0, 10, 10, persons, relations, GOAL, STARTS)
 
 posq_controller = POSQLocalController(world, base=0.4, resolution=0.15)
 lin_controller = LinearLocalController(world, resolution=0.1)

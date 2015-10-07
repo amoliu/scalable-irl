@@ -125,7 +125,7 @@ class StateGraph(object):
         """
         neighbors = filter(lambda n: eud(self.gna(n, 'data'), loc) <= distance,
                            self.G.nodes())
-        return neighbors
+        return list(neighbors)
 
     def find_neighbors_range(self, nid, distance):
         """ Find node neigbors within distance range
@@ -137,7 +137,7 @@ class StateGraph(object):
         serch_set = set(self.G.nodes()) - {nid}
         neighbors = filter(lambda n: eud(self.gna(n, 'data'), cn) <= distance,
                            serch_set)
-        return neighbors
+        return list(neighbors)
 
     def find_neighbors_k(self, nid, k):
         """ Find k nearest neighbors based on Euclidean distance """

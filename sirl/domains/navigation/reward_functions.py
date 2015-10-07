@@ -43,7 +43,7 @@ class SimpleReward(MDPReward):
         self._szone = 0.3  # sociable space
         self._behavior = behavior
 
-        assert 0.0 < discount <= 1, 'Discount must be in (0, 1]'
+        assert 0.0 < discount <= 1.0, 'Discount must be in (0, 1]'
         self._gamma = discount
 
     def __call__(self, state, action):
@@ -83,7 +83,8 @@ class SimpleReward(MDPReward):
         for i in range(action.shape[0] - 1):
             dnow = edist(self._world.goal, action[i])
             dnext = edist(self._world.goal, action[i + 1])
-            dist.append(max((dnext - dnow), 0)) * self._gamma**i
+            deviation = max((dnext - dnow), 0.0)
+            dist.append(deviation * self._gamma**i)
         return sum(dist)
 
     def _feature_social_disturbance(self, action):
@@ -150,7 +151,7 @@ class SimpleReward(MDPReward):
                 la = (self._world.persons[i][0], self._world.persons[i][1])
                 le = (self._world.persons[j][0], self._world.persons[j][1])
 
-                dist, inside = distance_to_segment(waypoint, (la, le))
+                dist, inside = distance_to_segment(waypoint, la, le)
                 if inside and dist < self._thresh_r:
                     f += (self._thresh_r - dist) * self._gamma**t
 
@@ -175,7 +176,7 @@ class FlowMergeReward(MDPReward):
         assert self._weights.size == self.dim, \
             'weight vector and feature vector dimensions do not match'
 
-        assert 0.0 < discount <= 1, 'Discount must be in (0, 1]'
+        assert 0.0 < discount <= 1.0, 'Discount must be in (0, 1]'
         self._gamma = discount
 
         self._radius = radius

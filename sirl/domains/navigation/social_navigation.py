@@ -20,7 +20,7 @@ __all__ = ['SocialNavEnvironment', 'SocialNavMDP']
 
 class SocialNavEnvironment(Environment):
     """ Social Navigation World """
-    def __init__(self, (x, y, w, h), persons, relations,
+    def __init__(self, x, y, w, h, persons, relations,
                  goal, starts, **kwargs):
         super(SocialNavEnvironment, self).__init__(starts, goal)
         self.x = x

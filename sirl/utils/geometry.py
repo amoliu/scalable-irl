@@ -80,7 +80,7 @@ def anisotropic_distance(focal_agent, other_agent, ak=2.48, bk=1.0,
     return dc
 
 
-def distance_to_segment(point, (line_start, line_end)):
+def distance_to_segment(point, line_start, line_end):
     xa, ya = line_start[0], line_start[1]
     xb, yb = line_end[0], line_end[1]
     xp, yp = point[0], point[1]
