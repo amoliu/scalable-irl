@@ -18,7 +18,7 @@ sns.set_context("poster")
 from sirl.domains.navigation.social_navigation import SocialNavMDP
 from sirl.domains.navigation.local_controllers import POSQLocalController
 from sirl.domains.navigation.local_controllers import LinearLocalController
-from sirl.domains.navigation.reward_functions import SimpleReward
+from sirl.domains.navigation.reward_functions import SimpleBehaviors
 from sirl.domains.navigation.social_navigation import SocialNavEnvironment
 
 from sirl.algorithms.controller_graph import ControllerGraph
@@ -60,9 +60,9 @@ lin_controller = LinearLocalController(world, resolution=0.1)
 
 
 def show_graph_reinforcement_learning():
-    sreward = SimpleReward(world, WEIGHTS[BEHAVIOR], scaled=False,
-                           behavior=BEHAVIOR, anisotropic=False,
-                           thresh_p=0.45, thresh_r=0.2)
+    sreward = SimpleBehaviors(world, WEIGHTS[BEHAVIOR], scaled=False,
+                              behavior=BEHAVIOR, anisotropic=False,
+                              thresh_p=0.45, thresh_r=0.2)
 
     mdp = SocialNavMDP(discount=0.95, reward=sreward, world=world)
 

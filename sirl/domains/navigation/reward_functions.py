@@ -8,17 +8,19 @@ from ...utils.geometry import distance_to_segment
 
 
 __all__ = [
-    'SimpleReward',
-    'FlowMergeReward',
+    'SimpleBehaviors',
+    'FlowBehaviors',
 ]
 
 
-class SimpleReward(MDPReward):
+class SimpleBehaviors(MDPReward):
 
-    """ Social Navigation Reward Function
+    """ Simple behaviors social navigation reward function
 
     Reward is a function of features of semantic entities in the world such
-    as persons, relations between the persons, obstacles, etc
+    as persons, relations between the persons, obstacles, etc. These yield
+    simple behaviors based on the level of social compliance that is taken
+    into account when considering these attributes, e.g. polite, sociable, etc
 
     Reward is represented as a linear combination of these features using
     a set of weights.
@@ -28,7 +30,7 @@ class SimpleReward(MDPReward):
     def __init__(self, world, weights, kind='linfa', behavior='polite',
                  scaled=True, anisotropic=False, thresh_p=1.8, thresh_r=1.2,
                  discount=0.9):
-        super(SimpleReward, self).__init__(world, kind)
+        super(SimpleBehaviors, self).__init__(world, kind)
 
         self._weights = np.asarray(weights)
         assert self._weights.size == self.dim, \
@@ -159,40 +161,39 @@ class SimpleReward(MDPReward):
 ############################################################################
 
 
-class FlowMergeReward(MDPReward):
+class FlowBehaviors(MDPReward):
 
-    """Flow reward function for merging and interacting with flows """
+    """ Reward function for interacting with flows for persons
 
-    def __init__(self, persons, groups, goal, weights,
-                 discount, radius=1.2, kind='linfa'):
-        super(FlowMergeReward, self).__init__(kind)
-        self._persons = persons
-        self._groups = groups
-        self._goal = goal
+    This reward function encapsulates the various trade-offs encountered while
+    navigating in a dense flows such as hallways, intersections, etc. The
+    resulting behaviors include; merging with flow with similar bearing, moving
+    in the slipstream of persons, etc
 
+    Reward function is represented as a linear combination of features, whose
+    importances are governed by weights.
+
+    """
+
+    def __init__(self, world, weights, discount, radius=1.2, kind='linfa'):
+        super(FlowBehaviors, self).__init__(world, kind)
         self._weights = weights
         assert self._weights.size == self.dim, \
             'weight vector and feature vector dimensions do not match'
-
         assert 0.0 < discount <= 1.0, 'Discount must be in (0, 1]'
         self._gamma = discount
-
         self._radius = radius
         self._hzone = 0.55
 
     def __call__(self, state, action):
-        # density, speed, angle, goal-dev
         density = self._feature_density(action)
         rel_bearing = 0.0
         if density > 0:
             rel_bearing = self._feature_relative_bearing(action)
 
-        phi = [density,
-               rel_bearing,
+        phi = [density, rel_bearing,
                self._feature_goal_deviation(action),
-               self._feature_goal_distance(action),
-               self._feature_group_disturbance(action),
-               self._feature_social_disturbance(action)]
+               self._feature_goal_distance(action)]
         reward = np.dot(phi, self._weights)
         return reward, phi
 
@@ -212,27 +213,25 @@ class FlowMergeReward(MDPReward):
         # TODO - change to theta/angles
         dist = []
         for i in range(action.shape[0] - 1):
-            dnow = edist(self._goal, action[i])
-            dnext = edist(self._goal, action[i + 1])
+            dnow = edist(self._world.goal, action[i])
+            dnext = edist(self._world.goal, action[i + 1])
             dist.append(max((dnext - dnow) * self._gamma ** i, 0))
         return sum(dist)
 
     def _feature_goal_distance(self, action):
         phi = 0
         for i, wp in enumerate(action):
-            phi += edist(wp, self._goal) * self._gamma**i
-
+            phi += edist(wp, self._world.goal) * self._gamma**i
         return phi
 
     def _feature_density(self, action):
         phi_d = []
         for t, wp in enumerate(action):
             density = 0
-            for _, p in self._persons.items():
+            for _, p in self._world.persons.items():
                 dist = edist(wp, p[0:2])
                 if dist < self._radius:
                     density += 1 * self._gamma**t
-
             phi_d.append(density)
 
         return sum(phi_d)
@@ -242,7 +241,7 @@ class FlowMergeReward(MDPReward):
         for t, wp in enumerate(action):
             density = 0
             flow = 0
-            for _, p in self._persons.items():
+            for _, p in self._world.persons.items():
                 dist = edist(wp, p[0:2])
                 if dist < self._radius:
                     density += 1
@@ -254,36 +253,6 @@ class FlowMergeReward(MDPReward):
             phi_f.append(flow)
 
         return sum(phi_f)
-
-    def _feature_social_disturbance(self, action):
-        phi = 0
-        for _, p in self._persons.items():
-            speed = np.hypot(p[2], p[3])
-            hz = speed * self._hzone
-            for t, wp in enumerate(action):
-                if edist(wp, p) < hz:
-                    phi += 1 * self._gamma**t
-        return phi
-
-    def _feature_group_disturbance(self, action):
-        """ Intrusions into pair-wise relations
-
-        Count the number of way-points that intrude in the space induced by
-        pair-wise relation between persons. The space induced is modeled
-        by a rectangle
-
-        """
-        f = 0.0
-        for t, waypoint in enumerate(action):
-            for [i, j] in self._world.relations:
-                la = (self._world.persons[i][0], self._world.persons[i][1])
-                le = (self._world.persons[j][0], self._world.persons[j][1])
-
-                dist, inside = distance_to_segment(waypoint, la, le)
-                if inside and dist < self._thresh_r:
-                    f += (self._thresh_r - dist) * self._gamma**t
-
-        return f
 
     def _goal_orientation(self, person):
         """ Compute a measure of how close a person will be to the goal in
