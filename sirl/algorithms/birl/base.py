@@ -82,7 +82,7 @@ class DirectionalRewardPrior(RewardPrior):
     """ Prior that injects direction information
 
     Useful for cases in which we know the direction of influence of a feature
-    as either a penalty or a reward. Defaults to all rewarding fetures
+    as either a penalty or a reward. Defaults to all rewarding features
 
     """
     def __init__(self, dim, name='directional', directions=None):
@@ -211,7 +211,7 @@ class BIRL(ModelMixin, Logger):
 
     @abstractmethod
     def initialize_reward(self):
-        """ Initialize reward function based on sovler """
+        """ Initialize reward function based on solver """
         raise NotImplementedError('Abstract')
 
     def _compute_policy(self, reward):

@@ -46,19 +46,19 @@ def edist(v1, v2):
     return np.hypot(v1[0] - v2[0], v1[1] - v2[1])
 
 
-def anisotropic_distance(focal_agent, other_agent, ak=2.48, bk=1.0,
-                         lambda_=0.4, rij=0.9):
+def anisotropic_distance(i, j, ak=2.48, bk=1.0, lambda_=0.4, rij=0.9):
     """
     Anisotropic distance based on the Social Force Model (SFM)
     model of pedestrian dynamics.
+
     """
-    ei = np.array([-focal_agent[2], -focal_agent[3]])
+    ei = np.array([-i[2], -i[3]])
     ei = _normalize_vector(ei)
 
-    phi = np.arctan2(other_agent[1] - focal_agent[1],
-                     other_agent[0] - focal_agent[0])
+    phi = np.arctan2(j[1] - i[1],
+                     j[0] - i[0])
 
-    dij = edist(focal_agent, other_agent)
+    dij = edist(i, j)
     nij = np.array([np.cos(phi), np.sin(phi)])
     ns = 2
     alpha = ak * np.exp((rij - dij) / bk) * nij

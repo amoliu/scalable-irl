@@ -5,7 +5,7 @@ import json
 class ControllerGraphParams(object):
     """ ControllerGraph parameters for representation learning
 
-    Uses json encoding for persistance.
+    Uses json encoding for persistence.
 
     """
 

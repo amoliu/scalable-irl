@@ -3,6 +3,10 @@ from nose.tools import assert_equal
 
 from sirl.utils.geometry import edist
 from sirl.utils.geometry import distance_to_segment
+from sirl.utils.geometry import normangle
+from sirl.utils.geometry import trajectory_length
+from sirl.utils.geometry import anisotropic_distance
+
 
 import numpy as np
 
@@ -38,3 +42,21 @@ def test_edist():
     assert_equal(10, edist(pose1, pose2))
     assert_equal(10, edist(pose1.tolist(), pose2.tolist()))
     assert_equal(10, edist((2, 2), (12, 2)))
+
+
+def test_normangle():
+    assert_equal(normangle(3*np.pi), np.pi)
+    assert_equal(normangle(np.pi), np.pi)
+    assert_equal(normangle(2*np.pi), 0.0)
+    assert_equal(normangle(-np.pi), np.pi)
+
+
+def test_trajectory_length():
+    traj1 = [(0, 0), (3, 0)]
+    traj2 = [(0, 0), (3, 4)]
+    assert_equal(trajectory_length(traj1), 3.0)
+    assert_equal(trajectory_length(traj2), 5.0)
+
+
+def test_anisotropic_distance():
+    pass

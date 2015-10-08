@@ -1,6 +1,6 @@
 """
 Iterative variants of BIRL using just samples from state and action spaces
-as trajectories. Do not explicitely use the full spaces. These sampling is
+as trajectories. Do not explicitly use the full spaces. These sampling is
 abstracted away by a representation learning step that capture the relevant
 parts of these spaces for the task at hand.
 
@@ -339,7 +339,7 @@ class GTBIRLOptim(GeneratingTrajectoryBIRL):
 class GTBIRLPolicyWalk(GeneratingTrajectoryBIRL):
     """ Generating Trajectory BIRL algorithm using PolicyWalk MCMC
 
-    Reward posterior disctribution is computed using MCMC samples via a
+    Reward posterior distribution is computed using MCMC samples via a
     grid walk on the space of rewards.
 
 

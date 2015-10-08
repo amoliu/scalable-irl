@@ -15,7 +15,7 @@ class StateGraph(object):
 
     The state graph encapsulates a flexible representation for an MDP which
     affords use of task specific constraints as well as temporally extended
-    actions (in the sense of hierachical reinforcement learning, options)
+    actions (in the sense of hierarchical reinforcement learning, options)
 
     """
 
@@ -118,7 +118,7 @@ class StateGraph(object):
         self.G.edge[source][target][attribute] = value
 
     def find_neighbors_from_pose(self, loc, distance):
-        """ Find node neigbors within distance range
+        """ Find node neighbors within distance range
         Note
         -----
         Includes self in the result
@@ -128,7 +128,7 @@ class StateGraph(object):
         return list(neighbors)
 
     def find_neighbors_range(self, nid, distance):
-        """ Find node neigbors within distance range
+        """ Find node neighbors within distance range
         Note
         -----
         Includes self in the result
@@ -200,8 +200,8 @@ class StateGraph(object):
         with open(filename, 'wb') as f:
             pickle.dump(self._graph, f)
 
-    def loal_graph(self, filename):
-        """ Load a graph from file (networkx yaml format) """
+    def load_graph(self, filename):
+        """ Load a graph from file """
         with open(filename, 'rb') as f:
             self._graph = pickle.load(f)
 
