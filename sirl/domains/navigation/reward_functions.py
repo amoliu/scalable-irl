@@ -5,8 +5,6 @@ import numpy as np
 from ...models.base import MDPReward
 from ...utils.geometry import edist, anisotropic_distance
 from ...utils.geometry import distance_to_segment
-from ...utils.geometry import line_crossing
-from ...utils.validation import check_array, asarray
 
 
 __all__ = [
@@ -32,7 +30,7 @@ class SimpleReward(MDPReward):
                  discount=0.9):
         super(SimpleReward, self).__init__(world, kind)
 
-        self._weights = asarray(weights)
+        self._weights = np.asarray(weights)
         assert self._weights.size == self.dim, \
             'weight vector and feature vector dimensions do not match'
 
@@ -48,7 +46,7 @@ class SimpleReward(MDPReward):
 
     def __call__(self, state, action):
         """ Compute the reward, r(state, action) """
-        action = check_array(action)
+        action = np.asarray(action)
 
         # features including default
         phi = [self._feature_relation_disturbance(action),
@@ -268,18 +266,24 @@ class FlowMergeReward(MDPReward):
         return phi
 
     def _feature_group_disturbance(self, action):
-        atime = action.shape[0]
-        c = [sum(line_crossing(action[t][0],
-                               action[t][1],
-                               action[t + 1][0],
-                               action[t + 1][1],
-                               self._persons[i][0],
-                               self._persons[i][1],
-                               self._persons[j][0],
-                               self._persons[j][1])
-                 for [i, j] in self._groups) for t in range(int(atime - 1))]
-        ec = sum(self._gamma**i * x for i, x in enumerate(c))
-        return ec
+        """ Intrusions into pair-wise relations
+
+        Count the number of way-points that intrude in the space induced by
+        pair-wise relation between persons. The space induced is modeled
+        by a rectangle
+
+        """
+        f = 0.0
+        for t, waypoint in enumerate(action):
+            for [i, j] in self._world.relations:
+                la = (self._world.persons[i][0], self._world.persons[i][1])
+                le = (self._world.persons[j][0], self._world.persons[j][1])
+
+                dist, inside = distance_to_segment(waypoint, la, le)
+                if inside and dist < self._thresh_r:
+                    f += (self._thresh_r - dist) * self._gamma**t
+
+        return f
 
     def _goal_orientation(self, person):
         """ Compute a measure of how close a person will be to the goal in

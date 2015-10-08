@@ -81,4 +81,3 @@ def show_graph_reinforcement_learning():
 
 if __name__ == '__main__':
     show_graph_reinforcement_learning()
-    # learn_reward()
