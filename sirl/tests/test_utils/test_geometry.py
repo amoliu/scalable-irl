@@ -20,15 +20,15 @@ def test_distance_to_segment():
     ls = np.array([1.0, 3.0])
     le = np.array([3.0, 1.0])
 
-    assert_equal(distance_to_segment(x1, (ls, le))[1], True)
-    assert_equal(distance_to_segment(x1, (ls, le))[0], 0.0)
+    assert_equal(distance_to_segment(x1, ls, le)[1], True)
+    assert_equal(distance_to_segment(x1, ls, le)[0], 0.0)
 
-    assert_equal(distance_to_segment(x2, (ls, le))[1], False)
-    assert_equal(distance_to_segment(x3, (ls, le))[1], False)
+    assert_equal(distance_to_segment(x2, ls, le)[1], False)
+    assert_equal(distance_to_segment(x3, ls, le)[1], False)
 
-    assert_equal(distance_to_segment(x6, (ls, le))[1], True)
-    assert_equal(distance_to_segment(x4, (ls, le))[1], True)
-    assert_equal(distance_to_segment(x5, (ls, le))[1], True)
+    assert_equal(distance_to_segment(x6, ls, le)[1], True)
+    assert_equal(distance_to_segment(x4, ls, le)[1], True)
+    assert_equal(distance_to_segment(x5, ls, le)[1], True)
 
 
 def test_edist():
