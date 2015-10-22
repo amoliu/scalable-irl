@@ -2,32 +2,21 @@
 from __future__ import division
 
 import json
-import time
 import copy
+
 import numpy as np
-
-import matplotlib
-matplotlib.use('Qt4Agg')
-
 import matplotlib.pyplot as plt
-import seaborn as sns
-sns.set_context("paper")
-sns.set_style("ticks")
-
-# np.random.seed(42)
 
 from sirl.domains.navigation.social_navigation import SocialNavMDP
 from sirl.domains.navigation.local_controllers import POSQLocalController
 from sirl.domains.navigation.local_controllers import LinearLocalController
-from sirl.domains.navigation.reward_functions import SimpleReward
+from sirl.domains.navigation.reward_functions import SimpleBehaviors
 from sirl.domains.navigation.social_navigation import SocialNavEnvironment
 
 from sirl.algorithms.controller_graph import ControllerGraph
 from sirl.models.parameters import ControllerGraphParams
 
-# learning behavior
-from sirl.algorithms.birl import GTBIRLOptim
-from sirl.algorithms.birl import GTBIRLPolicyWalk
+from sirl.algorithms.birl.iterative_birl import GTBIRLOptim
 from sirl.algorithms.birl import DirectionalRewardPrior
 from sirl.models.base import TrajQualityLoss
 
@@ -52,16 +41,16 @@ persons = scene['persons']
 persons = {int(k): v for k, v in persons.items()}
 relations = scene['relations']
 
-world = SocialNavEnvironment((0, 0, 10, 10), persons, relations, GOAL, STARTS)
+world = SocialNavEnvironment(0, 0, 10, 10, persons, relations, GOAL, STARTS)
 
 posq_controller = POSQLocalController(world, base=0.4, resolution=0.15)
 lin_controller = LinearLocalController(world, resolution=0.1)
 
 
 def learn_reward():
-    sreward = SimpleReward(world, WEIGHTS[BEHAVIOR], scaled=False,
-                           behavior=BEHAVIOR, anisotropic=False,
-                           thresh_p=0.45, thresh_r=0.2)
+    sreward = SimpleBehaviors(world, WEIGHTS[BEHAVIOR], scaled=False,
+                              behavior=BEHAVIOR, anisotropic=False,
+                              thresh_p=0.45, thresh_r=0.2)
 
     mdp = SocialNavMDP(discount=0.95, reward=sreward, world=world)
 

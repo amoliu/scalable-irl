@@ -5,9 +5,9 @@ import pickle
 
 import networkx as nx
 
-from math import sqrt
-
-from ..utils.validation import check_array, asarray
+from numpy import asarray, sqrt
+from sklearn.utils import check_array
+# TODO - remove this dependence
 
 
 class StateGraph(object):

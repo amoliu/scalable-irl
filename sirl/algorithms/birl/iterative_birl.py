@@ -24,7 +24,7 @@ from ..mdp_solvers import graph_policy_iteration
 
 
 __all__ = [
-    'STBIRLLinearProg',
+    # 'STBIRLLinearProg',
     'GTBIRLOptim',
     'GTBIRLPolicyWalk',
 ]
@@ -295,7 +295,6 @@ class GTBIRLOptim(GeneratingTrajectoryBIRL):
         """ Compute a new reward based on current generated trajectories """
         # initialize the reward TODO - why???
         r_init = self.initialize_reward()
-        # r_init = self._rewards[self._iteration-1]
 
         # run optimization to minimize N_llk
         res = sp.optimize.minimize(fun=self._neg_loglk,

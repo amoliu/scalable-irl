@@ -116,9 +116,6 @@ class PuddleRewardOriented(MDPReward):
         return pen
 
     def _goal_orientation(self, action):
-        # dist = edist(self._world.goal, action[-1]) *\
-        #     100.0 * self._gamma**action.shape[0]
-
         dist = 0.0
         for i in range(action.shape[0] - 1):
             dnow = edist(self._world.goal, action[i])
