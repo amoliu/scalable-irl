@@ -69,7 +69,7 @@ def learn_reward():
     # cg.initialize_state_graph(samples=[(5, 5), (1, 3)])
     cg = cg.run()
     mdp.visualize(cg.graph, cg.policies, show_edges=True)
-    plt.savefig('state_graph_traj.pdf')
+    # plt.savefig('state_graph_traj.pdf')
     plt.show()
 
     demos = copy.deepcopy(cg.policies)
