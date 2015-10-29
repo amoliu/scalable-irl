@@ -146,9 +146,9 @@ class POSQLocalController(LocalController):
     def trajectory(self, source, target, max_speed):
         """ Compute trajectories between two states using POSQ"""
         theta = np.arctan2(target[1]-source[1], target[0]-source[0])
-        # source = asarray([source[0], source[1], source[2]])
-        source = np.asarray([source[0], source[1], theta])
-        target = np.asarray([target[0], target[1], theta])
+        # source = np.array([source[0], source[1], source[2]])
+        source = np.array([source[0], source[1], theta])
+        target = np.array([target[0], target[1], theta])
 
         direction = 1
         init_t = 0
@@ -168,6 +168,7 @@ class POSQLocalController(LocalController):
     def _posq_integrate(self, xstart, xend, direction, deltaT,
                         base, initT, vmax, nS=0):
         """ POSQ Integration procedure to general full trajectory """
+        # TODO - pepify arguiment names
         assert xstart.shape == xend.shape, 'Expect similar vector sizes'
         assert xstart.size == xend.size == 3, 'Expect 1D array (x, y, theta)'
 

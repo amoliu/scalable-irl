@@ -5,7 +5,7 @@
     "init_type": "trajectory",
     "max_cost": 1000,
     "max_edges": 360,
-    "max_samples": 140,
+    "max_samples": 160,
     "max_traj_len": 500,
     "n_add": 1,
     "n_expand": 1,

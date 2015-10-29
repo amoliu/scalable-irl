@@ -3,11 +3,10 @@ from __future__ import division
 
 import json
 import argparse
-import time
-import copy
+
 import numpy as np
 
-import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
 
 from sirl.domains.navigation.social_navigation import SocialNavMDP
 from sirl.domains.navigation.local_controllers import POSQLocalController
@@ -50,7 +49,7 @@ def demo_representation_learning(init_type, controller):
 
     if controller == 'posq':
         local_controller = POSQLocalController(world, base=0.4,
-                                               resolution=0.15)
+                                               resolution=0.1)
     elif controller == 'linear':
         local_controller = LinearLocalController(world, resolution=0.1)
     else:
@@ -76,7 +75,7 @@ def demo_representation_learning(init_type, controller):
     cg.initialize_state_graph(samples=samples, extra_state_attr=True)
     cg = cg.run()
 
-    mdp.visualize(cg.graph, cg.policies, show_edges=False)
+    mdp.visualize(cg.graph, cg.policies, show_edges=True, show_waypoints=True)
 
     plt.show()
 

@@ -29,7 +29,7 @@ class SimpleBehaviors(MDPReward):
 
     def __init__(self, world, weights, kind='linfa', behavior='polite',
                  scaled=True, anisotropic=False, thresh_p=1.8, thresh_r=1.2,
-                 discount=0.9):
+                 discount=0.95):
         super(SimpleBehaviors, self).__init__(world, kind)
 
         self._weights = np.asarray(weights)
