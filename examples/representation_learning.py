@@ -71,7 +71,8 @@ def show_graph_reinforcement_learning():
                          params=params)
 
     # trajs = np.load('demos_metropolis.npy')
-    cg.initialize_state_graph(samples=[(5, 5), (1, 3)])
+    # explicit flag for additional state attributes e.g. speed, orientation
+    cg.initialize_state_graph(samples=[(5, 5), (1, 3)], extra_state_attr=True)
     cg = cg.run()
 
     mdp.visualize(cg.graph, cg.policies, show_edges=False)

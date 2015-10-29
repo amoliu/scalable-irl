@@ -85,7 +85,7 @@ class ControllerGraph(MDPRepresentation, Logger):
 
         self.log_config(logging.DEBUG)
 
-    def initialize_state_graph(self, samples):
+    def initialize_state_graph(self, samples, extra_state_attr=False):
         """ Initialize graph using set of initial samples
 
         If random, samples are states
@@ -95,9 +95,9 @@ class ControllerGraph(MDPRepresentation, Logger):
         self._g.clear()
 
         if self._params.init_type == 'random':
-            self._fixed_init(samples)
+            self._fixed_init(samples, extra_state_attr)
         elif self._params.init_type == 'trajectory':
-            self._traj_init(samples)
+            self._traj_init(samples, extra_state_attr)
 
         # - update graph attributes
         self._update_state_costs()
@@ -144,8 +144,6 @@ class ControllerGraph(MDPRepresentation, Logger):
                         self._min_es = es
                     conc = conc / float(self._max_conc)
                     es = map_range(es, self._min_es, self._max_es, 0.0, 1.0)
-                    # self.debug('{}, {}, {}, {}'
-                    #            .format(conc, es, var_es, len(exp_queue)))
                     if var_es > self._params.exp_thresh:
                         exp_queue.append(new_state)
                         exp_probs.append(es + cscale*conc)
@@ -172,9 +170,6 @@ class ControllerGraph(MDPRepresentation, Logger):
                 self._g.add_edge(source=nid, target=sn['b_state'], reward=b_r,
                                  duration=b_d, phi=b_phi, traj=b_traj)
 
-                # remove from queue??
-                # exp_queue.remove(sn)
-                # exp_probs.remove(exp_probs[index])
                 exp_queue = exp_queue[:index] + exp_queue[index+1:]
                 exp_probs = exp_probs[:index] + exp_probs[index+1:]
 
@@ -275,17 +270,22 @@ class ControllerGraph(MDPRepresentation, Logger):
     # internals
     # -------------------------------------------------------------
 
-    def _fixed_init(self, samples):
+    def _fixed_init(self, samples, extra_state_attr=False):
         """ Initialize from random samples """
         GR = self._params.goal_reward
         CLIMIT = self._params.max_cost
-        # TODO - make these depend on state size (maybe world param?)
-        GOAL = list(self._mdp.goal_state) + [0, self._params.speed]
-        # GOAL = self._mdp.goal_state
+
+        if extra_state_attr:
+            GOAL = list(self._mdp.goal_state) + [0, self._params.speed]
+        else:
+            GOAL = self._mdp.goal_state
 
         for start in self._mdp.start_states:
-            st = list(start) + [0, self._params.speed]
-            # st = start
+            if extra_state_attr:
+                st = list(start) + [0, self._params.speed]
+            else:
+                st = start
+
             self._g.add_node(nid=self._node_id, data=st, cost=0,
                              priority=1, V=GR, pi=0, Q=[], ntype='start')
             self._node_id += 1
@@ -297,8 +297,10 @@ class ControllerGraph(MDPRepresentation, Logger):
         # - add the init samples
         init_samples = list(samples)
         for sample in init_samples:
-            smp = list(sample) + [0, self._params.speed]
-            # smp = sample
+            if extra_state_attr:
+                smp = list(sample) + [0, self._params.speed]
+            else:
+                smp = sample
             self._g.add_node(nid=self._node_id, data=smp, cost=-CLIMIT,
                              priority=1, V=GR, pi=0, Q=[], ntype='simple')
             self._node_id += 1
@@ -316,11 +318,19 @@ class ControllerGraph(MDPRepresentation, Logger):
                 self._g.add_edge(source=n, target=m, reward=r,
                                  duration=d, phi=phi, traj=traj)
 
-    def _traj_init(self, trajs):
-        """ Initialize from trajectories """
+    def _traj_init(self, trajs, extra_state_attr=False):
+        """ Initialize from a set of expert trajectories
+
+        Boostrapping the sampling using samples points from expert demo
+        trajectories
+
+        """
         GR = self._params.goal_reward
         CLIMIT = self._params.max_cost
-        GOAL = list(self._mdp.goal_state) + [0, self._params.speed]
+        if extra_state_attr:
+            GOAL = list(self._mdp.goal_state) + [0, self._params.speed]
+        else:
+            GOAL = self._mdp.goal_state
         self._g.add_node(nid=self._node_id, data=GOAL,
                          cost=-CLIMIT, priority=1, V=GR, pi=0,
                          Q=[], ntype='goal')
@@ -332,7 +342,11 @@ class ControllerGraph(MDPRepresentation, Logger):
         for traj in trajs:
             # - add start
             start = traj[0]
-            smp = list(start) + [0, self._params.speed]
+            if extra_state_attr:
+                smp = list(start) + [0, self._params.speed]
+            else:
+                smp = start
+
             self._params.start_states.append(start)
             self._g.add_node(nid=self._node_id, data=smp, cost=0,
                              priority=1, V=GR, pi=0, Q=[], ntype='start')
@@ -341,7 +355,10 @@ class ControllerGraph(MDPRepresentation, Logger):
 
             # - add the rest of the waypoints
             for wp in traj[1:-1]:
-                sp = list(wp) + [0, self._params.speed]
+                if extra_state_attr:
+                    sp = list(wp) + [0, self._params.speed]
+                else:
+                    sp = wp
                 self._g.add_node(nid=self._node_id, data=sp, cost=-CLIMIT,
                                  priority=1, V=GR, pi=0, Q=[], ntype='simple')
                 m = copy.copy(self._node_id)
