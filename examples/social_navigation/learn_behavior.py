@@ -3,9 +3,11 @@ from __future__ import division
 
 import json
 import copy
+import argparse
 
 import numpy as np
-import matplotlib.pyplot as plt
+
+from matplotlib import pyplot as plt
 
 from sirl.domains.navigation.social_navigation import SocialNavMDP
 from sirl.domains.navigation.local_controllers import POSQLocalController
@@ -21,20 +23,19 @@ from sirl.algorithms.birl import DirectionalRewardPrior
 from sirl.models.base import TrajQualityLoss
 
 
-STARTS = ((0.5, 0.5), (4, 0.1), (2, 3), (8.5, 5.2),
-          (8.9, 0.1), (0.1, 8.5), (4, 3))
-GOAL = (5.5, 9)
+# behavior parameters
 BEHAVIOR = 'polite'
 WEIGHTS = {
-    # [-0.4125548 ,  0.04691908,  0.18735264]
-    # 'polite': [-0.75996794, -0.06025078, -0.99495333],
     'polite': [-1.0, -0.7, -0.85],
     'sociable': [-1.0, +0.2, -0.95]
 }
 
-# load world elements
-DPATH = '../../experiments/social_rewards/'
-f = open(DPATH+'scenes/metropolis.json', 'r')
+# world parameters
+STARTS = ((0.5, 0.5), (4, 0.1), (2, 3), (8.5, 5.2),
+          (8.9, 0.1), (0.1, 8.5), (4, 3))
+GOAL = (5.5, 9)
+
+f = open('metropolis.json', 'r')
 scene = json.load(f)
 f.close()
 persons = scene['persons']
@@ -43,34 +44,49 @@ relations = scene['relations']
 
 world = SocialNavEnvironment(0, 0, 10, 10, persons, relations, GOAL, STARTS)
 
-posq_controller = POSQLocalController(world, base=0.4, resolution=0.15)
-lin_controller = LinearLocalController(world, resolution=0.1)
 
-
-def learn_reward():
+def demo_reward_learning(init_type, controller):
     sreward = SimpleBehaviors(world, WEIGHTS[BEHAVIOR], scaled=False,
                               behavior=BEHAVIOR, anisotropic=False,
                               thresh_p=0.45, thresh_r=0.2)
 
     mdp = SocialNavMDP(discount=0.95, reward=sreward, world=world)
 
+    if controller == 'posq':
+        local_controller = POSQLocalController(world, base=0.4,
+                                               resolution=0.1)
+    elif controller == 'linear':
+        local_controller = LinearLocalController(world, resolution=0.1)
+    else:
+        raise ValueError('Invalid controller value: {}, \
+                         expecting (posq, linear)'.format(controller))
+
+    # load controller graph parameters
     params = ControllerGraphParams()
-    params.load('social_nav_cg_params.json')
-    print(params)
+    params.load('cg_params.json')
+    params.init_type = init_type
 
-    cg = ControllerGraph(mdp=mdp,
-                         local_controller=lin_controller,
+    cg = ControllerGraph(mdp=mdp, local_controller=local_controller,
                          params=params)
-    # mdp.visualize(cg, cg.policies, show_edges=True, recording=True)
-    # plt.show()
 
-    trajs = np.load('demos_metropolis.npy')
-    cg.initialize_state_graph(samples=trajs)
-    # cg.initialize_state_graph(samples=[(5, 5), (1, 3)])
+    if init_type == 'trajectory':
+        samples = np.load('expert_demos.npy')
+    elif init_type == 'random':
+        samples = [(5, 5), (1, 3)]
+    else:
+        raise ValueError('Invalid initialization type')
+
+    # explicit flag for additional state attributes e.g. speed, orientation
+    cg.initialize_state_graph(samples=samples, extra_state_attr=True)
     cg = cg.run()
-    mdp.visualize(cg.graph, cg.policies, show_edges=True)
-    # plt.savefig('state_graph_traj.pdf')
+
+    mdp.visualize(cg.graph, cg.policies, show_edges=True, show_waypoints=True)
+
     plt.show()
+
+    # ----------------------------
+    # Learn the reward function
+    # ----------------------------
 
     demos = copy.deepcopy(cg.policies)
     loss = TrajQualityLoss(p=2)
@@ -81,8 +97,6 @@ def learn_reward():
     irl_algo = GTBIRLOptim(demos, cg, prior, loss=loss,
                            beta=0.9, max_iter=20, bounds=bounds)
 
-    # irl_algo = GTBIRLPolicyWalk(demos, cg, prior, loss=loss,
-    #                             beta=0.9, max_iter=30)
     r = irl_algo.solve()
     print('Learned reward, {}'.format(r))
 
@@ -105,4 +119,11 @@ def learn_reward():
 
 
 if __name__ == '__main__':
-    learn_reward()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--controller", type=str, required=True,
+                        help="Controller type, [posq, linear]")
+    parser.add_argument("-i", "--init_type", type=str, required=True,
+                        help="Initialization type, [trajectory, random]")
+
+    args = parser.parse_args()
+    demo_reward_learning(args.init_type, args.controller)
