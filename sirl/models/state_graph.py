@@ -50,7 +50,7 @@ class StateGraph(object):
         assert duration >= 0.0, 'Duration must be positive'
         phi = asarray(phi)
         traj = asarray(traj)
-        assert traj.shape[1] == 2, 'Expecting a 2xN dim trajectory'
+        assert traj.ndim == 2, 'Expecting a 2-dim dim trajectory'
 
         if source == target:
             warnings.warn('source: {} and target: {} nodes are the same'.

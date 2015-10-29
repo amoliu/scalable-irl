@@ -328,7 +328,7 @@ class ControllerGraph(MDPRepresentation, Logger):
         GR = self._params.goal_reward
         CLIMIT = self._params.max_cost
         if extra_state_attr:
-            GOAL = list(self._mdp.goal_state) + [0, self._params.speed]
+            GOAL = list(self._mdp.goal_state) + [0.0, self._params.speed]
         else:
             GOAL = self._mdp.goal_state
         self._g.add_node(nid=self._node_id, data=GOAL,
@@ -343,7 +343,7 @@ class ControllerGraph(MDPRepresentation, Logger):
             # - add start
             start = traj[0]
             if extra_state_attr:
-                smp = list(start) + [0, self._params.speed]
+                smp = list(start) + [0.0, self._params.speed]
             else:
                 smp = start
 

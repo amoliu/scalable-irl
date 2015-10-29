@@ -238,7 +238,7 @@ class SocialNavMDP(MDP):
 
                 if n in best_nodes and i == p:
                     self.ax.plot((x1, x2), (y1, y2), ls='-',
-                                 lw=2.0, c='g', zorder=3)
+                                 lw=2.0, c='green', zorder=3)
                 else:
                     if show_edges:
                         self.ax.plot((x1, x2), (y1, y2), ls='--', lw=1.0,
