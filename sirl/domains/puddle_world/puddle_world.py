@@ -385,8 +385,8 @@ class Puddle(object):
         self.radius = radius
 
     def cost(self, x, y):
-        dist_puddle, inside = distance_to_segment((x, y), (self.start,
-                                                  self.end))
+        dist_puddle, inside = distance_to_segment((x, y), self.start,
+                                                  self.end)
         if inside:
             if dist_puddle < self.radius:
                 return -self.PCOST * (self.radius - dist_puddle)

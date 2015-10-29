@@ -5,7 +5,7 @@
     "init_type": "random",
     "max_cost": 100,
     "max_edges": 360,
-    "max_samples": 380,
+    "max_samples": 180,
     "max_traj_len": 2000,
     "n_add": 1,
     "n_expand": 1,
