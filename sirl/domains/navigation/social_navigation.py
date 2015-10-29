@@ -89,7 +89,8 @@ class SocialNavMDP(MDP):
         return self._world.goal
 
     def visualize(self, G, policies, fsize=(12, 9),
-                  show_edges=False, recording=False):
+                  show_edges=False, show_waypoints=False,
+                  recording=False):
         """ Visualize the social navigation world
 
         Allows recording of demonstrations and also display of final
@@ -129,7 +130,7 @@ class SocialNavMDP(MDP):
 
             return self.ax
 
-        self._plot_graph_in_world(G, policies, show_edges)
+        self._plot_graph_in_world(G, policies, show_edges, show_waypoints)
 
         return self.ax
 
@@ -197,7 +198,7 @@ class SocialNavMDP(MDP):
                                0.03, fc=cc, ec=cc))
             self.figure.canvas.draw()
 
-    def _plot_graph_in_world(self, G, policies, show_edges):
+    def _plot_graph_in_world(self, G, policies, show_edges, show_waypoints):
         """ Shows the latest version of the world with MDP
         """
         gna = G.gna
@@ -236,31 +237,33 @@ class SocialNavMDP(MDP):
                 x1, y1 = ndata[0], ndata[1]
                 x2, y2 = tdata[0], tdata[1]
 
-                if n in best_nodes and i == p:
-                    self.ax.plot((x1, x2), (y1, y2), ls='-',
-                                 lw=2.0, c='green', zorder=3)
+                if not show_waypoints:
+                    if n in best_nodes and i == p:
+                        self.ax.plot((x1, x2), (y1, y2), ls='-',
+                                     lw=2.0, c='g', zorder=3)
+                    else:
+                        if show_edges:
+                            self.ax.plot((x1, x2), (y1, y2), ls='--', lw=1.0,
+                                         c='0.7', alpha=0.5)
                 else:
-                    if show_edges:
-                        self.ax.plot((x1, x2), (y1, y2), ls='--', lw=1.0,
-                                     c='0.7', alpha=0.5)
-                # if n in best_nodes and i == p:
-                #     traj = gea(e[0], e[1], 'traj')
-                #     for wp in traj:
-                #         v = wp[3]
-                #         vx, vy = v*np.cos(wp[2]), v*np.sin(wp[2])
-                #         self.ax.arrow(wp[0], wp[1], 0.2*vx, 0.2*vy, fc='g',
-                #                       ec='g', lw=1.0, head_width=0.08,
-                #                       head_length=0.05, zorder=3)
-                # else:
-                #     if show_edges:
-                #         traj = gea(e[0], e[1], 'traj')
-                #         for wp in traj:
-                #             v = wp[3]
-                #             vx, vy = v*np.cos(wp[2]), v*np.sin(wp[2])
-                #             self.ax.arrow(wp[0], wp[1], 0.1*vx, 0.1*vy,
-                #                           fc='0.5', ec='0.5', lw=0.5,
-                #                           head_width=0.04, head_length=0.03,
-                #                           zorder=1)
+                    if n in best_nodes and i == p:
+                        traj = gea(e[0], e[1], 'traj')
+                        for wp in traj:
+                            v = wp[3]
+                            vx, vy = v*np.cos(wp[2]), v*np.sin(wp[2])
+                            self.ax.arrow(wp[0], wp[1], 0.2*vx, 0.2*vy, fc='g',
+                                          ec='g', lw=1.0, head_width=0.08,
+                                          head_length=0.05, zorder=3)
+                    else:
+                        if show_edges:
+                            traj = gea(e[0], e[1], 'traj')
+                            for wp in traj:
+                                v = wp[3]
+                                vx, vy = v*np.cos(wp[2]), v*np.sin(wp[2])
+                                self.ax.arrow(wp[0], wp[1], 0.1*vx, 0.1*vy,
+                                              fc='0.7', ec='0.7', lw=0.5,
+                                              head_width=0.04,
+                                              head_length=0.03, zorder=1)
 
 
 # -------------------------------------------------------------
