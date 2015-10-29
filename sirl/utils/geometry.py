@@ -1,8 +1,12 @@
 
 from __future__ import division
 
-import itertools
 import numpy as np
+
+try:
+    from itertools import izip
+except ImportError:
+    izip = zip
 
 
 __all__ = [
@@ -34,7 +38,7 @@ def trajectory_length(traj):
     assert traj.ndim == 2, "Trajectory must be a two dimensional array"
 
     path_length = 0.0
-    for i, j in itertools.izip(range(traj.shape[0]), range(1, traj.shape[0])):
+    for i, j in izip(range(traj.shape[0]), range(1, traj.shape[0])):
         current, nextstep = traj[i, 0:2], traj[j, 0:2]
         path_length += np.linalg.norm(current - nextstep)
 

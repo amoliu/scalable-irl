@@ -162,7 +162,7 @@ class StateGraph(object):
     def filter_nodes_by_type(self, ntype):
         """ Filter nodes by node type """
         sns = filter(lambda n: self.gna(n, 'type') == ntype, self.nodes)
-        return sns
+        return list(sns)
 
     def search_path(self, source, target):
         """ Search for a path from ``source`` to ``target`` using A*"""
