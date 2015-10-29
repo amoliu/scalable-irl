@@ -6,8 +6,6 @@ import pickle
 import networkx as nx
 
 from numpy import asarray, sqrt
-from sklearn.utils import check_array
-# TODO - remove this dependence
 
 
 class StateGraph(object):
@@ -51,7 +49,8 @@ class StateGraph(object):
         """
         assert duration >= 0.0, 'Duration must be positive'
         phi = asarray(phi)
-        traj = check_array(traj)
+        traj = asarray(traj)
+        assert traj.shape[1] == 2, 'Expecting a 2xN dim trajectory'
 
         if source == target:
             warnings.warn('source: {} and target: {} nodes are the same'.
