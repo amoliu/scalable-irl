@@ -1,11 +1,11 @@
 
-from __future__ import division
+from __future__ import division, absolute_import, print_function
 
 import numpy as np
 
-# from matplotlib.patches import Circle, Ellipse
-import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle, Wedge, Circle
+
 import matplotlib.cm as cm
 import matplotlib as mpl
 
@@ -31,13 +31,15 @@ __all__ = [
 ########################################################################
 
 class PuddleWorldControler(LocalController):
+
     """ PuddleWorldControler local controller """
+
     def __init__(self, world, kind='linear'):
         super(PuddleWorldControler, self).__init__(world, kind)
 
         # the agents moves by 0.05 at every step as per the original
         # task definition
-        self._resolution = 0.01
+        self._resolution = 0.02
 
     def __call__(self, state, action, duration, *others):
         """ Run a local controller from a ``state`` using ``action``
@@ -74,7 +76,7 @@ class PuddleReward(MDPReward):
         super(PuddleReward, self).__init__(world, kind)
 
     def __call__(self, state, action):
-        gamma = 0.98
+        gamma = 0.95
         reward = []
         for i, wp in enumerate(action):
             reward.append(sum(p.cost(wp[0], wp[1])
@@ -95,7 +97,7 @@ class PuddleRewardOriented(MDPReward):
         assert weights.size == self.dim,\
             'Expecting {}-dim weight vector'.format(self.dim)
         self._weights = weights
-        self._gamma = 0.9
+        self._gamma = 0.95
 
     def __call__(self, state, action):
         phi = [self._puddle_penalty(action),
@@ -298,7 +300,7 @@ class PuddleWorldMDP(MDP):
         gna = G.gna
         values = [gna(n, 'V') for n in G.nodes]
         nv = mpl.colors.Normalize(vmin=min(values), vmax=max(values))
-        mv = cm.ScalarMappable(norm=nv, cmap=cm.jet)
+        cmapping = cm.ScalarMappable(norm=nv, cmap=cm.viridis)
 
         best_nodes = set()
         for traj in policies:
@@ -317,7 +319,7 @@ class PuddleWorldMDP(MDP):
                 color = 'green'
                 nr = 0.5
             else:
-                color = mv.to_rgba(gna(n, 'V'))
+                color = cmapping.to_rgba(gna(n, 'V'))
                 nr = 0.5
             self.ax.add_artist(Circle((posx, posy), nr/100., fc=color,
                                ec=color, lw=1.5, zorder=3))
@@ -336,7 +338,6 @@ class PuddleWorldMDP(MDP):
                     if show_edges:
                         self.ax.plot((x1, x2), (y1, y2), ls='-', lw=1.0,
                                      c='0.7', alpha=0.5)
-
 
 ########################################################################
 

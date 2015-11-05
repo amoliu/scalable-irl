@@ -6,6 +6,9 @@ import argparse
 
 import numpy as np
 
+import matplotlib
+matplotlib.use('Qt4Agg')
+
 from matplotlib import pyplot as plt
 
 from sirl.domains.navigation.social_navigation import SocialNavMDP

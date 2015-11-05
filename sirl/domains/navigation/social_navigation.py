@@ -206,7 +206,7 @@ class SocialNavMDP(MDP):
 
         values = [gna(n, 'V') for n in G.nodes]
         nv = mpl.colors.Normalize(vmin=min(values), vmax=max(values))
-        mv = cm.ScalarMappable(norm=nv, cmap=cm.jet)
+        mv = cm.ScalarMappable(norm=nv, cmap=cm.viridis)
 
         best_nodes = set()
         for traj in policies:

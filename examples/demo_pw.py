@@ -8,7 +8,8 @@ import seaborn as sns
 sns.set_context("poster")
 
 import numpy as np
-# np.random.seed(21)
+
+np.random.seed(21)
 
 from sirl.domains.puddle_world.puddle_world import PuddleWorldMDP
 from sirl.domains.puddle_world.puddle_world import PuddleWorldEnvironment
@@ -21,12 +22,12 @@ from sirl.models.parameters import ControllerGraphParams
 
 
 world = PuddleWorldEnvironment(start=[(0.3, 0.65)], goal=(0.97, 0.97))
-lin_controller = PuddleWorldControler(world)
+controller = PuddleWorldControler(world)
 
 
 def demo_rep_learning():
     # reward = PuddleReward(world)
-    reward = PuddleRewardOriented(world, weights=(1.0, -0.2, -0.001))
+    reward = PuddleRewardOriented(world, weights=(1.0, -0.0002, -0.001))
 
     mdp = PuddleWorldMDP(discount=0.95, reward=reward, world=world)
 
@@ -34,11 +35,9 @@ def demo_rep_learning():
     params.load('pw_cg_params.json')
     print(params)
 
-    cg = ControllerGraph(mdp=mdp,
-                         local_controller=lin_controller,
-                         params=params)
+    cg = ControllerGraph(mdp=mdp, local_controller=controller, params=params)
 
-    cg.initialize_state_graph(samples=[(0.5, 0.2)])
+    cg.initialize_state_graph(samples=[(0.5, 0.07)])
     cg = cg.run()
 
     mdp.visualize(cg.graph, cg.policies, show_edges=True)
