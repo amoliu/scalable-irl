@@ -178,10 +178,9 @@ def _pprint(params, offset=0, printer=repr):
 
 # Reward model
 
-class MDPReward(ModelMixin):
+class MDPReward(six.with_metaclass(ABCMeta, ModelMixin)):
     """ Reward  function base class """
 
-    __metaclass__ = ABCMeta
     _template = '_feature_'
 
     def __init__(self, world, kind='linfa'):
@@ -209,10 +208,8 @@ class MDPReward(ModelMixin):
 
 # Reward Loss Functions
 
-class RewardLoss(ModelMixin):
+class RewardLoss(six.with_metaclass(ABCMeta, ModelMixin)):
     """Reward loss function """
-
-    __meta__ = ABCMeta
 
     def __init__(self, name):
         self.name = name
@@ -238,10 +235,8 @@ class TrajQualityLoss(RewardLoss):
 ########################################################################
 
 
-class LocalController(ModelMixin):
+class LocalController(six.with_metaclass(ABCMeta, ModelMixin)):
     """ GraphMDP local controller """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, world, kind='abstract'):
         self._world = world
@@ -268,7 +263,7 @@ class LocalController(ModelMixin):
 ########################################################################
 
 
-class MDP(ModelMixin):
+class MDP(six.with_metaclass(ABCMeta, ModelMixin)):
     """ Markov Decision Process Model
 
     Parameters
@@ -314,7 +309,7 @@ class MDP(ModelMixin):
 
 # An interface for MDP representation
 
-class MDPRepresentation(ModelMixin):
+class MDPRepresentation(six.with_metaclass(ABCMeta, ModelMixin)):
     """ MDP Representation """
 
     def __init__(self, mdp):
@@ -331,7 +326,7 @@ class MDPRepresentation(ModelMixin):
 
 ########################################################################
 
-class Environment(ModelMixin):
+class Environment(six.with_metaclass(ABCMeta, ModelMixin)):
     """ The environment that the MDP is defined on
 
     This is largely a data container for all the things in the environment

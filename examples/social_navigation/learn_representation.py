@@ -17,8 +17,7 @@ from sirl.domains.navigation.local_controllers import LinearLocalController
 from sirl.domains.navigation.reward_functions import SimpleBehaviors
 from sirl.domains.navigation.social_navigation import SocialNavEnvironment
 
-from sirl.algorithms.controller_graph import ControllerGraph
-from sirl.models.parameters import ControllerGraphParams
+from sirl.algorithms.controller_graph import ControllerGraph, CGParameters
 
 
 # behavior parameters
@@ -60,7 +59,7 @@ def demo_representation_learning(init_type, controller):
                          expecting (posq, linear)'.format(controller))
 
     # load controller graph parameters
-    params = ControllerGraphParams()
+    params = CGParameters()
     params.load('cg_params.json')
     params.init_type = init_type
 

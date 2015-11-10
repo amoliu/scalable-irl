@@ -1,5 +1,6 @@
 from __future__ import division
 
+import six
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
@@ -15,9 +16,8 @@ from ..mdp_solvers import graph_policy_iteration
 # ######################################################################
 
 
-class RewardPrior(ModelMixin):
+class RewardPrior(six.with_metaclass(ABCMeta, ModelMixin)):
     """ Reward prior interface """
-    __meta__ = ABCMeta
 
     def __init__(self, dim, name):
         self.name = name
@@ -105,9 +105,8 @@ class DirectionalRewardPrior(RewardPrior):
 # ######################################################################
 
 
-class Proposal(ModelMixin):
+class Proposal(six.with_metaclass(ABCMeta, ModelMixin)):
     """ Proposal for MCMC sampling """
-    __meta__ = ABCMeta
 
     def __init__(self, dim):
         self.dim = dim
@@ -146,7 +145,7 @@ class PolicyWalkProposal(Proposal):
 ########################################################################
 
 
-class BIRL(ModelMixin, Logger):
+class BIRL(six.with_metaclass(ABCMeta, ModelMixin, Logger)):
     """ Bayesian Inverse Reinforcement Learning
 
     BIRL algorithm that seeks to find a reward function underlying a set of
@@ -193,7 +192,6 @@ class BIRL(ModelMixin, Logger):
         product of exponential distributions
 
     """
-    __meta__ = ABCMeta
 
     def __init__(self, demos, rep, prior, loss, beta=0.7):
         self._demos = demos
