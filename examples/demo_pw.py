@@ -4,9 +4,6 @@ import matplotlib
 matplotlib.use('Qt4Agg')
 
 import matplotlib.pyplot as plt
-import seaborn as sns
-sns.set_context("poster")
-
 import numpy as np
 
 np.random.seed(21)
@@ -27,7 +24,7 @@ controller = PuddleWorldControler(world)
 
 def demo_rep_learning():
     # reward = PuddleReward(world)
-    reward = PuddleRewardOriented(world, weights=(1.0, -0.0002, -0.001))
+    reward = PuddleRewardOriented(world, weights=(1.0, -0.0002, -0.0001))
 
     mdp = PuddleWorldMDP(discount=0.95, reward=reward, world=world)
 
