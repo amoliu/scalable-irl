@@ -318,6 +318,9 @@ class GTBIRLOptim(GeneratingTrajectoryBIRL):
         reward
 
         """
+        # Solve the MDP with r?
+        self._compute_policy(r)
+
         # - prepare the trajectory quality scores
         QE = self._rep.trajectory_quality(r, self._demos)
         QPi = [self._rep.trajectory_quality(r, self._g_trajs[i])

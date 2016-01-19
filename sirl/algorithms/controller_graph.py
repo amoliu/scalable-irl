@@ -23,6 +23,7 @@ import json
 
 import numpy as np
 from numpy.random import uniform
+from sklearn import gaussian_process
 
 from ..algorithms.mdp_solvers import graph_policy_iteration
 from ..algorithms.function_approximation import gp_predict, gp_covariance
@@ -87,6 +88,10 @@ class ControllerGraph(MDPRepresentation, Logger):
         self._max_es = 1.0
         self._min_es = 0.0
 
+        self._gp = gaussian_process.GaussianProcess(corr='squared_exponential',
+                                                    theta0=1e-2,
+                                                    thetaL=1e-4,
+                                                    thetaU=1e-1)
         self.log_config(logging.DEBUG)
 
     def initialize_state_graph(self, samples, extra_state_attr=False):
@@ -234,10 +239,13 @@ class ControllerGraph(MDPRepresentation, Logger):
         gr = self._params.goal_reward
         gamma = self._mdp.gamma
 
+        M = float(len(trajs))
+
         q_trajs = []
         for traj in trajs:
             duration = 0
             q_traj = 0
+            H = 0
             for n in traj:
                 actions = G.out_edges(n)
                 if actions:  # if no edges, use goal reward???
@@ -247,7 +255,10 @@ class ControllerGraph(MDPRepresentation, Logger):
                     duration += G.gea(e[0], e[1], 'duration')
                 else:
                     q_traj += (gamma ** duration) * gr
-            q_trajs.append(q_traj)
+
+                H += duration
+
+            q_trajs.append(q_traj / M)
         return q_trajs
 
     # -------------------------------------------------------------
@@ -530,16 +541,29 @@ class ControllerGraph(MDPRepresentation, Logger):
                                               self._params.radius)
         concentration = 1.0 / float(1 + len(nn))
         node_cost = state_dict['cost']
-        if len(nn) < 1:
+        if len(nn) < 2:
             y = self._params.goal_reward
             state_dict['V'] = y
             return concentration, node_cost+y, 1
 
-        train_data = [self._g.gna(n, 'data') for n in nn]
+        train_data = [self._g.gna(n, 'data')[0:2] for n in nn]
         train_values = [self._g.gna(n, 'V') for n in nn]
 
         gram = gp_covariance(train_data, train_data)
-        y, v = gp_predict(state_dict['data'], train_data, gram, train_values)
+        y, v = gp_predict(state_dict['data'][0:2],
+                          train_data, gram, train_values)
+
+        # X = np.array(train_data)
+        # yy = np.array(train_values)
+        # yy.reshape(-1, 1)
+
+        # self._gp.fit(X, yy)
+
+        # xx = np.array(state_dict['data'][0:2]).reshape(1, -1)
+        # y, vv = self._gp.predict(xx, eval_MSE=True)
+        # v = np.sqrt(vv)
+
+        # print(y, v)
 
         state_dict['V'] = y
         return concentration, (node_cost + y), v
